@@ -1,0 +1,6 @@
+data/
+datasets/__pycache__/
+plots/
+runs/
+.env/
+__pycache__
