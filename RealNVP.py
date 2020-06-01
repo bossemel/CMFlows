@@ -9,8 +9,8 @@ from tqdm import tqdm
 from tensorboardX import SummaryWriter
 
 import datasets
-import flows as fnn
-import utils
+import RealNVP_modules.flows as fnn
+import RealNVP_modules.utils as utils
 from datasets.copulas import Copula_sampler
 import math
 
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dataset',
         default='MOONS',
-        help='POWER | GAS | HEPMASS | MINIBONE | BSDS300 | MOONS | GAUSSIAN')
+        help='POWER | GAS | HEPMASS | MINIBONE | BSDS300 | MOONS | GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
     parser.add_argument('--flow', default='maf', help='flow to use: maf | realnvp | glow')
     parser.add_argument(
         '--no-cuda',
