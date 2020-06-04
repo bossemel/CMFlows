@@ -12,7 +12,6 @@ import datasets
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
 from datasets.copulas import Copula_sampler
-import math
 
 
 def train(epoch):
@@ -111,9 +110,9 @@ def jsd_eval(epoch, model, loader, prefix='Validation'):
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_jsd = -model.jsd(data).sum().item()
-            if not math.isnan(current_jsd) and not math.isinf(current_jsd):
-                js_divergence += -current_jsd  # sum up batch loss
+            current_jsd = model.jsd(data).sum().item()
+            #if not math.isnan(current_jsd) and not math.isinf(current_jsd):
+            js_divergence += current_jsd  # sum up batch loss
         pbar.update(data.size(0))
         pbar.set_description('JSD: {:.6f}'.format(
             js_divergence / pbar.n))
@@ -121,6 +120,52 @@ def jsd_eval(epoch, model, loader, prefix='Validation'):
 
     pbar.close()
     return js_divergence / len(loader.dataset)
+
+
+def margin_uniformity(epoch, model, loader, prefix='Validation'):
+    global global_step, writer
+
+    model.eval()
+    t_metric_x1 = 0
+    t_metric_x2 = 0
+    m_metric_x1 = 0
+    m_metric_x2 = 0
+
+    pbar = tqdm(total=len(loader.dataset))
+    pbar.set_description('Eval_Marginals')
+    for batch_idx, data in enumerate(loader):
+        if isinstance(data, list):
+            if len(data) > 1:
+                cond_data = data[1].float()
+                cond_data = cond_data.to(device)
+            else:
+                cond_data = None
+
+            data = data[0]
+        data = data.to(device)
+        with torch.no_grad():
+            current_t_metric_x1, current_m_metric_x1, current_t_metric_x2, current_m_metric_x2 = model.t_metric_eval(data)
+            t_metric_x1 += current_t_metric_x1  # sum up batch loss
+            t_metric_x2 += current_t_metric_x2  # sum up batch loss
+            m_metric_x1 += current_m_metric_x1  # sum up batch loss
+            m_metric_x2 += current_m_metric_x2  # sum up batch loss
+        pbar.update(data.size(0))
+        pbar.set_description('t_metric_x1: {:.6f}'.format(
+            t_metric_x1 / pbar.n))
+        pbar.set_description('t_metric_x2: {:.6f}'.format(
+            t_metric_x2 / pbar.n))
+        pbar.set_description('m_metric_x1: {:.6f}'.format(
+            m_metric_x1 / pbar.n))
+        pbar.set_description('m_metric_x2: {:.6f}'.format(
+            m_metric_x2 / pbar.n))
+    writer.add_scalar('t_metric_x1/LL', t_metric_x1 / len(loader.dataset), epoch)
+    writer.add_scalar('t_metric_x2/LL', t_metric_x2 / len(loader.dataset), epoch)
+    writer.add_scalar('m_metric_x1/LL', m_metric_x1 / len(loader.dataset), epoch)
+    writer.add_scalar('m_metric_x2/LL', m_metric_x2 / len(loader.dataset), epoch)
+
+    pbar.close()
+    return t_metric_x1 / len(loader.dataset), t_metric_x1 / len(loader.dataset), \
+        m_metric_x1 / len(loader.dataset), m_metric_x2 / len(loader.dataset)
 
 
 if __name__ == '__main__':
@@ -175,7 +220,7 @@ if __name__ == '__main__':
         help='How many data samples to generate')
     parser.add_argument(
         '--tau',
-        type=int,
+        type=float,
         default=0.5,
         help='tau to use for copula sampling')
     parser.add_argument(
@@ -319,3 +364,5 @@ if __name__ == '__main__':
     validate(best_validation_epoch, best_model, test_loader, prefix='Test')
 
     jsd_eval(best_validation_epoch, best_model, test_loader, prefix='Test')
+
+    print(margin_uniformity(best_validation_epoch, best_model, test_loader, prefix='Test'))

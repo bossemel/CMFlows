@@ -16,7 +16,7 @@ class Copula_sampler:
 
     def __init__(self, cop_type, obs, tau, df, seed):
 
-        trn, val, tst = sample_data(cop_type, obs, tau, df, seed)
+        trn, val, tst = split_train_val_test(sample_copulas(cop_type, obs, tau, df, seed), seed)
 
         self.trn = self.Data(trn)
         self.val = self.Data(val)
@@ -139,7 +139,13 @@ def multivariate_t(mu, sigma, dof, m):
     return mu + z / np.sqrt(g)
 
 
-def sample_data(cop_type, obs, tau, df, seed):
+def split_train_val_test(xx, seed):
+    train, testval = model_selection.train_test_split(xx, random_state=seed, test_size=0.2)
+    val, test = model_selection.train_test_split(testval, random_state=seed, test_size=0.5)
+    return train, val, test
+
+
+def sample_copulas(cop_type, obs, tau, df, seed):
     """
     Produce obs samples of 2-dimensional Copula density distribution
 
@@ -157,6 +163,9 @@ def sample_data(cop_type, obs, tau, df, seed):
     np.random.seed(seed)
     theta = 2 * tau / (1 - tau)
 
+    assert cop_type in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
+        "%r is not a valid copula, choose from %r" % (cop_type, ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'])
+
     # Following Copula definitions from
     # https://pydoc.net/copulalib/1.1.0/copulalib.copulalib/
     # CLAYTON copula
@@ -171,9 +180,11 @@ def sample_data(cop_type, obs, tau, df, seed):
     elif cop_type == 'GUMBEL':
         uu, vv = sample_gumbel(obs, theta, seed)
 
+    # GAUSSIAN copula
     elif cop_type == 'GAUSSIAN':
         xx = sample_gaussian(obs, tau, seed)
 
+    # T-Copula
     elif cop_type == 'TDISTR':
         xx = sample_tdistr(obs, tau, df, seed)
 
@@ -182,8 +193,7 @@ def sample_data(cop_type, obs, tau, df, seed):
 
     assert xx.all() >= 0 & xx.all() <= 1
 
+    # Apply inverse Sigmoid
     xx = special.logit(xx)
 
-    train, testval = model_selection.train_test_split(xx, random_state=seed, test_size=0.2)
-    val, test = model_selection.train_test_split(testval, random_state=seed, test_size=0.5)
-    return train, val, test
+    return xx

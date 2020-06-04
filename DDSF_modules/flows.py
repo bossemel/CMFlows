@@ -170,10 +170,13 @@ class IAF_DDSF(BaseFlow):
         self.num_ds_dim = num_ds_dim
         self.num_ds_layers = num_ds_layers
 
-        if type(dim) is int:
-            self.mdl = iaf_modules.cMADE(dim, hid_dim, context_dim, num_layers,
-                                         num_ds_multiplier * (hid_dim / dim) * num_ds_layers,
-                                         activation, fixed_order)
+        assert int(hid_dim / dim) == hid_dim / dim, 'hid_dim / dim is not an integer. hid_dim: %s, dim: %s' % (hid_dim, dim)
+        self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
+                                     num_outlayers=(num_ds_multiplier * int(hid_dim / dim) * num_ds_layers),
+                                     activation=activation, fixed_order=fixed_order)
+        # self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
+        #                              num_outlayers=1,
+        #                              activation=activation, fixed_order=fixed_order)
 
         num_dsparams = 0
         for i in range(num_ds_layers):

@@ -29,6 +29,25 @@ def jensen_shannon_distance(p, q):
     return distance
 
 
+def t_m_metric_eval(margin_x1, intervals):
+    sum_probs = 0
+    highest_interval = 0
+    for ii in range(intervals):
+        A_k_lower = (ii - 1) / intervals
+        A_k_upper = ii / intervals
+        points_within = np.where(np.logical_and(margin_x1 >= A_k_lower, margin_x1 <= A_k_upper))[0]
+        if len(points_within) != 0:
+            log_prob = np.log(points_within.sum() / len(points_within))
+        else:
+            log_prob = 0
+        if log_prob > highest_interval:
+            highest_interval = log_prob
+        sum_probs += abs(log_prob + np.log(intervals))
+        t_metric = sum_probs / intervals
+        m_metric = (highest_interval + np.log(intervals)) / intervals
+    return t_metric, m_metric
+
+
 class CouplingLayer(nn.Module):
     """ An implementation of a coupling layer
     from RealNVP (https://arxiv.org/abs/1605.08803).
@@ -139,6 +158,18 @@ class FlowSequential(nn.Sequential):
         prediction = self(inputs)[0]
         divergence = jensen_shannon_distance(np.array(prediction), np.array(inputs))
         return divergence
+
+    def pred_marginals(self, inputs):
+        prediction = self(inputs)[0]
+        margin_x1, margin_x2 = scipy.stats.contingency.margins(prediction)
+        return margin_x1, margin_x2
+
+    def t_metric_eval(self, inputs, intervals=25):
+        prediction = self(inputs)[0]
+        margin_x1, margin_x2 = scipy.stats.contingency.margins(prediction)
+        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
 class BatchNormFlow(nn.Module):
