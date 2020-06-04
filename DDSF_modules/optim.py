@@ -45,8 +45,8 @@ class Adam(Optimizer):
                     continue
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError('Adam does not support sparse ' \
-                                       'gradients, please consider ' \
+                    raise RuntimeError('Adam does not support sparse ',
+                                       'gradients, please consider ',
                                        'SparseAdam instead')
                 amsgrad = group['amsgrad']
 
@@ -90,13 +90,11 @@ class Adam(Optimizer):
 
                 bias_correction1 = 1 - beta1 ** state['step']
                 bias_correction2 = 1 - beta2 ** state['step']
-                step_size = group['lr'] * math.sqrt(bias_correction2) / \
-                                          bias_correction1
+                step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 
                 p.data.addcdiv_(-step_size, exp_avg, denom)
                 state['exp_avg_param'] = \
-                    ( polyak * state['exp_avg_param'] + \
-                      (1-polyak) * p.data )
+                    (polyak * state['exp_avg_param'] + (1 - polyak) * p.data)
 
         return loss
 
@@ -113,5 +111,3 @@ class Adam(Optimizer):
                 new = p.data
                 p.data = state['exp_avg_param']
                 state['exp_avg_param'] = new
-
-

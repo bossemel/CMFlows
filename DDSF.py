@@ -23,13 +23,8 @@ class MAF(object):
         self.pp = pp
 
         dim = pp
-        dimc = 1
         dimh = args.dimh
-        flowtype = args.flowtype
         num_flow_layers = args.num_flow_layers
-        num_ds_dim = args.num_ds_dim
-        num_ds_layers = args.num_ds_layers
-        fixed_order = args.fixed_order
 
         act = nn.ELU()
         sequels = [nn_.SequentialFlow(
@@ -40,30 +35,6 @@ class MAF(object):
                            activation=act,
                            fixed_order=True),
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
-
-        # if flowtype == 'affine':
-        #     raise NotImplementedError
-        #     flow = flows.IAF
-        # elif flowtype == 'dsf':
-        #     raise NotImplementedError
-        #     flow = lambda **kwargs:flows.IAF_DSF(num_ds_dim=num_ds_dim,
-        #                                          num_ds_layers=num_ds_layers,
-        #                                          **kwargs)
-        # elif flowtype == 'ddsf':
-        #     flow = lambda **kwargs:flows.IAF_DDSF(num_ds_dim=num_ds_dim,
-        #                                           num_ds_layers=num_ds_layers,
-        #                                           **kwargs)
-
-        # print('sequels initiated with dim %r, dimh %r, dimc %r, args.num_hid_layers %r, act %r, fixed_order %r' % (dim, dimh, dimc, args.num_hid_layers, act, fixed_order))
-        # sequels = [nn_.SequentialFlow(
-        #     flow(dim=dim,
-        #          hid_dim=dimh,
-        #          context_dim=dimc,
-        #          num_layers=args.num_hid_layers+1,
-        #          activation=act,
-        #          fixed_order=fixed_order),
-        #     flows.FlipFlow(1)) for i in range(num_flow_layers)] + \
-        #     [flows.LinearFlow(dim, dimc), ]
 
         self.flow = nn.Sequential(*sequels)
 
@@ -269,10 +240,7 @@ class model(object):
         LOSSES = 0
         counter = 0
 
-        # for e in range(epoch):
-        #while self.checkpoint['e'] < epoch:
         for epoch in range(epochs):
-            #for x in self.train_loader:
             pbar = tqdm(total=len(self.train_loader.dataset))
             for batch_idx, x in tqdm(enumerate(self.train_loader)):
                 optim.zero_grad()
@@ -292,22 +260,20 @@ class model(object):
                 optim.step()
                 t += 1
 
-            #if self.checkpoint['e']%1 == 0:
                 optim.swap()
                 loss_val = self.evaluate(self.valid_loader)
-                loss_tst = self.evaluate(self.test_loader)
+                # loss_tst = self.evaluate(self.test_loader)
                 pbar.update(x.size(0))
                 pbar.set_description('Train, Log likelihood in nats: {:.6f}' % (losses))
                 print('Epoch: [%4d/%4d] train <= %.2f '
-                      'valid: %.3f test: %.3f' %
+                      'valid: %.3f' %
                       (self.checkpoint['e'] + 1, epoch, LOSSES / float(counter),
-                       loss_val,
-                       loss_tst))
+                       loss_val))
                 if loss_val < self.checkpoint['best_val']:
                     print(' [^] Best validation loss [^] ... [saving]')
-                    self.save(self.save_dir+'/'+self.filename+'_best')
+                    self.save(self.save_dir+'/'+self.filename + '_best')
                     self.checkpoint['best_val'] = loss_val
-                    self.checkpoint['best_val_epoch'] = self.checkpoint['e']+1
+                    self.checkpoint['best_val_epoch'] = self.checkpoint['e'] + 1
 
                 LOSSES = 0
                 counter = 0
@@ -324,7 +290,7 @@ class model(object):
             pbar.close()
 
         # loading best valid model (early stopping)
-        self.load(self.save_dir+'/'+self.filename+'_best')
+        self.load(self.save_dir + '/' + self.filename + '_best')
 
     def impatient(self):
         current_epoch = self.checkpoint['e']
@@ -348,7 +314,7 @@ class model(object):
         torch.save(self.maf.state_dict(), fn + '_model.pt')
         torch.save(self.optim.state_dict(), fn + '_optim.pt')
         with open(fn + '_args.txt', 'w') as out:
-            out.write(json.dumps(self.args.__dict__,indent=4))
+            out.write(json.dumps(self.args.__dict__, indent=4))
         with open(fn + '_checkpoint.txt', 'w') as out:
             out.write(json.dumps(self.checkpoint, indent=4))
 
@@ -395,8 +361,8 @@ def main():
     if os.path.isfile(old_args):
         def without_keys(d, keys):
             return {x: d[x] for x in d if x not in keys}
-        d = without_keys(json.loads(open(old_args,'r').read()),
-                         ['to_train','epoch'])
+        d = without_keys(json.loads(open(old_args, 'r').read()),
+                         ['to_train', 'epoch'])
         args.__dict__.update(d)
         if overwrite_args:
             fn = args2fn(args)

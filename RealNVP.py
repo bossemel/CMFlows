@@ -111,7 +111,7 @@ def jsd_eval(epoch, model, loader, prefix='Validation'):
         data = data.to(device)
         with torch.no_grad():
             current_jsd = model.jsd(data).sum().item()
-            #if not math.isnan(current_jsd) and not math.isinf(current_jsd):
+            # if not math.isnan(current_jsd) and not math.isinf(current_jsd):
             js_divergence += current_jsd  # sum up batch loss
         pbar.update(data.size(0))
         pbar.set_description('JSD: {:.6f}'.format(
