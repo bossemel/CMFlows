@@ -14,9 +14,21 @@ class Copula_sampler:
             self.x = data.astype(np.float32)
             self.N = self.x.shape[0]
 
-    def __init__(self, cop_type, obs, tau, df, seed):
+    def __init__(self, args):
 
-        trn, val, tst = split_train_val_test(sample_copulas(cop_type, obs, tau, df, seed), seed)
+        self.cop_type = args.dataset
+        if args.tau:
+            self.tau = args.tau
+        if args.theta:
+            self.theta = args.theta
+        if args.df:
+            self.df = args.df
+        self.seed = args.seed
+        self.obs = args.obs
+
+        Copula_sampler.sample_copulas(self)
+
+        trn, val, tst = split_train_val_test(self.xx, self.seed)
 
         self.trn = self.Data(trn)
         self.val = self.Data(val)
@@ -33,12 +45,79 @@ class Copula_sampler:
         datasets.util.plot_hist_marginals(data_split.x)
         plt.show()
 
+    def sample_copulas(self):
+        """
+        Produce obs samples of 2-dimensional Copula density distribution
 
-def sample_clayton(obs, theta, seed):
+        Args:
+            cop_type (str): copula type, one of clayton, gumbel, frank
+            obs (int): number of samples
+            tau (int): tau copula parameter
+            seed (int): random seed
+
+        Returns:
+            train (numpy.ndarray): training set
+            val (numpy.ndarray): validation set
+            test (numpy.ndarray): test set
+        """
+        np.random.seed(self.seed)
+
+        assert self.cop_type in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
+            "%r is not a valid copula, choose from %r" % (self.cop_type, ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'])
+
+        # Following Copula definitions from
+        # https://pydoc.net/copulalib/1.1.0/copulalib.copulalib/
+        # Conditional Distribution Method:
+        # CLAYTON copula
+        if self.cop_type == 'CLAYTON':
+            assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
+            uu, vv = sample_clayton(self.obs, self.theta, self.seed)
+
+        # FRANK copula
+        elif self.cop_type == 'FRANK':
+            assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
+            uu, vv = sample_frank(self.obs, self.theta, self.seed)
+
+        # GUMBEL copula
+        elif self.cop_type == 'GUMBEL':
+            assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
+            uu, vv = sample_gumbel(self.obs, self.theta, self.seed)
+
+        # GAUSSIAN copula
+        elif self.cop_type == 'GAUSSIAN':
+            assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.cop_type)
+
+            xx = sample_gaussian(self.obs, self.tau, self.seed)
+
+        # T-Copula
+        elif self.cop_type == 'TDISTR':
+            assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.cop_type)
+            assert hasattr(self, 'df'), 'Please specify df for %r copula' % (self.cop_type)
+            xx = sample_tdistr(self.obs, self.tau, self.df, self.seed)
+
+        if self.cop_type not in ['GAUSSIAN', 'TDISTR']:
+            xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
+
+        assert xx.all() >= 0 & xx.all() <= 1
+
+        # Apply inverse Sigmoid
+        xx = special.logit(xx)
+
+        self.xx = xx
+
+
+def split_train_val_test(xx, seed):
+    train, testval = model_selection.train_test_split(xx, random_state=seed, test_size=0.2)
+    val, test = model_selection.train_test_split(testval, random_state=seed, test_size=0.5)
+    return train, val, test
+
+
+def sample_clayton(obs, theta, seed, uu=None, ww=None):
     np.random.seed(seed)
 
-    uu = np.random.uniform(size=obs)
-    ww = np.random.uniform(size=obs)
+    if uu is None:
+        uu = np.random.uniform(size=obs)
+        ww = np.random.uniform(size=obs)
 
     if theta <= -1:
         raise ValueError('the parameter for clayton copula should be more than -1')
@@ -52,11 +131,12 @@ def sample_clayton(obs, theta, seed):
     return uu, vv
 
 
-def sample_frank(obs, theta, seed):
+def sample_frank(obs, theta, seed, uu=None, ww=None):
     np.random.seed(seed)
 
-    uu = np.random.uniform(size=obs)
-    ww = np.random.uniform(size=obs)
+    if uu is None:
+        uu = np.random.uniform(size=obs)
+        ww = np.random.uniform(size=obs)
 
     if theta == 0:
         raise ValueError('The parameter for frank copula should not be 0')
@@ -72,14 +152,15 @@ def sample_frank(obs, theta, seed):
     return uu, vv
 
 
-def sample_gumbel(obs, theta, seed):
+def sample_gumbel(obs, theta, seed, uu=None, ww=None):
     np.random.seed(seed)
 
     if theta <= 1:
         raise ValueError('the parameter for GUMBEL copula should be greater than 1')
     if theta < 1 + sys.float_info.epsilon:
-        uu = np.random.uniform(size=obs)
-        vv = np.random.uniform(size=obs)
+        if uu is None:
+            uu = np.random.uniform(size=obs)
+            ww = np.random.uniform(size=obs)
     else:
         u_int = np.random.uniform(size=obs)
         ww = np.random.uniform(size=obs)
@@ -135,65 +216,5 @@ def multivariate_t(mu, sigma, dof, m):
     """
     d = len(sigma)
     g = np.tile(np.random.gamma(dof / 2, 2 / dof, m), (d, 1)).T
-    z = np.random.multivariate_normal(np.zeros(d),sigma,m)
+    z = np.random.multivariate_normal(np.zeros(d), sigma, m)
     return mu + z / np.sqrt(g)
-
-
-def split_train_val_test(xx, seed):
-    train, testval = model_selection.train_test_split(xx, random_state=seed, test_size=0.2)
-    val, test = model_selection.train_test_split(testval, random_state=seed, test_size=0.5)
-    return train, val, test
-
-
-def sample_copulas(cop_type, obs, tau, df, seed):
-    """
-    Produce obs samples of 2-dimensional Copula density distribution
-
-    Args:
-        cop_type (str): copula type, one of clayton, gumbel, frank
-        obs (int): number of samples
-        tau (int): tau copula parameter
-        seed (int): random seed
-
-    Returns:
-        train (numpy.ndarray): training set
-        val (numpy.ndarray): validation set
-        test (numpy.ndarray): test set
-    """
-    np.random.seed(seed)
-    theta = 2 * tau / (1 - tau)
-
-    assert cop_type in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
-        "%r is not a valid copula, choose from %r" % (cop_type, ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'])
-
-    # Following Copula definitions from
-    # https://pydoc.net/copulalib/1.1.0/copulalib.copulalib/
-    # CLAYTON copula
-    if cop_type == 'CLAYTON':
-        uu, vv = sample_clayton(obs, theta, seed)
-
-    # FRANK copula
-    elif cop_type == 'FRANK':
-        uu, vv = sample_frank(obs, theta, seed)
-
-    # GUMBEL copula
-    elif cop_type == 'GUMBEL':
-        uu, vv = sample_gumbel(obs, theta, seed)
-
-    # GAUSSIAN copula
-    elif cop_type == 'GAUSSIAN':
-        xx = sample_gaussian(obs, tau, seed)
-
-    # T-Copula
-    elif cop_type == 'TDISTR':
-        xx = sample_tdistr(obs, tau, df, seed)
-
-    if cop_type not in ['GAUSSIAN', 'TDISTR']:
-        xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
-
-    assert xx.all() >= 0 & xx.all() <= 1
-
-    # Apply inverse Sigmoid
-    xx = special.logit(xx)
-
-    return xx

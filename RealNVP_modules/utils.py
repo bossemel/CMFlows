@@ -2,6 +2,50 @@ import os
 
 import matplotlib.pyplot as plt
 import torch
+import datasets
+
+
+def load_data(args):
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+
+    assert args.dataset in [
+        'POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST', 'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
+    ]
+
+    if args.dataset in ['POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST']:
+        dataset = getattr(datasets, args.dataset)()
+    else:
+        dataset = datasets.copulas.Copula_sampler(args)
+
+    train_tensor = torch.from_numpy(dataset.trn.x)
+    train_dataset = torch.utils.data.TensorDataset(train_tensor)
+
+    valid_tensor = torch.from_numpy(dataset.val.x)
+    valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
+
+    test_tensor = torch.from_numpy(dataset.tst.x)
+    test_dataset = torch.utils.data.TensorDataset(test_tensor)
+
+    num_cond_inputs = None
+    num_inputs = dataset.n_dims
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    valid_loader = torch.utils.data.DataLoader(
+        valid_dataset,
+        batch_size=args.test_batch_size,
+        shuffle=False,
+        drop_last=False,
+        **kwargs)
+
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=args.test_batch_size,
+        shuffle=False,
+        drop_last=False,
+        **kwargs)
+    return dataset, num_cond_inputs, num_inputs, train_loader, valid_loader, test_loader
 
 
 def save_moons_plot(epoch, best_model, dataset):

@@ -5,30 +5,6 @@ import numpy as np
 import scipy
 
 
-def jensen_shannon_distance(p, q):
-    """
-    method to compute the Jenson-Shannon Distance
-    between two probability distributions
-    """
-    p = scipy.special.expit(p)
-    q = scipy.special.expit(q)
-
-    # convert the vectors into numpy arrays in case that they aren't
-    p = np.array(p)
-    q = np.array(q)
-
-    # calculate m
-    m = (p + q) / 2
-
-    # compute Jensen Shannon Divergence
-    divergence = (scipy.stats.entropy(p, m) + scipy.stats.entropy(q, m)) / 2
-
-    # compute the Jensen Shannon Distance
-    distance = np.sqrt(divergence)
-
-    return distance
-
-
 def t_m_metric_eval(margin_x1, intervals):
     sum_probs = 0
     highest_interval = 0
@@ -154,9 +130,11 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, cond_inputs, mode='inverse')[0]
         return samples
 
-    def jsd(self, inputs):
+    def jsd(self, inputs, new_samples):
         prediction = self(inputs)[0]
-        divergence = jensen_shannon_distance(np.array(prediction), np.array(inputs))
+        pp = scipy.special.expit(prediction)
+        qq = scipy.special.expit(new_samples)
+        divergence = scipy.spatial.distance.jensenshannon(np.array(pp), np.array(qq))
         return divergence
 
     def pred_marginals(self, inputs):
@@ -166,7 +144,8 @@ class FlowSequential(nn.Sequential):
 
     def t_metric_eval(self, inputs, intervals=25):
         prediction = self(inputs)[0]
-        margin_x1, margin_x2 = scipy.stats.contingency.margins(prediction)
+        pp = scipy.special.expit(prediction)
+        margin_x1, margin_x2 = scipy.stats.contingency.margins(pp)
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
         t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
         return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
