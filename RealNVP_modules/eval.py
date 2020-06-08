@@ -1,13 +1,15 @@
-from datasets.copulas import Copula_sampler, sample_clayton, sample_frank, sample_gumbel
+from datasets.copulas import copula_pdf, sample_clayton
 import numpy as np
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 import torch
+import scipy
+from RealNVP_modules.utils import plot_3D
 
 
-def validate(epoch, model, loader, device, writer, global_step, prefix='Validation'):
+def validate(epoch, model, loader, device, writer, global_step, current_epoch_losses=None, prefix='Validation'):
     # global global_step, writer
 
     model.eval()
@@ -26,15 +28,18 @@ def validate(epoch, model, loader, device, writer, global_step, prefix='Validati
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            val_loss += -model.log_probs(data, cond_data).sum().item()  # sum up batch loss
+            current_loss = -model.log_probs(data, cond_data).mean().item()
+            val_loss += current_loss  # sum up batch loss
+        if current_epoch_losses is not None:
+            current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
         pbar.update(data.size(0))
         pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(
             -val_loss / pbar.n))
 
-    writer.add_scalar('validation/LL', val_loss / len(loader.dataset), epoch)
+    writer.add_scalar('validation/LL', val_loss, epoch)
 
     pbar.close()
-    return val_loss / len(loader.dataset)
+    return val_loss / len(loader.dataset), current_epoch_losses
 
 
 def jsd_eval(args, epoch, model, loader, device, writer, global_step, prefix='Validation'):
@@ -42,7 +47,6 @@ def jsd_eval(args, epoch, model, loader, device, writer, global_step, prefix='Va
 
     model.eval()
     js_divergence = 0
-    new_cop_samples = Copula_sampler(args)
 
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
@@ -55,7 +59,7 @@ def jsd_eval(args, epoch, model, loader, device, writer, global_step, prefix='Va
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_jsd = model.jsd(data, new_cop_samples.val.x).sum().item()
+            current_jsd = model.jsd(data, cond_data, args.sigmoid).sum().item()
             js_divergence += current_jsd
     js_divergence = js_divergence / len(loader.dataset)
     writer.add_scalar('js_divergence/LL', js_divergence, epoch)
@@ -64,7 +68,7 @@ def jsd_eval(args, epoch, model, loader, device, writer, global_step, prefix='Va
     return js_divergence
 
 
-def margin_uniformity(epoch, model, loader, device, writer, global_step, prefix='Validation'):
+def margin_uniformity(epoch, model, loader, device, writer, global_step, sigmoid, prefix='Validation'):
     # global global_step, writer
 
     model.eval()
@@ -84,7 +88,7 @@ def margin_uniformity(epoch, model, loader, device, writer, global_step, prefix=
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_t_metric_x1, current_m_metric_x1, current_t_metric_x2, current_m_metric_x2 = model.t_metric_eval(data)
+            current_t_metric_x1, current_m_metric_x1, current_t_metric_x2, current_m_metric_x2 = model.t_metric_eval(data, sigmoid)
             t_metric_x1 += current_t_metric_x1
             t_metric_x2 += current_t_metric_x2
             m_metric_x1 += current_m_metric_x1
@@ -109,40 +113,23 @@ def margin_uniformity(epoch, model, loader, device, writer, global_step, prefix=
 
 
 def jsd_graph(args, epoch, model, test_loader, writer, global_step, prefix='Test'):
-    x1 = np.arange(0, 1, 0.01)
-    x2 = np.arange(0, 1, 0.01)
-    # @Todo: think about meshgrid again
-    # grid1, grid2 = torch.from_numpy((np.array(np.meshgrid(x1, x2)).reshape(x1.shape[0] * x2.shape[0], 2))).float()
+    x1 = np.arange(0.1, 1, 0.01)
+    x2 = np.arange(0.1, 1, 0.01)
     grid1, grid2 = np.meshgrid(x1, x2)
     grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
     grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
     grid = torch.from_numpy(np.concatenate([grid1.reshape(-1, 1), grid2.reshape(-1, 1)], axis=1)).float()
-    print(grid1.shape, grid2.shape, grid.shape)
-    pred, _loss = model.forward(grid)
-    if args.dataset == 'CLAYTON':
-        uu, xx = sample_clayton(args.obs, args.theta, args.seed, uu=grid1, ww=grid2)
-        print(xx.shape)
-    if args.dataset == 'FRANK':
-        uu, xx = sample_frank(args.obs, args.theta, args.seed, uu=grid1, ww=grid2)
-        # xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
-        print(type(xx))
-    if args.dataset == 'GUMBEL':
-        xx = sample_gumbel(args.obs, args.theta, args.seed, uu=x1, ww=x2)
-    print(' pred shape', pred.shape)
-    print(' xx shape', xx.shape)
-    # @Todo: sigmoid on prediction anwenden
-    pred_2 = np.array(pred[:, 1].detach()).reshape(-1, 1)
-    print(pred_2.shape, xx.shape)
-    difference = abs(pred_2 - xx)
-    print('difference shape', difference.shape, ' grid1', grid1.shape, 'grid2', grid2.shape)
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
 
-    ax.plot_trisurf(grid1.reshape(-1), grid2.reshape(-1), difference.reshape(-1), cmap=plt.cm.viridis, linewidth=0.2)
-    plt.show()
-    #fig.set_axis_labels('X1', 'X2', fontsize=16)
-    #fig.show()
-    #fig.savefig('normalnormal', dpi=300)
+    with torch.no_grad():
+        pred, _loss = model.forward(grid)
+    #pred = scipy.special.expit(pred)
+    pred_pdf = scipy.stats.gaussian_kde(pred.T)
+    pred_grid = pred_pdf(grid.T)
 
+    cop_pdf = copula_pdf(args.dataset, args.theta, uu=grid1, vv=grid2).reshape(-1)
 
-    # @Todo: Fix this mess.
+    difference = abs(pred_grid - cop_pdf)
+
+    plot_3D(args.figures_path, args.dataset, grid1, grid2, cop_pdf, 'cop_pdf')
+    plot_3D(args.figures_path, args.dataset, grid1, grid2, pred_grid, 'pred_samples')
+    plot_3D(args.figures_path, args.dataset, grid1, grid2, difference, 'difference')

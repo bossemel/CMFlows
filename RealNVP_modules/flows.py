@@ -130,22 +130,24 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, cond_inputs, mode='inverse')[0]
         return samples
 
-    def jsd(self, inputs, new_samples):
+    def jsd(self, inputs, cond_data, sigmoid):
         prediction = self(inputs)[0]
-        pp = scipy.special.expit(prediction)
-        qq = scipy.special.expit(new_samples)
-        divergence = scipy.spatial.distance.jensenshannon(np.array(pp), np.array(qq))
+        if sigmoid is True:
+            prediction = scipy.special.expit(prediction)
+            inputs = scipy.special.expit(inputs)
+        divergence = scipy.spatial.distance.jensenshannon(np.array(prediction), np.array(inputs))
         return divergence
 
-    def pred_marginals(self, inputs):
+    def pred_marginals(self, inputs, sigmoid):
         prediction = self(inputs)[0]
         margin_x1, margin_x2 = scipy.stats.contingency.margins(prediction)
         return margin_x1, margin_x2
 
-    def t_metric_eval(self, inputs, intervals=25):
+    def t_metric_eval(self, inputs, sigmoid, intervals=25):
         prediction = self(inputs)[0]
-        pp = scipy.special.expit(prediction)
-        margin_x1, margin_x2 = scipy.stats.contingency.margins(pp)
+        if sigmoid is True:
+            prediction = scipy.special.expit(prediction)
+        margin_x1, margin_x2 = scipy.stats.contingency.margins(prediction)
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
         t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
         return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2

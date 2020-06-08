@@ -51,7 +51,7 @@ class TrainOptions():
         parser.add_argument(
             '--log-interval',
             type=int,
-            default=1000,
+            default=10,
             help='how many batches to wait before logging training status')
         parser.add_argument(
             '--obs',
@@ -88,6 +88,21 @@ class TrainOptions():
             action='store_true',
             default=False,
             help='stops training after 30 unsuccessfull epochs')
+        parser.add_argument(
+            '--sigmoid',
+            action='store_true',
+            default=False,
+            help='applied logit on copula samples, and sigmoid before evaluation')
+        parser.add_argument(
+            '--exp_name',
+            type=str,
+            default='default_name',
+            help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--figures_path',
+            type=str,
+            default='figures/RealNVP',
+            help='experiment name to store plots and logs')
         self.initialized = True
         return parser
 

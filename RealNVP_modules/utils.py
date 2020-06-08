@@ -5,6 +5,14 @@ import torch
 import datasets
 
 
+def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot_trisurf(grid1.reshape(-1), grid2.reshape(-1), value.reshape(-1), cmap=plt.cm.viridis, linewidth=0.2)
+    plt.title(name)
+    fig.savefig(os.path.join(figures_path, str(cop_type) + name), dpi=300)
+
+
 def load_data(args):
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 

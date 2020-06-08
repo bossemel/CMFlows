@@ -25,6 +25,7 @@ class Copula_sampler:
             self.df = args.df
         self.seed = args.seed
         self.obs = args.obs
+        self.sigmoid = args.sigmoid
 
         Copula_sampler.sample_copulas(self)
 
@@ -98,10 +99,11 @@ class Copula_sampler:
         if self.cop_type not in ['GAUSSIAN', 'TDISTR']:
             xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
 
-        assert xx.all() >= 0 & xx.all() <= 1
+        assert xx.all() > 0 & xx.all() < 1
 
         # Apply inverse Sigmoid
-        xx = special.logit(xx)
+        if self.sigmoid is True:
+            xx = special.logit(xx)
 
         self.xx = xx
 
@@ -218,3 +220,88 @@ def multivariate_t(mu, sigma, dof, m):
     g = np.tile(np.random.gamma(dof / 2, 2 / dof, m), (d, 1)).T
     z = np.random.multivariate_normal(np.zeros(d), sigma, m)
     return mu + z / np.sqrt(g)
+
+
+def _g(theta, z):
+    r"""Helper function to solve Frank copula.
+    This functions encapsulates :math:`g(z) = e^{-\theta z} - 1` used on Frank copulas.
+    Argument:
+        z: np.ndarray
+    Returns:
+        np.ndarray
+    """
+    return np.exp(np.multiply(-theta, z)) - 1
+
+
+def gumbel_cdf(theta, uu, vv):
+    r"""Compute the cumulative distribution function for the Gumbel copula.
+    The cumulative density(cdf), or distribution function for the Gumbel family of copulas
+    correspond to the formula:
+    .. math:: C(u,v) = e^{-((-\ln u)^{\theta} + (-\ln v)^{\theta})^{\frac{1}{\theta}}}
+    Args:
+        X (np.ndarray)
+    Returns:
+        np.ndarray: cumulative probability for the given datapoints, cdf(X).
+    """
+    if theta == 1:
+        return np.multiply(uu, vv)
+
+    else:
+        h = np.power(-np.log(uu), theta) + np.power(-np.log(vv), theta)
+        h = -np.power(h, 1.0 / theta)
+        cdfs = np.exp(h)
+        return cdfs
+
+
+def copula_pdf(cop_type, theta, uu, vv):
+    # https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
+    # @Todo: check for correctness, paraphrase the formulas, put citation in latex
+    r"""Compute probability density function for given copula family.
+    The probability density(PDF) for the Clayton family of copulas correspond to the formula:
+    .. math:: c(U,V) = \frac{\partial^2}{\partial v \partial u}C(u,v) =
+        (\theta + 1)(uv)^{-\theta-1}(u^{-\theta} +
+        v^{-\theta} - 1)^{-\frac{2\theta + 1}{\theta}}
+    The probability density(PDF) for the Frank family of copulas correspond to the formula:
+            .. math:: c(U,V) = \frac{\partial^2 C(u,v)}{\partial v \partial u} =
+                 \frac{-\theta g(1)(1 + g(u + v))}{(g(u) g(v) + g(1)) ^ 2}
+            Where the g function is defined by:
+            .. math:: g(x) = e^{-\theta x} - 1
+    The probability density(PDF) for the Gumbel family of copulas correspond to the formula:
+    .. math::
+        \begin{align}
+            c(U,V)
+                &= \frac{\partial^2 C(u,v)}{\partial v \partial u} \\
+                &= \frac{C(u,v)}{uv} \frac{((-\ln u)^{\theta} + (-\ln v)^{\theta})^{\frac{2}
+            {\theta} - 2 }}{(\ln u \ln v)^{1 - \theta}} ( 1 + (\theta-1) \big((-\ln u)^\theta
+            + (-\ln v)^\theta\big)^{-1/\theta})
+        \end{align}
+    Args:
+        X (numpy.ndarray)
+    Returns:
+        numpy.ndarray: Probability density for the input values.
+    """
+    if cop_type == 'CLAYTON':
+        a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
+        b = np.power(uu, -theta) + np.power(vv, -theta) - 1
+        c = -(2 * theta + 1) / theta
+        return a * np.power(b, c)
+    if cop_type == 'FRANK':
+        if theta == 0:
+            return np.multiply(uu, vv)
+
+        else:
+            num = np.multiply(np.multiply(-theta, _g(theta, 1)), 1 + _g(theta, np.add(uu, vv)))
+            aux = np.multiply(_g(theta, uu), _g(theta, vv)) + _g(theta, 1)
+            den = np.power(aux, 2)
+            return num / den
+    if cop_type == 'GUMBEL':
+        if theta == 1:
+            return np.multiply(uu, vv)
+
+        else:
+            a = np.power(np.multiply(uu, vv), -1)
+            tmp = np.power(-np.log(uu), theta) + np.power(-np.log(vv), theta)
+            b = np.power(tmp, -2 + 2.0 / theta)
+            c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
+            d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
+            return gumbel_cdf(theta, uu, vv) * a * b * c * d
