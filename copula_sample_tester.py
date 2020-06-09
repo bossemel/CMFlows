@@ -23,13 +23,13 @@ def copula_sample_test(args):
     copula_samples = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
     cop_pdf = copula_pdf(args.cop_type, args.theta, uu=grid1, vv=grid2).reshape(-1)
 
-    pred_pdf = scipy.stats.gaussian_kde(copula_samples.T)
-    pred_grid = pred_pdf(grid.T)
+    copula_samples_pdf = scipy.stats.gaussian_kde(copula_samples.T)
+    copula_samples_grid = copula_samples_pdf(grid.T)
 
-    difference = abs(pred_grid - cop_pdf)
+    difference = abs(copula_samples_grid - cop_pdf)
 
     plot_3D(figures_path, args.cop_type, grid1, grid2, cop_pdf, 'cop_pdf')
-    plot_3D(figures_path, args.cop_type, grid1, grid2, pred_grid, 'copula_samples')
+    plot_3D(figures_path, args.cop_type, grid1, grid2, copula_samples_grid, 'copula_samples')
     plot_3D(figures_path, args.cop_type, grid1, grid2, difference, 'difference')
 
 

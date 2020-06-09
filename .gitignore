@@ -6,3 +6,6 @@ runs/
 __pycache__
 models/
 figures/
+old/
+results/
+sftp-config.json

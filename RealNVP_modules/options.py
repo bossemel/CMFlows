@@ -13,10 +13,11 @@ class TrainOptions():
     def initialize(self, parser):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
-        parser.add_argument('--batch-size',
-                            type=int,
-                            default=100,
-                            help='input batch size for training (default: 100)')
+        parser.add_argument(
+            '--batch-size',
+            type=int,
+            default=100,
+            help='input batch size for training (default: 100)')
         parser.add_argument(
             '--test-batch-size',
             type=int,
@@ -27,7 +28,11 @@ class TrainOptions():
             type=int,
             default=100,
             help='number of epochs to train (default: 100)')
-        parser.add_argument('--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+        parser.add_argument(
+            '--lr',
+            type=float,
+            default=0.0001,
+            help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--dataset',
             default='MOONS',
@@ -47,7 +52,11 @@ class TrainOptions():
             type=int,
             default=5,
             help='number of invertible blocks (default: 5)')
-        parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+        parser.add_argument(
+            '--seed',
+            type=int,
+            default=1,
+            help='random seed (default: 1)')
         parser.add_argument(
             '--log-interval',
             type=int,
@@ -89,7 +98,7 @@ class TrainOptions():
             default=False,
             help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--sigmoid',
+            '--no_sigmoid',
             action='store_true',
             default=False,
             help='applied logit on copula samples, and sigmoid before evaluation')
@@ -101,8 +110,13 @@ class TrainOptions():
         parser.add_argument(
             '--figures_path',
             type=str,
-            default='figures/RealNVP',
+            default='figures',
             help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--plot_frequ',
+            type=int,
+            default=10,
+            help='save plots every x epochs')
         self.initialized = True
         return parser
 

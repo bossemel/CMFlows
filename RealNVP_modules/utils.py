@@ -53,10 +53,14 @@ def load_data(args):
         shuffle=False,
         drop_last=False,
         **kwargs)
-    return dataset, num_cond_inputs, num_inputs, train_loader, valid_loader, test_loader
+
+    data_loaders = {'train_loader': train_loader,
+                    'valid_loader': valid_loader,
+                    'test_loader': test_loader}
+    return dataset, num_cond_inputs, num_inputs, data_loaders
 
 
-def save_moons_plot(epoch, best_model, dataset):
+def save_samples_plot(args, epoch, best_model, dataset):
     # generate some examples
     best_model.eval()
     with torch.no_grad():
@@ -72,18 +76,5 @@ def save_moons_plot(epoch, best_model, dataset):
     ax.plot(x_synth[:, 0], x_synth[:, 1], '.')
     ax.set_title('Synth data')
 
-    try:
-        os.makedirs('plots')
-    except OSError:
-        pass
-
-    plt.savefig('plots/plot_{:03d}.png'.format(epoch))
+    plt.savefig(os.path.join(args.figures_path, 'plot_{:03d}.png'.format(epoch)))
     plt.close()
-
-
-batch_size = 100
-fixed_noise = torch.Tensor(batch_size, 28 * 28).normal_()
-y = torch.arange(batch_size).unsqueeze(-1) % 10
-y_onehot = torch.FloatTensor(batch_size, 10)
-y_onehot.zero_()
-y_onehot.scatter_(1, y, 1)

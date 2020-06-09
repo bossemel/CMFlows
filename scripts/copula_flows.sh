@@ -10,9 +10,10 @@ python RealNVP.py \
 --test-batch-size 1000 \
 --num-blocks 5 \
 --log-interval 1000 \
---obs 3000 \
+--obs 500000 \
 --num_hidden 64 \
---random_seed 58093
+--random_seed 58093 \
+--cond
 
 echo 'Begin Frank Copula Experiment - Sigmoid True'
 
@@ -25,9 +26,10 @@ python RealNVP.py \
 --test-batch-size 1000 \
 --num-blocks 5 \
 --log-interval 1000 \
---obs 3000 \
+--obs 500000 \
 --num_hidden 64 \
---random_seed 58093
+--random_seed 58093 \
+--cond
 
 echo 'Begin Gumbel Copula Experiment - Sigmoid True'
 
@@ -40,6 +42,7 @@ python RealNVP.py \
 --test-batch-size 1000 \
 --num-blocks 5 \
 --log-interval 1000 \
---obs 3000 \
+--obs 500000 \
 --num_hidden 64 \
---random_seed 58093
+--random_seed 58093 \
+--cond

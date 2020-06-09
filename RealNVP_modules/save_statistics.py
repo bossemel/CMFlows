@@ -30,12 +30,13 @@ def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch, con
     """
     summary_filename = os.path.join(experiment_log_dir, filename)
     mode = 'a' if continue_from_mode else 'w'
-    current_list = [current_epoch]
     with open(summary_filename, mode) as f:
         writer = csv.writer(f)
         if not continue_from_mode:
-            writer.writerow(list(stats_dict.keys()))
-
+            current_list = ['epoch']
+            current_list.extend(list(stats_dict.keys()))
+            writer.writerow(current_list)
+        current_list = [current_epoch]
         if save_full_dict:
             total_rows = len(list(stats_dict.values())[0])
             for idx in range(total_rows):
@@ -44,8 +45,6 @@ def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch, con
                 writer.writerow(current_list)
         else:
             row_to_add = [value[current_epoch] for value in list(stats_dict.values())]
-            print(row_to_add)
-            print(current_list)
             current_list.extend(row_to_add)
             writer.writerow(current_list)
 
