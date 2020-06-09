@@ -23,13 +23,12 @@ class Copula_sampler:
             self.theta = args.theta
         if args.df:
             self.df = args.df
-        self.seed = args.seed
         self.obs = args.obs
         self.sigmoid = args.sigmoid
 
         Copula_sampler.sample_copulas(self)
 
-        trn, val, tst = split_train_val_test(self.xx, self.seed)
+        trn, val, tst = split_train_val_test(self.xx)
 
         self.trn = self.Data(trn)
         self.val = self.Data(val)
@@ -47,22 +46,8 @@ class Copula_sampler:
         plt.show()
 
     def sample_copulas(self):
+        """Produce obs samples of 2-dimensional Copula density distribution
         """
-        Produce obs samples of 2-dimensional Copula density distribution
-
-        Args:
-            cop_type (str): copula type, one of clayton, gumbel, frank
-            obs (int): number of samples
-            tau (int): tau copula parameter
-            seed (int): random seed
-
-        Returns:
-            train (numpy.ndarray): training set
-            val (numpy.ndarray): validation set
-            test (numpy.ndarray): test set
-        """
-        np.random.seed(self.seed)
-
         assert self.cop_type in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
             "%r is not a valid copula, choose from %r" % (self.cop_type, ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'])
 
@@ -72,29 +57,29 @@ class Copula_sampler:
         # CLAYTON copula
         if self.cop_type == 'CLAYTON':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
-            uu, vv = sample_clayton(self.obs, self.theta, self.seed)
+            uu, vv = sample_clayton(self.obs, self.theta)
 
         # FRANK copula
         elif self.cop_type == 'FRANK':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
-            uu, vv = sample_frank(self.obs, self.theta, self.seed)
+            uu, vv = sample_frank(self.obs, self.theta)
 
         # GUMBEL copula
         elif self.cop_type == 'GUMBEL':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.cop_type)
-            uu, vv = sample_gumbel(self.obs, self.theta, self.seed)
+            uu, vv = sample_gumbel(self.obs, self.theta)
 
         # GAUSSIAN copula
         elif self.cop_type == 'GAUSSIAN':
             assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.cop_type)
 
-            xx = sample_gaussian(self.obs, self.tau, self.seed)
+            xx = sample_gaussian(self.obs, self.tau)
 
         # T-Copula
         elif self.cop_type == 'TDISTR':
             assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.cop_type)
             assert hasattr(self, 'df'), 'Please specify df for %r copula' % (self.cop_type)
-            xx = sample_tdistr(self.obs, self.tau, self.df, self.seed)
+            xx = sample_tdistr(self.obs, self.tau, self.df)
 
         if self.cop_type not in ['GAUSSIAN', 'TDISTR']:
             xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
@@ -108,15 +93,31 @@ class Copula_sampler:
         self.xx = xx
 
 
-def split_train_val_test(xx, seed):
-    train, testval = model_selection.train_test_split(xx, random_state=seed, test_size=0.2)
-    val, test = model_selection.train_test_split(testval, random_state=seed, test_size=0.5)
+def split_train_val_test(xx):
+    """Splits data into train, val and test set, using 80/20/280 split.
+
+    Params:
+        xx: data to split
+
+    Returns:
+        train, val, test: train, val and test set
+    """
+    train, testval = model_selection.train_test_split(xx, test_size=0.2)
+    val, test = model_selection.train_test_split(testval, test_size=0.5)
     return train, val, test
 
 
-def sample_clayton(obs, theta, seed, uu=None, ww=None):
-    np.random.seed(seed)
+def sample_clayton(obs, theta, uu=None, ww=None):
+    """Sample from clayton copula density
 
+    Params:
+        obs: how many samples to generate
+        theta: clayton copula parameter
+        uu, ww: fixed input grid
+
+    Returns:
+        uu, vv: samples
+    """
     if uu is None:
         uu = np.random.uniform(size=obs)
         ww = np.random.uniform(size=obs)
@@ -133,9 +134,17 @@ def sample_clayton(obs, theta, seed, uu=None, ww=None):
     return uu, vv
 
 
-def sample_frank(obs, theta, seed, uu=None, ww=None):
-    np.random.seed(seed)
+def sample_frank(obs, theta, uu=None, ww=None):
+    """Sample from frank copula density
 
+    Params:
+        obs: how many samples to generate
+        theta: frank copula parameter
+        uu, ww: fixed input grid
+
+    Returns:
+        uu, vv: samples
+    """
     if uu is None:
         uu = np.random.uniform(size=obs)
         ww = np.random.uniform(size=obs)
@@ -154,9 +163,17 @@ def sample_frank(obs, theta, seed, uu=None, ww=None):
     return uu, vv
 
 
-def sample_gumbel(obs, theta, seed, uu=None, ww=None):
-    np.random.seed(seed)
+def sample_gumbel(obs, theta, uu=None, ww=None):
+    """Sample from gumbel copula density
 
+    Params:
+        obs: how many samples to generate
+        theta: gumbel copula parameter
+        uu, ww: fixed input grid
+
+    Returns:
+        uu, vv: samples
+    """
     if theta <= 1:
         raise ValueError('the parameter for GUMBEL copula should be greater than 1')
     if theta < 1 + sys.float_info.epsilon:
@@ -181,9 +198,16 @@ def sample_gumbel(obs, theta, seed, uu=None, ww=None):
     return uu, vv
 
 
-def sample_gaussian(obs, tau, seed):
-    np.random.seed(seed)
+def sample_gaussian(obs, tau):
+    """Sample from gaussian copula density
 
+    Params:
+        obs: how many samples to generate
+        tau: gaussian copula parameter
+
+    Returns:
+        x_unif: samples
+    """
     mvnorm = stats.multivariate_normal(mean=[0, 0], cov=[[1., tau],
                                                          [tau, 1.]])
     xx = mvnorm.rvs(obs)
@@ -192,9 +216,17 @@ def sample_gaussian(obs, tau, seed):
     return x_unif
 
 
-def sample_tdistr(obs, tau, df, seed):
-    np.random.seed(seed)
+def sample_tdistr(obs, tau, df):
+    """Sample from t-distr copula density
 
+    Params:
+        obs: how many samples to generate
+        theta: t-distr copula parameter
+        uu, ww: fixed input grid
+
+    Returns:
+        x_unif: samples
+    """
     x = multivariate_t(mu=[0, 0], sigma=[[1., tau],
                                          [tau, 0.5]], dof=df, m=obs)
 
@@ -215,6 +247,9 @@ def multivariate_t(mu, sigma, dof, m):
 
     Returns:
         numpy.ndarray
+
+    Source:
+        https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
     d = len(sigma)
     g = np.tile(np.random.gamma(dof / 2, 2 / dof, m), (d, 1)).T
@@ -229,6 +264,8 @@ def _g(theta, z):
         z: np.ndarray
     Returns:
         np.ndarray
+    Source:
+        https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
     return np.exp(np.multiply(-theta, z)) - 1
 
@@ -242,6 +279,8 @@ def gumbel_cdf(theta, uu, vv):
         X (np.ndarray)
     Returns:
         np.ndarray: cumulative probability for the given datapoints, cdf(X).
+    Source:
+        https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
     if theta == 1:
         return np.multiply(uu, vv)
@@ -254,31 +293,13 @@ def gumbel_cdf(theta, uu, vv):
 
 
 def copula_pdf(cop_type, theta, uu, vv):
-    # https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
-    # @Todo: check for correctness, paraphrase the formulas, put citation in latex
-    r"""Compute probability density function for given copula family.
-    The probability density(PDF) for the Clayton family of copulas correspond to the formula:
-    .. math:: c(U,V) = \frac{\partial^2}{\partial v \partial u}C(u,v) =
-        (\theta + 1)(uv)^{-\theta-1}(u^{-\theta} +
-        v^{-\theta} - 1)^{-\frac{2\theta + 1}{\theta}}
-    The probability density(PDF) for the Frank family of copulas correspond to the formula:
-            .. math:: c(U,V) = \frac{\partial^2 C(u,v)}{\partial v \partial u} =
-                 \frac{-\theta g(1)(1 + g(u + v))}{(g(u) g(v) + g(1)) ^ 2}
-            Where the g function is defined by:
-            .. math:: g(x) = e^{-\theta x} - 1
-    The probability density(PDF) for the Gumbel family of copulas correspond to the formula:
-    .. math::
-        \begin{align}
-            c(U,V)
-                &= \frac{\partial^2 C(u,v)}{\partial v \partial u} \\
-                &= \frac{C(u,v)}{uv} \frac{((-\ln u)^{\theta} + (-\ln v)^{\theta})^{\frac{2}
-            {\theta} - 2 }}{(\ln u \ln v)^{1 - \theta}} ( 1 + (\theta-1) \big((-\ln u)^\theta
-            + (-\ln v)^\theta\big)^{-1/\theta})
-        \end{align}
+    """Compute probability density function for given copula family.
     Args:
         X (numpy.ndarray)
     Returns:
         numpy.ndarray: Probability density for the input values.
+    Source:
+        https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
     if cop_type == 'CLAYTON':
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
@@ -309,5 +330,5 @@ def copula_pdf(cop_type, theta, uu, vv):
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
             d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
-            assert pdf.all() > 0 & pdf.all() < 1
+            assert pdf.all() >= 0 & pdf.all() <= 1
             return pdf

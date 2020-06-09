@@ -15,11 +15,11 @@ def copula_sample_test(args):
     grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
     grid = np.concatenate([grid1.reshape(-1, 1), grid2.reshape(-1, 1)], axis=1)
     if args.cop_type == 'CLAYTON':
-        uu, vv = sample_clayton(80000, args.theta, args.random_seed, uu=grid1, ww=grid2)
+        uu, vv = sample_clayton(80000, args.theta, uu=grid1, ww=grid2)
     if args.cop_type == 'FRANK':
-        uu, vv = sample_frank(80000, args.theta, args.random_seed, uu=grid1, ww=grid2)
+        uu, vv = sample_frank(80000, args.theta, uu=grid1, ww=grid2)
     if args.cop_type == 'GUMBEL':
-        uu, vv = sample_gumbel(80000, args.theta, args.random_seed, uu=grid1, ww=grid2)
+        uu, vv = sample_gumbel(80000, args.theta, uu=grid1, ww=grid2)
     copula_samples = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
     cop_pdf = copula_pdf(args.cop_type, args.theta, uu=grid1, vv=grid2).reshape(-1)
 

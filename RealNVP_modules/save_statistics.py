@@ -1,3 +1,4 @@
+### functions taken from https://github.com/CSTR-Edinburgh/mlpractical/blob/mlp2019-20/coursework_2
 import pickle
 import os
 import csv
@@ -17,7 +18,8 @@ def load_from_stats_pkl_file(experiment_log_filepath, filename):
     return stats
 
 
-def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch, continue_from_mode=False, save_full_dict=False):
+def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch,
+                    continue_from_mode=False, save_full_dict=False, test_epoch=None):
     """
     Saves the statistics in stats dict into a csv file. Using the keys as the header entries and the values as the
     columns of a particular header entry
@@ -36,7 +38,10 @@ def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch, con
             current_list = ['epoch']
             current_list.extend(list(stats_dict.keys()))
             writer.writerow(current_list)
-        current_list = [current_epoch]
+        if test_epoch is not None:
+            current_list = [test_epoch]
+        else:
+            current_list = [current_epoch]
         if save_full_dict:
             total_rows = len(list(stats_dict.values())[0])
             for idx in range(total_rows):

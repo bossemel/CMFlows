@@ -60,7 +60,7 @@ def build_model(args, num_cond_inputs, num_inputs, device):
     return model
 
 
-def train(epoch, train_loader, val_loader, current_epoch_losses):
+def train(epoch, train_loader, current_epoch_losses):
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset))
@@ -125,9 +125,10 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
     # Set Seed
-    torch.manual_seed(args.seed)
+    np.random.seed(args.random_seed)
+    torch.manual_seed(args.random_seed)
     if args.cuda:
-        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
     dataset, num_cond_inputs, num_inputs, data_loaders = utils.load_data(args)
@@ -147,7 +148,7 @@ if __name__ == '__main__':
         print('\nEpoch: {}'.format(epoch))
 
         current_epoch_losses = {"train_loss": [], "val_loss": []}
-        current_epoch_losses = train(epoch, data_loaders['train_loader'], data_loaders['valid_loader'], current_epoch_losses)
+        current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
         current_epoch_losses, best_dict = validate(epoch,
                                                    model,
                                                    data_loaders['valid_loader'],
@@ -206,11 +207,14 @@ if __name__ == '__main__':
                    current_epoch_test.items()}  # save test set metrics in dict format
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False)
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
-    plot_result_graphs(args.figures_path, 'default_name', 'default_tryout', result_dict)
+    plot_result_graphs(args.figures_path, args.exp_name, 'sample_plot', result_dict)
+
+    # Plot samples for best epoch
+    utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
 
     # Plot pointwise difference
     current_epoch_test = jsd_graph(args,

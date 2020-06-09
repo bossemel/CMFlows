@@ -161,10 +161,10 @@ def margin_uniformity(epoch, model, loader, device, sigmoid, current_epoch_test)
                 current_m_metric_x1, \
                 current_t_metric_x2, \
                 current_m_metric_x2 = model.t_metric_eval(data, sigmoid)
-        current_epoch_test["t_1"].append(current_t_metric_x1)
-        current_epoch_test["t_2"].append(current_t_metric_x2)
-        current_epoch_test["m_1"].append(current_m_metric_x1)
-        current_epoch_test["m_2"].append(current_m_metric_x2)
+        current_epoch_test["t_1"].append(current_t_metric_x1 / len(loader.dataset))
+        current_epoch_test["t_2"].append(current_t_metric_x2 / len(loader.dataset))
+        current_epoch_test["m_1"].append(current_m_metric_x1 / len(loader.dataset))
+        current_epoch_test["m_2"].append(current_m_metric_x2 / len(loader.dataset))
 
     print('T metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_1"])))
     print('T metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_2"])))
@@ -184,8 +184,8 @@ def jsd_graph(args, epoch, model, test_loader):
         model: best validation model
         test_loader: test set loader
     """
-    x1 = np.linspace(0.01, 1, 300)
-    x2 = np.linspace(0.01, 1, 300)
+    x1 = np.linspace(0, 1, 300)
+    x2 = np.linspace(0, 1, 300)
     grid1, grid2 = np.meshgrid(x1, x2)
     grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
     grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
@@ -203,15 +203,24 @@ def jsd_graph(args, epoch, model, test_loader):
     cop_pdf = copula_pdf(args.dataset, args.theta, uu=grid1, vv=grid2).reshape(-1)
 
     difference = abs(pred_grid - cop_pdf)
-    assert pred.all() > 0 & pred.all() < 1
-    assert pred_grid.all() > 0 & pred_grid.all() < 1
-    assert cop_pdf.all() > 0 & cop_pdf.all() < 1
+    assert pred.all() >= 0 & pred.all() <= 1
+    assert pred_grid.all() >= 0 & pred_grid.all() <= 1
+    assert cop_pdf.all() >= 0 & cop_pdf.all() <= 1
     assert difference.all() >= 0 & difference.all() < 2
+
+    nan_indices = np.argwhere(np.isnan(cop_pdf))
+
+    # Gumbel pdf contains 'nan' which must be removed
+    grid1 = np.delete(grid1, nan_indices)
+    grid2 = np.delete(grid2, nan_indices)
+    pred_grid = np.delete(pred_grid, nan_indices)
+    cop_pdf = np.delete(cop_pdf, nan_indices)
+    difference = np.delete(difference, nan_indices)
 
     plot_3D(args.figures_path, args.dataset, grid1, grid2, cop_pdf, 'cop_pdf')
     plot_3D(args.figures_path, args.dataset, grid1, grid2, pred_grid, 'pred_samples')
     plot_3D(args.figures_path, args.dataset, grid1, grid2, difference, 'difference')
 
-    pred_grid = pred_grid.reshape(300, 300)
-    cop_pdf = cop_pdf.reshape(300, 300)
-    difference = abs(pred_grid - cop_pdf)
+    # pred_grid = pred_grid.reshape(300, 300)
+    # cop_pdf = cop_pdf.reshape(300, 300)
+    # difference = abs(pred_grid - cop_pdf)

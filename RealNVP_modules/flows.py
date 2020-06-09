@@ -142,16 +142,6 @@ class FlowSequential(nn.Sequential):
         divergence = scipy.spatial.distance.jensenshannon(np.array(samples.detach().cpu()), np.array(inputs.detach().cpu()))
         return divergence
 
-    def pred_marginals(self, inputs, sigmoid=True):
-        num_samples = inputs.shape[0]
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        #prediction = self(inputs)[0]
-        margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
-        return margin_x1, margin_x2
-
     def t_metric_eval(self, inputs, sigmoid=True, intervals=25):
         num_samples = inputs.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
@@ -159,7 +149,7 @@ class FlowSequential(nn.Sequential):
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
         if sigmoid is True:
-            samples = scipy.special.expit(samples)
+            samples = scipy.special.expit(samples.cpu())
         margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
         t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)

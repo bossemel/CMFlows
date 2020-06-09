@@ -1,11 +1,19 @@
 import os
-
 import matplotlib.pyplot as plt
 import torch
 import datasets
 
 
 def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
+    """Creates 3D plot.
+
+    Params:
+        figures_path: path to save the figure
+        cop_type: copula type
+        grid1, grid2: grid for plotting
+        value: value to plot on grid
+        name: plot name
+    """
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     ax.plot_trisurf(grid1.reshape(-1), grid2.reshape(-1), value.reshape(-1), cmap=plt.cm.viridis, linewidth=0.2)
@@ -14,6 +22,17 @@ def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
 
 
 def load_data(args):
+    """Data Loader
+
+    Params:
+        args: args passed by Training Options
+
+    Returns:
+        dataset: full dataset
+        num_cond_inputs: number of conditional inputs (irrelevant for copulas)
+        num_inputs: dimensions of data
+        data_loaders: dictionary containing train, val and test set loader
+    """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     assert args.dataset in [
@@ -61,7 +80,14 @@ def load_data(args):
 
 
 def save_samples_plot(args, epoch, best_model, dataset):
-    # generate some examples
+    """Save sample plots
+
+    Params:
+        args: args passed by Training Options
+        epoch: best validation epoch so far
+        best_model: best model so far
+        dataset: full dataset
+    """
     best_model.eval()
     with torch.no_grad():
         x_synth = best_model.sample(500).detach().cpu().numpy()

@@ -53,16 +53,6 @@ class TrainOptions():
             default=5,
             help='number of invertible blocks (default: 5)')
         parser.add_argument(
-            '--seed',
-            type=int,
-            default=1,
-            help='random seed (default: 1)')
-        parser.add_argument(
-            '--log-interval',
-            type=int,
-            default=10,
-            help='how many batches to wait before logging training status')
-        parser.add_argument(
             '--obs',
             type=int,
             default=3000,
