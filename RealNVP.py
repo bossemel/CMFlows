@@ -132,15 +132,15 @@ if __name__ == '__main__':
     # Set up data loader
     dataset, num_cond_inputs, num_inputs, data_loaders = utils.load_data(args)
 
-    # Save losses and best epoch stats and model in dictionary
-    total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
-    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
-    current_epoch_test = {"test_loss": [], 'jsd_test': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
-
     # Build model and send to device
     model = build_model(args, num_cond_inputs, num_inputs, device)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+
+    # Save losses and best epoch stats and model in dictionary
+    total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
+    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
+    current_epoch_test = {"test_loss": [], 'jsd_test': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
 
     # Train
     for epoch in range(args.epochs):

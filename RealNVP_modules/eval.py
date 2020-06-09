@@ -8,10 +8,22 @@ import copy
 
 
 def validate(epoch, model, loader, device,
-             current_epoch_losses=None, best_dict=None,
-             prefix='Validation'):
-    # global global_step, writer
+             current_epoch_losses=None, best_dict=None):
+    """Return log probabilities on validation set.
 
+    Params:
+        epoch: epoch to validate
+        model: model to validate
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_losses: dictionary with the current epoch losses
+        best_dict: dictionary containing the best validation loss, best validation epoch
+                   and best model
+
+    Returns:
+        current_epoch_losses: updated current_epoch_losses
+        best_dict: updated best_dict
+    """
     model.eval()
     val_loss = 0
 
@@ -47,8 +59,18 @@ def validate(epoch, model, loader, device,
 
 def test(epoch, model, loader, device,
          current_epoch_test):
-    # global global_step, writer
+    """Return log probabilities on test set.
 
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch test stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
     model.eval()
 
     pbar = tqdm(total=len(loader.dataset))
@@ -76,7 +98,18 @@ def test(epoch, model, loader, device,
 
 
 def jsd_eval(args, epoch, model, loader, device, current_epoch_test):
-    # global global_step, writer
+    """Calculate Jensen-Shannon Divergence of best validation model samples.
+
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
 
     model.eval()
 
@@ -99,8 +132,18 @@ def jsd_eval(args, epoch, model, loader, device, current_epoch_test):
 
 
 def margin_uniformity(epoch, model, loader, device, sigmoid, current_epoch_test):
-    # global global_step, writer
+    """Evaluate Uniformity of best validation model samples.
 
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
     model.eval()
 
     for batch_idx, data in enumerate(loader):
@@ -132,6 +175,15 @@ def margin_uniformity(epoch, model, loader, device, sigmoid, current_epoch_test)
 
 
 def jsd_graph(args, epoch, model, test_loader):
+    """Creates point-wise graph of true copula, generated samples, and difference
+       between the two.
+
+    Params:
+        args: passed training args
+        epoch: best validation epoch
+        model: best validation model
+        test_loader: test set loader
+    """
     x1 = np.linspace(0.01, 1, 300)
     x2 = np.linspace(0.01, 1, 300)
     grid1, grid2 = np.meshgrid(x1, x2)
