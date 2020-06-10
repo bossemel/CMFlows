@@ -36,13 +36,10 @@ def load_data(args):
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     assert args.dataset in [
-        'POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST', 'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
+        'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
     ]
 
-    if args.dataset in ['POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST']:
-        dataset = getattr(datasets, args.dataset)()
-    else:
-        dataset = datasets.copulas.Copula_sampler(args)
+    dataset = datasets.copulas.Copula_sampler(args)
 
     train_tensor = torch.from_numpy(dataset.trn.x)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)

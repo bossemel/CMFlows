@@ -1,4 +1,4 @@
-### functions taken from https://github.com/CSTR-Edinburgh/mlpractical/blob/mlp2019-20/coursework_2
+# functions taken from https://github.com/CSTR-Edinburgh/mlpractical/blob/mlp2019-20/coursework_2
 import pickle
 import os
 import csv

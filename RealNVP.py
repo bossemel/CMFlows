@@ -16,25 +16,7 @@ from RealNVP_modules.loss_plots import collect_experiment_dicts, plot_result_gra
 
 
 def build_model(args, num_inputs, device):
-    if args.dataset in ['POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST']:
-        num_hidden = {
-            'POWER': 100,
-            'GAS': 100,
-            'HEPMASS': 512,
-            'MINIBOONE': 512,
-            'BSDS300': 512,
-            'MOONS': 64,
-            'GAUSSIAN': 64,
-            'CLAYTON': 64,
-            'GUMBEL': 64,
-            'FRANK': 64,
-            'TDISTR': 64,
-            'MNIST': 1024
-        }[args.dataset]
-    else:
-        num_hidden = {args.dataset: args.num_hidden}[args.dataset]
-
-    # act = 'tanh' if args.dataset == 'GAS' else 'relu'
+    num_hidden = {args.dataset: args.num_hidden}[args.dataset]
 
     modules = []
 
@@ -66,12 +48,6 @@ def train(epoch, train_loader, current_epoch_losses):
     pbar = tqdm(total=len(train_loader.dataset))
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
-            # if len(data) > 1:
-            #     cond_data = data[1].float()
-            #     cond_data = cond_data.to(device)
-            # else:
-            #     cond_data = None
-
             data = data[0]
         data = data.to(device)
         optimizer.zero_grad()
@@ -90,10 +66,6 @@ def train(epoch, train_loader, current_epoch_losses):
         if isinstance(module, fnn.BatchNormFlow):
             module.momentum = 0
 
-    # if args.cond:
-    #     with torch.no_grad():
-    #         model(train_loader.dataset.tensors[0].to(data.device), train_loader.dataset.tensors[1].to(data.device).float())
-    # else:
     with torch.no_grad():
         model(train_loader.dataset.tensors[0].to(data.device))
 
@@ -176,7 +148,7 @@ if __name__ == '__main__':
             format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
         # Save sample plots every 10 epochs
-        if (args.dataset in ['MOONS', 'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL']) and epoch % args.plot_frequ == 0:
+        if epoch % args.plot_frequ == 0:
             utils.save_samples_plot(args, epoch, model, dataset)
 
     # Calculate test statistics

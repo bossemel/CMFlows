@@ -30,12 +30,6 @@ def validate(epoch, model, loader, device,
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            # if len(data) > 1:
-            #     cond_data = data[1].float()
-            #     cond_data = cond_data.to(device)
-            # else:
-            # cond_data = None
-
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
@@ -75,12 +69,6 @@ def test(epoch, model, loader, device,
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            # if len(data) > 1:
-            #     cond_data = data[1].float()
-            #     cond_data = cond_data.to(device)
-            # else:
-            # cond_data = None
-
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
@@ -219,6 +207,7 @@ def jsd_graph(args, epoch, model, test_loader):
     plot_3D(args.figures_path, args.dataset, grid1, grid2, pred_grid, 'pred_samples')
     plot_3D(args.figures_path, args.dataset, grid1, grid2, difference, 'difference')
 
+    # @Todo: implement 2d plots
     # pred_grid = pred_grid.reshape(300, 300)
     # cop_pdf = cop_pdf.reshape(300, 300)
     # difference = abs(pred_grid - cop_pdf)

@@ -36,17 +36,12 @@ class TrainOptions():
         parser.add_argument(
             '--dataset',
             default='CLAYTON',
-            help='POWER | GAS | HEPMASS | MINIBONE | BSDS300 | MOONS | GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+            help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
         parser.add_argument(
             '--no-cuda',
             action='store_true',
             default=False,
             help='disables CUDA training')
-        # parser.add_argument(
-        #     '--cond',
-        #     action='store_true',
-        #     default=False,
-        #     help='train class conditional flow (only for MNIST)')
         parser.add_argument(
             '--num-blocks',
             type=int,
