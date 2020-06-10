@@ -50,4 +50,4 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True
     path = os.path.join(figures_path, '{}_loss_performance.pdf'.format(plot_name))
     fig_1.savefig(path, dpi=None, facecolor='w', edgecolor='w',
                   orientation='portrait', papertype=None, format='pdf',
-                  transparent=False, bbox_inches=None, pad_inches=0.1)
+                  transparent=False, bbox_inches='tight', pad_inches=0.1)

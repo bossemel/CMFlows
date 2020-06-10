@@ -397,4 +397,4 @@ if __name__ == '__main__':
     denaf = DensityEstimator(dim=2)
     denaf.fit(distr_1, 1000)
     fig = visualizer.visualize2D(distr_1, denaf, res=res, rng=rng)
-    fig.savefig('figures/swissroll_DDSF.png', format='png')
+    fig.savefig('figures/swissroll_DDSF.png', format='png', bbox_inches='tight')

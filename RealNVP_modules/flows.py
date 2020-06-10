@@ -33,7 +33,6 @@ class CouplingLayer(nn.Module):
                  num_inputs,
                  num_hidden,
                  mask,
-                 num_cond_inputs=None,
                  s_act='tanh',
                  t_act='relu'):
         super(CouplingLayer, self).__init__()
@@ -45,10 +44,10 @@ class CouplingLayer(nn.Module):
         s_act_func = activations[s_act]
         t_act_func = activations[t_act]
 
-        if num_cond_inputs is not None:
-            total_inputs = num_inputs + num_cond_inputs
-        else:
-            total_inputs = num_inputs
+        # if num_cond_inputs is not None:
+        #     total_inputs = num_inputs + num_cond_inputs
+        # else:
+        total_inputs = num_inputs
 
         self.scale_net = nn.Sequential(
             nn.Linear(total_inputs, num_hidden), s_act_func(),
@@ -64,14 +63,14 @@ class CouplingLayer(nn.Module):
                 m.bias.data.fill_(0)
                 nn.init.orthogonal_(m.weight.data)
 
-    def forward(self, inputs, cond_inputs=None, mode='direct'):
+    def forward(self, inputs, mode='direct'):
         # inputs = torch.log(inputs / (1 - inputs))
         # inputs = scipy.special.logit(inputs)
         mask = self.mask
 
         masked_inputs = inputs * mask
-        if cond_inputs is not None:
-            masked_inputs = torch.cat([masked_inputs, cond_inputs], -1)
+        # if cond_inputs is not None:
+        #     masked_inputs = torch.cat([masked_inputs, cond_inputs], -1)
 
         if mode == 'direct':
             log_s = self.scale_net(masked_inputs) * (1 - mask)
@@ -91,7 +90,7 @@ class FlowSequential(nn.Sequential):
     computes log jacobians.
     """
 
-    def forward(self, inputs, cond_inputs=None, mode='direct', logdets=None):
+    def forward(self, inputs, mode='direct', logdets=None):
         """ Performs a forward or backward pass for flow modules.
         Args:
             inputs: a tuple of inputs and logdets
@@ -105,29 +104,29 @@ class FlowSequential(nn.Sequential):
         assert mode in ['direct', 'inverse']
         if mode == 'direct':
             for module in self._modules.values():
-                inputs, logdet = module(inputs, cond_inputs, mode)
+                inputs, logdet = module(inputs, mode)
                 logdets += logdet
         else:
             for module in reversed(self._modules.values()):
-                inputs, logdet = module(inputs, cond_inputs, mode)
+                inputs, logdet = module(inputs, mode)
                 logdets += logdet
 
         return inputs, logdets
 
-    def log_probs(self, inputs, cond_inputs=None):
-        u, log_jacob = self(inputs, cond_inputs)
+    def log_probs(self, inputs):
+        u, log_jacob = self(inputs)
         log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
             -1, keepdim=True)
         return (log_probs + log_jacob).sum(-1, keepdim=True)
 
-    def sample(self, num_samples=None, noise=None, cond_inputs=None):
+    def sample(self, num_samples=None, noise=None):
         if noise is None:
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        if cond_inputs is not None:
-            cond_inputs = cond_inputs.to(device)
-        samples = self.forward(noise, cond_inputs, mode='inverse')[0]
+        # if cond_inputs is not None:
+        #     cond_inputs = cond_inputs.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
         return samples
 
     def jsd(self, inputs, sigmoid):
@@ -173,7 +172,7 @@ class BatchNormFlow(nn.Module):
         self.register_buffer('running_mean', torch.zeros(num_inputs))
         self.register_buffer('running_var', torch.ones(num_inputs))
 
-    def forward(self, inputs, cond_inputs=None, mode='direct'):
+    def forward(self, inputs, mode='direct'):
         if mode == 'direct':
             if self.training:
                 self.batch_mean = inputs.mean(0)
@@ -183,10 +182,8 @@ class BatchNormFlow(nn.Module):
                 self.running_mean.mul_(self.momentum)
                 self.running_var.mul_(self.momentum)
 
-                self.running_mean.add_(self.batch_mean.data *
-                                       (1 - self.momentum))
-                self.running_var.add_(self.batch_var.data *
-                                      (1 - self.momentum))
+                self.running_mean.add_(self.batch_mean.data * (1 - self.momentum))
+                self.running_var.add_(self.batch_var.data * (1 - self.momentum))
 
                 mean = self.batch_mean
                 var = self.batch_var

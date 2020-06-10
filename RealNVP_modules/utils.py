@@ -18,7 +18,7 @@ def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
     ax = fig.gca(projection='3d')
     ax.plot_trisurf(grid1.reshape(-1), grid2.reshape(-1), value.reshape(-1), cmap=plt.cm.viridis, linewidth=0.2)
     plt.title(name)
-    fig.savefig(os.path.join(figures_path, str(cop_type) + name), dpi=300)
+    fig.savefig(os.path.join(figures_path, str(cop_type) + name), dpi=300, bbox_inches='tight')
 
 
 def load_data(args):
@@ -53,7 +53,6 @@ def load_data(args):
     test_tensor = torch.from_numpy(dataset.tst.x)
     test_dataset = torch.utils.data.TensorDataset(test_tensor)
 
-    num_cond_inputs = None
     num_inputs = dataset.n_dims
 
     train_loader = torch.utils.data.DataLoader(
@@ -76,7 +75,7 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, num_cond_inputs, num_inputs, data_loaders
+    return dataset, num_inputs, data_loaders
 
 
 def save_samples_plot(args, epoch, best_model, dataset):
@@ -90,7 +89,7 @@ def save_samples_plot(args, epoch, best_model, dataset):
     """
     best_model.eval()
     with torch.no_grad():
-        x_synth = best_model.sample(500).detach().cpu().numpy()
+        x_synth = best_model.sample(args.test_batch_size).detach().cpu().numpy()
 
     fig = plt.figure()
 
@@ -102,5 +101,5 @@ def save_samples_plot(args, epoch, best_model, dataset):
     ax.plot(x_synth[:, 0], x_synth[:, 1], '.')
     ax.set_title('Synth data')
 
-    plt.savefig(os.path.join(args.figures_path, 'plot_{:03d}.png'.format(epoch)))
+    plt.savefig(os.path.join(args.figures_path, 'plot_{:03d}.png'.format(epoch)), bbox_inches='tight')
     plt.close()

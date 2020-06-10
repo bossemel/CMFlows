@@ -15,7 +15,7 @@ from pathlib import Path
 from RealNVP_modules.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
-def build_model(args, num_cond_inputs, num_inputs, device):
+def build_model(args, num_inputs, device):
     if args.dataset in ['POWER', 'GAS', 'HEPMASS', 'MINIBONE', 'BSDS300', 'MOONS', 'MNIST']:
         num_hidden = {
             'POWER': 100,
@@ -44,7 +44,7 @@ def build_model(args, num_cond_inputs, num_inputs, device):
     for _ in range(args.num_blocks):
         modules += [
             fnn.CouplingLayer(
-                num_inputs, num_hidden, mask, num_cond_inputs,
+                num_inputs, num_hidden, mask,
                 s_act='tanh', t_act='relu'),
             fnn.BatchNormFlow(num_inputs)
         ]
@@ -66,16 +66,16 @@ def train(epoch, train_loader, current_epoch_losses):
     pbar = tqdm(total=len(train_loader.dataset))
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
-            if len(data) > 1:
-                cond_data = data[1].float()
-                cond_data = cond_data.to(device)
-            else:
-                cond_data = None
+            # if len(data) > 1:
+            #     cond_data = data[1].float()
+            #     cond_data = cond_data.to(device)
+            # else:
+            #     cond_data = None
 
             data = data[0]
         data = data.to(device)
         optimizer.zero_grad()
-        loss = -model.log_probs(data, cond_data).mean()
+        loss = -model.log_probs(data).mean()
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
@@ -90,12 +90,12 @@ def train(epoch, train_loader, current_epoch_losses):
         if isinstance(module, fnn.BatchNormFlow):
             module.momentum = 0
 
-    if args.cond:
-        with torch.no_grad():
-            model(train_loader.dataset.tensors[0].to(data.device), train_loader.dataset.tensors[1].to(data.device).float())
-    else:
-        with torch.no_grad():
-            model(train_loader.dataset.tensors[0].to(data.device))
+    # if args.cond:
+    #     with torch.no_grad():
+    #         model(train_loader.dataset.tensors[0].to(data.device), train_loader.dataset.tensors[1].to(data.device).float())
+    # else:
+    with torch.no_grad():
+        model(train_loader.dataset.tensors[0].to(data.device))
 
     for module in model.modules():
         if isinstance(module, fnn.BatchNormFlow):
@@ -131,10 +131,10 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    dataset, num_cond_inputs, num_inputs, data_loaders = utils.load_data(args)
+    dataset, num_inputs, data_loaders = utils.load_data(args)
 
     # Build model and send to device
-    model = build_model(args, num_cond_inputs, num_inputs, device)
+    model = build_model(args, num_inputs, device)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
 

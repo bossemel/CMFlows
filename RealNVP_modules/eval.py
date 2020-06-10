@@ -25,23 +25,21 @@ def validate(epoch, model, loader, device,
         best_dict: updated best_dict
     """
     model.eval()
-    val_loss = 0
 
     pbar = tqdm(total=len(loader.dataset))
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            if len(data) > 1:
-                cond_data = data[1].float()
-                cond_data = cond_data.to(device)
-            else:
-                cond_data = None
+            # if len(data) > 1:
+            #     cond_data = data[1].float()
+            #     cond_data = cond_data.to(device)
+            # else:
+            # cond_data = None
 
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = -model.log_probs(data, cond_data).mean().item()
-            val_loss += current_loss  # sum up batch loss
+            current_loss = -model.log_probs(data).mean().item()
         if current_epoch_losses is not None:
             current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
             val_mean_loss = np.mean(current_epoch_losses['val_loss'])
@@ -77,16 +75,16 @@ def test(epoch, model, loader, device,
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            if len(data) > 1:
-                cond_data = data[1].float()
-                cond_data = cond_data.to(device)
-            else:
-                cond_data = None
+            # if len(data) > 1:
+            #     cond_data = data[1].float()
+            #     cond_data = cond_data.to(device)
+            # else:
+            # cond_data = None
 
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = -model.log_probs(data, cond_data).mean().item()
+            current_loss = -model.log_probs(data).mean().item()
         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
@@ -161,10 +159,10 @@ def margin_uniformity(epoch, model, loader, device, sigmoid, current_epoch_test)
                 current_m_metric_x1, \
                 current_t_metric_x2, \
                 current_m_metric_x2 = model.t_metric_eval(data, sigmoid)
-        current_epoch_test["t_1"].append(current_t_metric_x1 / len(loader.dataset))
-        current_epoch_test["t_2"].append(current_t_metric_x2 / len(loader.dataset))
-        current_epoch_test["m_1"].append(current_m_metric_x1 / len(loader.dataset))
-        current_epoch_test["m_2"].append(current_m_metric_x2 / len(loader.dataset))
+        current_epoch_test["t_1"].append(current_t_metric_x1 / len(data))
+        current_epoch_test["t_2"].append(current_t_metric_x2 / len(data))
+        current_epoch_test["m_1"].append(current_m_metric_x1 / len(data))
+        current_epoch_test["m_2"].append(current_m_metric_x2 / len(data))
 
     print('T metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_1"])))
     print('T metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_2"])))
