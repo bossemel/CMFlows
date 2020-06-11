@@ -7,12 +7,13 @@ import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
 from RealNVP_modules.options import TrainOptions
 import torch.nn as nn
-from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, validate, test
+from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, validate, test, plot_margins
 from RealNVP_modules.save_statistics import save_statistics
 import os
 import numpy as np
 from pathlib import Path
 from RealNVP_modules.loss_plots import collect_experiment_dicts, plot_result_graphs
+import random
 
 
 def build_model(args, num_inputs, device):
@@ -89,8 +90,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
 
-    # Whether to use sigmoidal function before and after RealNVP
-    args.sigmoid = not args.no_sigmoid
+    # # Whether to use sigmoidal function before and after RealNVP
+    # args.sigmoid = not args.no_sigmoid
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -99,6 +100,7 @@ if __name__ == '__main__':
     # Set Seed
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
+    random.seed(args.random_seed)
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
@@ -171,7 +173,7 @@ if __name__ == '__main__':
                                            best_dict['best_model'],
                                            data_loaders['test_loader'],
                                            device,
-                                           sigmoid=args.sigmoid,
+                                           transform_fct=args.transform_fct,
                                            current_epoch_test=current_epoch_test)
 
     # Gather test losses and save statistics
@@ -183,13 +185,18 @@ if __name__ == '__main__':
 
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
-    plot_result_graphs(args.figures_path, args.exp_name, 'sample_plot', result_dict)
+    plot_result_graphs(args.figures_path, args.exp_name, args.dataset, result_dict)
 
     # Plot samples for best epoch
     utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
 
+    # Plot Margins
+    plot_margins(args,
+                 best_dict['best_validation_epoch'],
+                 best_dict['best_model'],
+                 data_loaders['test_loader'])
+
     # Plot pointwise difference
-    current_epoch_test = jsd_graph(args,
-                                   best_dict['best_validation_epoch'],
-                                   best_dict['best_model'],
-                                   data_loaders['test_loader'])
+    jsd_graph(args,
+              best_dict['best_validation_epoch'],
+              best_dict['best_model'])

@@ -129,27 +129,41 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, mode='inverse')[0]
         return samples
 
-    def jsd(self, inputs, sigmoid):
+    def jsd(self, inputs, transform_fct):
         num_samples = inputs.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
-        if sigmoid is True:
+        if transform_fct == 'sigmoid':
             samples = scipy.special.expit(samples.detach().cpu())
             inputs = scipy.special.expit(inputs.detach().cpu())
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples.detach().cpu()), np.array(inputs.detach().cpu()))
+        if transform_fct == 'gaussian':
+            norm = scipy.stats.norm()
+            samples = norm.cdf(samples.cpu())
+            inputs = norm.cdf(inputs.cpu())
+        # if sigmoid is True:
+        #     samples = scipy.special.expit(samples.detach().cpu())
+        #     inputs = scipy.special.expit(inputs.detach().cpu())
+        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
         return divergence
 
-    def t_metric_eval(self, inputs, sigmoid=True, intervals=25):
+    def t_metric_eval(self, inputs, transform_fct, intervals=25):
         num_samples = inputs.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
-        if sigmoid is True:
-            samples = scipy.special.expit(samples.cpu())
-        margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
+        if transform_fct == 'sigmoid':
+            samples = scipy.special.expit(samples.detach().cpu())
+        if transform_fct == 'gaussian':
+            norm = scipy.stats.norm()
+            samples = norm.cdf(samples.cpu())
+        # if sigmoid is True:
+        #     samples = scipy.special.expit(samples.cpu())
+        # margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
+        margin_x1 = samples[:, 0]
+        margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
         t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
         return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2

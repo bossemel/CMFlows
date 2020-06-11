@@ -4,7 +4,9 @@ import datasets
 import datasets.util
 from sklearn import model_selection
 import sys
-from scipy import stats, special
+import scipy
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 class Copula_sampler:
@@ -24,7 +26,7 @@ class Copula_sampler:
         if args.df:
             self.df = args.df
         self.obs = args.obs
-        self.sigmoid = args.sigmoid
+        self.transform_fct = args.transform_fct
 
         Copula_sampler.sample_copulas(self)
 
@@ -87,8 +89,13 @@ class Copula_sampler:
         assert xx.all() > 0 & xx.all() < 1
 
         # Apply inverse Sigmoid
-        if self.sigmoid is True:
-            xx = special.logit(xx)
+        if self.transform_fct == 'sigmoid':
+            xx = scipy.special.logit(xx)
+        if self.transform_fct == 'gaussian':
+            norm = scipy.stats.norm()
+            xx = norm.ppf(xx)
+            # invgauss = scipy.stats.invgauss(1)
+            # xx = invgauss(xx)
 
         self.xx = xx
 
@@ -208,10 +215,10 @@ def sample_gaussian(obs, tau):
     Returns:
         x_unif: samples
     """
-    mvnorm = stats.multivariate_normal(mean=[0, 0], cov=[[1., tau],
-                                                         [tau, 1.]])
+    mvnorm = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., tau],
+                                                               [tau, 1.]])
     xx = mvnorm.rvs(obs)
-    norm = stats.norm()
+    norm = scipy.stats.norm()
     x_unif = norm.cdf(xx)
     return x_unif
 
@@ -230,7 +237,7 @@ def sample_tdistr(obs, tau, df):
     x = multivariate_t(mu=[0, 0], sigma=[[1., tau],
                                          [tau, 0.5]], dof=df, m=obs)
 
-    tt = stats.t(df=2)
+    tt = scipy.stats.t(df=2)
     x_unif = tt.cdf(x)
     return x_unif
 

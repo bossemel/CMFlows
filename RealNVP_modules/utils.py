@@ -2,6 +2,8 @@ import os
 import matplotlib.pyplot as plt
 import torch
 import datasets
+import scipy
+plt.style.use('ggplot')
 
 
 def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
@@ -17,8 +19,14 @@ def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     ax.plot_trisurf(grid1.reshape(-1), grid2.reshape(-1), value.reshape(-1), cmap=plt.cm.viridis, linewidth=0.2)
-    plt.title(name)
-    fig.savefig(os.path.join(figures_path, str(cop_type) + name), dpi=300, bbox_inches='tight')
+    # plt.title(name)
+    ax.set_xlabel('U1', fontsize=16)
+    ax.set_ylabel('U2', fontsize=16)
+    ax.set_zlabel('density', fontsize=16)
+    ax.set_xlim((0, 1))
+    ax.set_ylim((0, 1))
+    fig.tight_layout()
+    fig.savefig(os.path.join(figures_path, str(cop_type) + name), dpi=300, transparent=True)
 
 
 def load_data(args):
@@ -84,19 +92,38 @@ def save_samples_plot(args, epoch, best_model, dataset):
         best_model: best model so far
         dataset: full dataset
     """
+    num_samples = 1000
     best_model.eval()
     with torch.no_grad():
-        x_synth = best_model.sample(args.test_batch_size).detach().cpu().numpy()
-
+        x_synth = best_model.sample(num_samples).detach().cpu().numpy()
+    if args.transform_fct == 'sigmoid':
+        val_x = scipy.special.expit(dataset.val.x)
+        x_synth = scipy.special.expit(x_synth)
+    if args.transform_fct == 'gaussian':
+        norm = scipy.stats.norm()
+        val_x = norm.cdf(dataset.val.x)
+        x_synth = norm.cdf(x_synth)
     fig = plt.figure()
 
     ax = fig.add_subplot(121)
-    ax.plot(dataset.val.x[:, 0], dataset.val.x[:, 1], '.')
-    ax.set_title('Real data')
-
+    ax.plot(val_x[:num_samples, 0], val_x[:num_samples, 1], '.')
+    if args.dataset == 'CLAYTON':
+        ax.set_title('Clayton Copula', fontsize=16)
+    if args.dataset == 'FRANK':
+        ax.set_title('Frank Copula', fontsize=16)
+    if args.dataset == 'GUMBEL':
+        ax.set_title('Gumbel Copula', fontsize=16)
+    ax.set_xlabel('U1', fontsize=16)
+    ax.set_ylabel('U2', fontsize=16)
+    ax.set_xlim((0, 1))
+    ax.set_ylim((0, 1))
     ax = fig.add_subplot(122)
     ax.plot(x_synth[:, 0], x_synth[:, 1], '.')
-    ax.set_title('Synth data')
-
-    plt.savefig(os.path.join(args.figures_path, 'plot_{:03d}.png'.format(epoch)), bbox_inches='tight')
+    ax.set_title('Copula Flow', fontsize=16)
+    ax.set_xlabel('U1', fontsize=16)
+    ax.set_ylabel('U2', fontsize=16)
+    ax.set_xlim((0, 1))
+    ax.set_ylim((0, 1))
+    fig.tight_layout()
+    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.png'.format(args.dataset, epoch)), dpi=300)
     plt.close()

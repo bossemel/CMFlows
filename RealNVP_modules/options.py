@@ -83,10 +83,15 @@ class TrainOptions():
             default=False,
             help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--no_sigmoid',
-            action='store_true',
-            default=False,
-            help='applied logit on copula samples, and sigmoid before evaluation')
+            '--transform_fct',
+            type=str,
+            default='sigmoid',
+            help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+        # parser.add_argument(
+        #     '--no_sigmoid',
+        #     action='store_true',
+        #     default=False,
+        #     help='applied logit on copula samples, and sigmoid before evaluation')
         parser.add_argument(
             '--exp_name',
             type=str,

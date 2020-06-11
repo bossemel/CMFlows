@@ -41,13 +41,14 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True
     for k in ['train_loss', 'val_loss']:
         item = stats[model_name][k]
         ax_1.plot(np.arange(0, len(item)),
-                  item, label='{}_{}'.format(model_name, k))
+                  item, label='{}'.format(k))
 
     ax_1.legend(loc=0)
-    ax_1.set_ylabel('Loss')
-    ax_1.set_xlabel('Epoch number')
+    # plt.set_title('Copula Flow Training', fontsize=16)
+    ax_1.set_ylabel('Loss', fontsize=16)
+    ax_1.set_xlabel('Epoch', fontsize=16)
 
     path = os.path.join(figures_path, '{}_loss_performance.pdf'.format(plot_name))
-    fig_1.savefig(path, dpi=None, facecolor='w', edgecolor='w',
+    fig_1.savefig(path, dpi=300, facecolor='w', edgecolor='w',
                   orientation='portrait', papertype=None, format='pdf',
                   transparent=False, bbox_inches='tight', pad_inches=0.1)
