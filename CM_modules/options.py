@@ -16,8 +16,8 @@ class TrainOptions():
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=100,
-            help='input batch size for training (default: 100)')
+            default=128,
+            help='input batch size for training (default: 128)')
         parser.add_argument(
             '--test-batch-size',
             type=int,

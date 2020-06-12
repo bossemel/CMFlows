@@ -17,7 +17,7 @@ from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_ma
 from RealNVP import build_model as build_model_RealNVP
 import RealNVP_modules.flows as fnn
 
-from DDSF import build_model as model_DDSF
+from DDSF import build_model as model_DDSF, MAF
 
 from utils.save_statistics import save_statistics
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
@@ -27,8 +27,12 @@ def build_model(args, num_inputs, device):
     args.num_hidden_DDSF = args.num_hidden_DDSF
 
     model_RealNVP = build_model_RealNVP(args, num_inputs, device)
-    model_DDSF_1 = model_DDSF(args)
-    model_DDSF_2 = model_DDSF(args)
+    MAF_DDSF = MAF(args)
+    model_DDSF_1 = MAF_DDSF.get_model()
+    model_DDSF_2 = MAF_DDSF.get_model()
+
+    # model_DDSF_1 = model_DDSF(args)
+    # model_DDSF_2 = model_DDSF(args)
 
     model = flows.CMFlow(model_RealNVP=model_RealNVP,
                          model_DDSF_1=model_DDSF_1,

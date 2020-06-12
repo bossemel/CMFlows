@@ -30,7 +30,8 @@ def build_model(args):
                        fixed_order=True),
         flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
 
-    model = flows.DDSF_sequential(*sequels)
+#    model = flows.DDSF_sequential(*sequels)
+    model = nn.Sequential(*sequels)
 
     # if args.cuda:
     #     model = model.cuda()
@@ -40,22 +41,22 @@ def build_model(args):
 
 class MAF(object):
 
-    def __init__(self, args, num_hidden_units):
+    def __init__(self, args):
 
         self.args = args
         self.__dict__.update(args.__dict__)
-        self.num_hidden_units = num_hidden_units
+        self.num_hidden_units = args.num_hidden_DDSF
 
-        dim = num_hidden_units
-        dimh = args.dimh
-        num_flow_layers = args.num_flow_layers
+        dim = args.num_hidden_DDSF
+        dimh = args.dimh_DDSF
+        num_flow_layers = args.num_flow_layers_DDSF
 
         act = nn.ELU()
         sequels = [nn_.SequentialFlow(
             flows.IAF_DDSF(dim=dim,
                            hid_dim=dimh,
                            context_dim=1,
-                           num_layers=args.num_hid_layers + 1,
+                           num_layers=args.num_hid_layers_DDSF + 1,
                            activation=act,
                            fixed_order=True),
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
@@ -64,6 +65,9 @@ class MAF(object):
 
         if self.cuda:
             self.flow = self.flow.cuda()
+
+    def get_model(self):
+        return self.flow
 
     def density(self, spl):
         n = spl.size(0)
@@ -410,7 +414,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     res = 200
     rng = [(-5, 5), (-5, 5)]
     # distr_1 = distributions.SwissRoll(0.5)
