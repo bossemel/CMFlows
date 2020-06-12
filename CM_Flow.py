@@ -24,7 +24,7 @@ from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
 def build_model(args, num_inputs, device):
-    args.num_hidden_DDSF = args.num_hidden_DDSF
+    args.num_hidden_units_DDSF = args.num_hidden_units_DDSF
 
     model_RealNVP = build_model_RealNVP(args, num_inputs, device)
     MAF_DDSF = MAF(args)

@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 def build_model(args):
 
-    dim = args.num_hidden_DDSF
+    dim = args.num_ds_dim
     dimh = args.dimh_DDSF
     num_flow_layers = args.num_flow_layers_DDSF
 
@@ -25,7 +25,7 @@ def build_model(args):
         flows.IAF_DDSF(dim=dim,
                        hid_dim=dimh,
                        context_dim=1,
-                       num_layers=args.num_hid_layers_DDSF + 1,
+                       num_layers=args.num_hidden_layers_DDSF + 1,
                        activation=act,
                        fixed_order=True),
         flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
@@ -45,9 +45,9 @@ class MAF(object):
 
         self.args = args
         self.__dict__.update(args.__dict__)
-        self.num_hidden_units = args.num_hidden_DDSF
+        self.num_hidden_units = args.num_hidden_units_DDSF
 
-        dim = args.num_hidden_DDSF
+        dim = args.num_ds_dim
         dimh = args.dimh_DDSF
         num_flow_layers = args.num_flow_layers_DDSF
 
@@ -56,13 +56,13 @@ class MAF(object):
             flows.IAF_DDSF(dim=dim,
                            hid_dim=dimh,
                            context_dim=1,
-                           num_layers=args.num_hid_layers_DDSF + 1,
+                           num_layers=args.num_hidden_layers_DDSF + 1,
                            activation=act,
                            fixed_order=True),
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
 
         self.flow = nn.Sequential(*sequels)
-
+        print(self.flow)
         if self.cuda:
             self.flow = self.flow.cuda()
 
@@ -155,12 +155,12 @@ def parse_args():
     parser.add_argument('--amsgrad', type=int, default=0)
     parser.add_argument('--polyak', type=float, default=0.0)
     parser.add_argument('--cuda', type=bool, default=False)
-    parser.add_argument('--dimh', type=int, default=72)
+    parser.add_argument('--dimh_DDSF', type=int, default=72)
     parser.add_argument('--flowtype', type=str, default='affine')
-    parser.add_argument('--num_flow_layers', type=int, default=2)
-    parser.add_argument('--num_hid_layers', type=int, default=1)
-    parser.add_argument('--num_hid_units', type=int, default=86)
-    parser.add_argument('--num_ds_dim', type=int, default=16)
+    parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
+    parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
+    parser.add_argument('--num_hidden_units_DDSF', type=int, default=43)
+    parser.add_argument('--num_ds_dim', type=int, default=43)
     parser.add_argument('--num_ds_layers', type=int, default=1)
     parser.add_argument('--fixed_order', type=bool, default=True,
                         help='Fix the made ordering to be the given order')
@@ -196,10 +196,10 @@ def args2fn(args):
         ('e', 'epochs'),
         ('s', 'seed'),
         ('p', 'polyak'),
-        ('h', 'dimh'),
+        ('h', 'dimh_DDSF'),
         ('f', 'flowtype'),
-        ('fl', 'num_flow_layers'),
-        ('l', 'num_hid_layers'),
+        ('fl', 'num_flow_layers_DDSF'),
+        ('l', 'num_hidden_layers_DDSF'),
         ('dsdim', 'num_ds_dim'),
         ('dsl', 'num_ds_layers'),
     ]
@@ -228,7 +228,7 @@ class model(object):
         elif args.dataset == 'bsds300':
             D = load_maf_data('bsds300')
 
-        num_hidden_units = args.num_hidden_DDSF
+        num_hidden_units = args.num_hidden_units_DDSF
 
         tr, va, te = D.trn.x, D.val.x, D.tst.x
 
@@ -242,7 +242,7 @@ class model(object):
                                                        batch_size=args.batch_size,
                                                        shuffle=False)
 
-        self.maf = MAF(args, num_hidden_units=num_hidden_units)
+        self.maf = MAF(args)
 
         # optim
         amsgrad = bool(args.amsgrad)
@@ -395,11 +395,11 @@ def main():
         print(" New args:")
         print(args)
         # print('\nfilename: ', fn)
-        mdl = model(args, fn)
+        mdl = model(args)
         print(" [*] Loading model!")
         mdl.resume(old_path)
     else:
-        mdl = model(args, fn)
+        mdl = model(args)
 
     # launch the graph in a session
     if args.to_train:
@@ -414,7 +414,7 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
+    main()
     res = 200
     rng = [(-5, 5), (-5, 5)]
     # distr_1 = distributions.SwissRoll(0.5)

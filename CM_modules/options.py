@@ -71,24 +71,30 @@ class TrainOptions():
             type=int,
             default=64,
             help='number of hidden units')
-        parser.add_argument(
-            '--num_hidden_DDSF',
-            type=int,
-            default=36,
-            help='number of hidden units')
-        # @Todo: rething the name 'num hidden DDSF' - this used to be pp
-        parser.add_argument(
-            '--num_hid_layers_DDSF',
-            type=int,
-            default=1)
-        parser.add_argument(
-            '--dimh_DDSF',
-            type=int,
-            default=72)
-        parser.add_argument(
-            '--num_flow_layers_DDSF',
-            type=int,
-            default=2)
+        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
+        parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
+        parser.add_argument('--num_hidden_units_DDSF', type=int, default=43)
+        parser.add_argument('--num_ds_dim', type=int, default=128)
+        parser.add_argument('--num_ds_layers', type=int, default=1)
+        parser.add_argument('--dimh_DDSF', type=int, default=256)
+        # parser.add_argument(
+        #     '--num_hidden_DDSF',
+        #     type=int,
+        #     default=36,
+        #     help='number of hidden units')
+        # # @Todo: rething the name 'num hidden DDSF' - this used to be pp
+        # parser.add_argument(
+        #     '--num_hid_layers_DDSF',
+        #     type=int,
+        #     default=1)
+        # parser.add_argument(
+        #     '--dimh_DDSF',
+        #     type=int,
+        #     default=72)
+        # parser.add_argument(
+        #     '--num_flow_layers_DDSF',
+        #     type=int,
+        #     default=2)
         parser.add_argument(
             '--random_seed',
             type=int,

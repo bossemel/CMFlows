@@ -18,8 +18,8 @@ class CMFlow(nn.Module):
         n = xx.size(0)
         context = Variable(torch.FloatTensor(n, 1).zero_())
 
-        inputs_1, logdets_1 = self.model_DDSF_1((inputs[:, 0], logdets, context))
-        inputs_2, logdets_2 = self.model_DDSF_2((inputs[:, 1], logdets, context))
+        inputs_1, logdets_1, __ = self.model_DDSF_1((inputs[:, 0], logdets, context))
+        inputs_2, logdets_2, __ = self.model_DDSF_2((inputs[:, 1], logdets, context))
 
         xx = torch.cat((inputs_1, inputs_2), dim=1)
         logdets = logdets_1 + logdets_2
