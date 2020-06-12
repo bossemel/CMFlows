@@ -4,43 +4,36 @@ import torch.utils.data
 import torch.nn as nn
 
 from tqdm import tqdm
-
-import RealNVP_modules.flows as fnn
-import RealNVP_modules.utils as utils
-from RealNVP_modules.options import TrainOptions
-from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, validate, test, plot_margins
-from utils.save_statistics import save_statistics
 import os
 import numpy as np
 from pathlib import Path
-from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 import random
+
+from CM_modules.options import TrainOptions
+import CM_modules.utils as utils
+import CM_modules.flows as flows
+
+from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_margins
+from RealNVP import build_model as build_model_RealNVP
+import RealNVP_modules.flows as fnn
+
+from DDSF import build_model as model_DDSF
+
+from utils.save_statistics import save_statistics
+from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
 def build_model(args, num_inputs, device):
-    num_hidden = {args.dataset: args.num_hidden_RealNVP}[args.dataset]
+    args.num_hidden_DDSF = args.num_hidden_DDSF
 
-    modules = []
+    model_RealNVP = build_model_RealNVP(args, num_inputs, device)
+    model_DDSF_1 = model_DDSF(args)
+    model_DDSF_2 = model_DDSF(args)
 
-    mask = torch.arange(0, num_inputs) % 2
-    mask = mask.to(device).float()
+    model = flows.CMFlow(model_RealNVP=model_RealNVP,
+                         model_DDSF_1=model_DDSF_1,
+                         model_DDSF_2=model_DDSF_2)
 
-    for _ in range(args.num_blocks):
-        modules += [
-            fnn.CouplingLayer(
-                num_inputs, num_hidden, mask,
-                s_act='tanh', t_act='relu'),
-            fnn.BatchNormFlow(num_inputs)
-        ]
-        mask = 1 - mask
-
-    model = fnn.FlowSequential(*modules)
-
-    for module in model.modules():
-        if isinstance(module, nn.Linear):
-            nn.init.orthogonal_(module.weight)
-            if hasattr(module, 'bias') and module.bias is not None:
-                module.bias.data.fill_(0)
     return model
 
 
@@ -183,7 +176,7 @@ if __name__ == '__main__':
 
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
-    plot_result_graphs(args.figures_path, args.exp_name, args.dataset, result_dict)
+    plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
 
     # Plot samples for best epoch
     utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)

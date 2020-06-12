@@ -34,9 +34,13 @@ class TrainOptions():
             default=0.0001,
             help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--dataset',
+            '--copula',
             default='CLAYTON',
             help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+        parser.add_argument(
+            '--marginal',
+            default='GAUSSIAN',
+            help='GAUSSIAN')
         parser.add_argument(
             '--no-cuda',
             action='store_true',
@@ -68,6 +72,24 @@ class TrainOptions():
             default=64,
             help='number of hidden units')
         parser.add_argument(
+            '--num_hidden_DDSF',
+            type=int,
+            default=36,
+            help='number of hidden units')
+        # @Todo: rething the name 'num hidden DDSF' - this used to be pp
+        parser.add_argument(
+            '--num_hid_layers_DDSF',
+            type=int,
+            default=1)
+        parser.add_argument(
+            '--dimh_DDSF',
+            type=int,
+            default=72)
+        parser.add_argument(
+            '--num_flow_layers_DDSF',
+            type=int,
+            default=2)
+        parser.add_argument(
             '--random_seed',
             type=int,
             default=58093,
@@ -95,7 +117,7 @@ class TrainOptions():
         parser.add_argument(
             '--exp_name',
             type=str,
-            default='default_name',
+            default='default_name_cm',
             help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path',

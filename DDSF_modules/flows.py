@@ -11,6 +11,78 @@ import DDSF_modules.utils as utils
 import numpy as np
 
 
+class DDSF_sequential(nn.Sequential):
+    """ A sequential container for flows.
+    In addition to a forward pass it implements a backward pass and
+    computes log jacobians.
+    """
+
+    def forward(self, inputs, mode='direct', logdets=None):
+        """ Performs a forward or backward pass for flow modules.
+        Args:
+            inputs: a tuple of inputs and logdets
+            mode: to run direct computation or inverse
+        """
+        self.num_inputs = inputs.size(-1)
+
+        if logdets is None:
+            logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
+
+        assert mode in ['direct', 'inverse']
+        if mode == 'direct':
+            for module in self._modules.values():
+                inputs, logdet = module(inputs, mode)
+                logdets += logdet
+        else:
+            for module in reversed(self._modules.values()):
+                inputs, logdet = module(inputs, mode)
+                logdets += logdet
+
+        return inputs, logdets
+
+    def density(self, spl):
+        n = spl.size(0)
+        # context = Variable(torch.FloatTensor(n, 1).zero_())
+        lgd = Variable(torch.FloatTensor(n).zero_())
+        zeros = Variable(torch.FloatTensor(n, self.num_hidden_units).zero_())
+        if self.cuda:
+            # context = context.cuda()
+            lgd = lgd.cuda()
+            zeros = zeros.cuda()
+
+        z, logdet, _ = self((spl, lgd))
+        losses = - utils.log_normal(z, zeros, zeros + 1.0).sum(1) - logdet
+        return - losses
+
+    def loss(self, x):
+        return - self.density(x)
+
+    # def state_dict(self):
+    #     return self.flow.state_dict()
+
+    # def load_state_dict(self, states):
+    #     self.flow.load_state_dict(states)
+
+    def clip_grad_norm(self):
+        nn.utils.clip_grad_norm_(self.flow.parameters(), self.clip)
+
+    # def log_probs(self, inputs):
+    #     u, log_jacob = self(inputs)
+    #     log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
+    #         -1, keepdim=True)
+    #     return (log_probs + log_jacob).sum(-1, keepdim=True)
+
+    # def sample(self, num_samples=None, noise=None):
+    #     if noise is None:
+    #         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+    #     device = next(self.parameters()).device
+    #     noise = noise.to(device)
+    #     # if cond_inputs is not None:
+    #     #     cond_inputs = cond_inputs.to(device)
+    #     samples = self.forward(noise, mode='inverse')[0]
+    #     return samples
+
+
 class BaseFlow(Module):
 
     def sample(self, n=1, context=None, **kwargs):
