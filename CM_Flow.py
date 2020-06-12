@@ -8,6 +8,7 @@ import os
 import numpy as np
 from pathlib import Path
 import random
+# import copy
 
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
@@ -34,7 +35,8 @@ def build_model(args, num_inputs, device):
     # model_DDSF_1 = model_DDSF(args)
     # model_DDSF_2 = model_DDSF(args)
 
-    model = flows.CMFlow(model_RealNVP=model_RealNVP,
+    model = flows.CMFlow(transform=args.transform_fct,
+                         model_RealNVP=model_RealNVP,
                          model_DDSF_1=model_DDSF_1,
                          model_DDSF_2=model_DDSF_2)
 
@@ -65,14 +67,90 @@ def train(epoch, train_loader, current_epoch_losses):
         if isinstance(module, fnn.BatchNormFlow):
             module.momentum = 0
 
-    with torch.no_grad():
-        model(train_loader.dataset.tensors[0].to(data.device))
+    # with torch.no_grad():
+    #     model(train_loader.dataset.tensors[0].to(data.device))
 
     for module in model.modules():
         if isinstance(module, fnn.BatchNormFlow):
             module.momentum = 1
 
     return current_epoch_losses
+
+
+def validate(epoch, model, loader, device,
+             current_epoch_losses=None, best_dict=None):
+    """Return log probabilities on validation set.
+
+    Params:
+        epoch: epoch to validate
+        model: model to validate
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_losses: dictionary with the current epoch losses
+        best_dict: dictionary containing the best validation loss, best validation epoch
+                   and best model
+
+    Returns:
+        current_epoch_losses: updated current_epoch_losses
+        best_dict: updated best_dict
+    """
+    model.eval()
+
+    pbar = tqdm(total=len(loader.dataset))
+    pbar.set_description('Eval')
+    for batch_idx, data in enumerate(loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(device)
+        with torch.no_grad():
+            current_loss = -model.log_probs(data).mean().item()
+        if current_epoch_losses is not None:
+            current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
+            val_mean_loss = np.mean(current_epoch_losses['val_loss'])
+            if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
+                best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
+                best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
+                # best_dict['best_model'] = copy.deepcopy(model)
+
+        pbar.update(data.size(0))
+        pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
+
+    pbar.close()
+    return current_epoch_losses, best_dict
+
+
+def test(epoch, model, loader, device,
+         current_epoch_test):
+    """Return log probabilities on test set.
+
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch test stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
+    model.eval()
+
+    pbar = tqdm(total=len(loader.dataset))
+    pbar.set_description('Eval')
+    for batch_idx, data in enumerate(loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(device)
+        with torch.no_grad():
+            current_loss = -model.log_probs(data).mean().item()
+        current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
+
+        pbar.update(data.size(0))
+        pbar.set_description('Test, Log likelihood in nats in epoch {}: {:.6f}'.format(epoch, np.mean(current_epoch_test["test_loss"])))
+
+    pbar.close()
+
+    return current_epoch_test
 
 
 if __name__ == '__main__':
@@ -144,9 +222,9 @@ if __name__ == '__main__':
             'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
             format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
-        # Save sample plots every 10 epochs
-        if epoch % args.plot_frequ == 0:
-            utils.save_samples_plot(args, epoch, model, dataset)
+        # # Save sample plots every 10 epochs
+        # if epoch % args.plot_frequ == 0:
+        #     utils.save_samples_plot(args, epoch, model, dataset)
 
     # Calculate test statistics
     current_epoch_test = test(best_dict['best_validation_epoch'],

@@ -2,22 +2,35 @@ import torch.nn as nn
 import torch
 import math
 from torch.autograd import Variable
+import scipy.special
+from utils.various import logit, sigmoid
 
 
 class CMFlow(nn.Module):
-    def __init__(self, model_RealNVP, model_DDSF_1, model_DDSF_2):
+    def __init__(self, transform, model_RealNVP, model_DDSF_1, model_DDSF_2):
         super(CMFlow, self).__init__()
         self.model_RealNVP = model_RealNVP
         self.model_DDSF_1 = model_DDSF_1
         self.model_DDSF_2 = model_DDSF_2
-        # print(model_RealNVP)
-        print(model_DDSF_1)
+        self.transform_fct = transform
 
     def forward(self, xx, context=None):
+        # @Todo: implement gaussian cdf transform
+        # xx = logit(xx)
+
+        # if self.transform_fct == 'gaussian':
+        #     norm = scipy.stats.norm()
+        #     xx = norm.ppf(xx)
+
         inputs, logdets = self.model_RealNVP(xx)
+
+        # if self.transform_fct == 'sigmoid':
+        inputs = sigmoid(inputs)
+        # if self.transform_fct == 'gaussian':
+        #     norm = scipy.stats.norm()
+        #     inputs = norm.cdf(inputs)
         n = xx.size(0)
         context = Variable(torch.FloatTensor(n, 1).zero_())
-
         inputs_1, logdets_1, __ = self.model_DDSF_1((inputs[:, 0], logdets, context))
         inputs_2, logdets_2, __ = self.model_DDSF_2((inputs[:, 1], logdets, context))
 

@@ -16,12 +16,12 @@ class TrainOptions():
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=128,
+            default=100,
             help='input batch size for training (default: 128)')
         parser.add_argument(
             '--test-batch-size',
             type=int,
-            default=1000,
+            default=100,
             help='input batch size for testing (default: 1000)')
         parser.add_argument(
             '--epochs',
@@ -73,10 +73,10 @@ class TrainOptions():
             help='number of hidden units')
         parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
         parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
-        parser.add_argument('--num_hidden_units_DDSF', type=int, default=43)
-        parser.add_argument('--num_ds_dim', type=int, default=128)
+        parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
+        parser.add_argument('--num_ds_dim', type=int, default=16)
         parser.add_argument('--num_ds_layers', type=int, default=1)
-        parser.add_argument('--dimh_DDSF', type=int, default=256)
+        parser.add_argument('--dimh_DDSF', type=int, default=64)
         # parser.add_argument(
         #     '--num_hidden_DDSF',
         #     type=int,
@@ -128,7 +128,7 @@ class TrainOptions():
         parser.add_argument(
             '--figures_path',
             type=str,
-            default='figures',
+            default='figures_cm',
             help='experiment name to store plots and logs')
         parser.add_argument(
             '--plot_frequ',

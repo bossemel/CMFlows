@@ -4,6 +4,7 @@ from scipy import stats
 import datasets  # .copulas import sample_copulas
 from utils.split_train_test import split_train_val_test
 import numpy as np
+import scipy.stats
 
 
 class Distr(object):
@@ -117,19 +118,16 @@ class Copula_Joint:
         self.n_dims = self.trn.x.shape[1]
 
     def copula_corr_joint(self, args):
-        # print('obs', obs)
         # @Todo: Fix Seed
-        copula_sampler = datasets.copulas.Copula_sampler(args)
+        copula_sampler = datasets.copulas.Copula_sampler(args, transform=False)
         copula_xx = copula_sampler.xx
 
-        # xx = datasets.sample_copulas(self.cop_type, obs, tau, df, seed)
         if self.marginal == 'GAUSSIAN':
-            invnorm = stats.invgauss(mu=0)
-            x_1 = invnorm.cdf(copula_xx[:, 0])
-            x_2 = invnorm.cdf(copula_xx[:, 1])
+            norm = scipy.stats.norm()
+            x_1 = norm.ppf(copula_xx[:, 0])
+            x_2 = norm.ppf(copula_xx[:, 1])
         else:
             raise NotImplementedError
 
         xx = np.concatenate([x_1.reshape(-1, 1), x_2.reshape(-1, 1)], axis=1)
-
         self.xx = xx

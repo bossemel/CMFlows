@@ -103,9 +103,6 @@ class DenseSigmoidFlow(BaseFlow):
     def __init__(self, in_dim, hidden_dim, out_dim):
         super(DenseSigmoidFlow, self).__init__()
         self.in_dim = in_dim
-        print('in dim', in_dim)
-        print('hidden_dim', hidden_dim)
-        print('out dim', out_dim)
         self.hidden_dim = hidden_dim
         self.out_dim = out_dim
 
@@ -173,10 +170,6 @@ class IAF_DDSF(BaseFlow):
         self.num_ds_dim = num_ds_dim
         self.num_ds_layers = num_ds_layers
 
-        print('dim', dim)
-        print('context dim', context_dim)
-        print('num ds dim', num_ds_dim)
-        print('num df layers', num_ds_layers)
         assert int(hid_dim / dim) == hid_dim / dim, 'hid_dim / dim is not an integer. hid_dim: %s, dim: %s' % (hid_dim, dim)
         self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
                                      num_outlayers=(num_ds_multiplier * int(hid_dim / dim) * num_ds_layers),
@@ -255,6 +248,7 @@ class IAF_DDSF(BaseFlow):
             start = end
 
         assert out_dim == 1, 'last dsf out dim should be 1'
+
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet, context
 
 

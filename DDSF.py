@@ -47,8 +47,8 @@ class MAF(object):
         self.__dict__.update(args.__dict__)
         self.num_hidden_units = args.num_hidden_units_DDSF
 
-        dim = args.num_ds_dim
-        dimh = args.dimh_DDSF
+        dim = args.batch_size
+        dimh = args.batch_size * 2 # args.dimh_DDSF
         num_flow_layers = args.num_flow_layers_DDSF
 
         act = nn.ELU()
@@ -62,7 +62,7 @@ class MAF(object):
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
 
         self.flow = nn.Sequential(*sequels)
-        print(self.flow)
+
         if self.cuda:
             self.flow = self.flow.cuda()
 
