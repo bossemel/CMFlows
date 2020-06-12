@@ -2,10 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import datasets
 import datasets.util
-from sklearn import model_selection
 import sys
 import scipy
 import warnings
+from utils.split_train_test import split_train_val_test
+
+
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
@@ -16,7 +18,7 @@ class Copula_sampler:
             self.x = data.astype(np.float32)
             self.N = self.x.shape[0]
 
-    def __init__(self, args):
+    def __init__(self, args, transform=True):
 
         self.cop_type = args.dataset
         if args.tau:
@@ -28,7 +30,7 @@ class Copula_sampler:
         self.obs = args.obs
         self.transform_fct = args.transform_fct
 
-        Copula_sampler.sample_copulas(self)
+        Copula_sampler.sample_copulas(self, transform)
 
         trn, val, tst = split_train_val_test(self.xx)
 
@@ -47,7 +49,7 @@ class Copula_sampler:
         datasets.util.plot_hist_marginals(data_split.x)
         plt.show()
 
-    def sample_copulas(self):
+    def sample_copulas(self, transform):
         """Produce obs samples of 2-dimensional Copula density distribution
         """
         assert self.cop_type in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
@@ -89,29 +91,14 @@ class Copula_sampler:
         assert xx.all() > 0 & xx.all() < 1
 
         # Apply inverse Sigmoid
-        if self.transform_fct == 'sigmoid':
-            xx = scipy.special.logit(xx)
-        if self.transform_fct == 'gaussian':
-            norm = scipy.stats.norm()
-            xx = norm.ppf(xx)
-            # invgauss = scipy.stats.invgauss(1)
-            # xx = invgauss(xx)
+        if transform:
+            if self.transform_fct == 'sigmoid':
+                xx = scipy.special.logit(xx)
+            if self.transform_fct == 'gaussian':
+                norm = scipy.stats.norm()
+                xx = norm.ppf(xx)
 
         self.xx = xx
-
-
-def split_train_val_test(xx):
-    """Splits data into train, val and test set, using 80/20/280 split.
-
-    Params:
-        xx: data to split
-
-    Returns:
-        train, val, test: train, val and test set
-    """
-    train, testval = model_selection.train_test_split(xx, test_size=0.2)
-    val, test = model_selection.train_test_split(testval, test_size=0.5)
-    return train, val, test
 
 
 def sample_clayton(obs, theta, uu=None, ww=None):

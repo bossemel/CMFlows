@@ -17,7 +17,6 @@ class GAUSSIAN:
     def __init__(self, obs=3000):
 
         trn, val, tst = sample_data(obs)
-        print(trn.shape, val.shape, tst.shape)
 
         self.trn = self.Data(trn)
         self.val = self.Data(val)

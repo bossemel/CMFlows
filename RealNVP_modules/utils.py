@@ -92,7 +92,7 @@ def save_samples_plot(args, epoch, best_model, dataset):
         best_model: best model so far
         dataset: full dataset
     """
-    num_samples = 1000
+    num_samples = 3000
     best_model.eval()
     with torch.no_grad():
         x_synth = best_model.sample(num_samples).detach().cpu().numpy()
@@ -115,15 +115,13 @@ def save_samples_plot(args, epoch, best_model, dataset):
         ax.set_title('Gumbel Copula', fontsize=16)
     ax.set_xlabel('U1', fontsize=16)
     ax.set_ylabel('U2', fontsize=16)
-    ax.set_xlim((0, 1))
-    ax.set_ylim((0, 1))
+
     ax = fig.add_subplot(122)
     ax.plot(x_synth[:, 0], x_synth[:, 1], '.')
     ax.set_title('Copula Flow', fontsize=16)
     ax.set_xlabel('U1', fontsize=16)
     ax.set_ylabel('U2', fontsize=16)
-    ax.set_xlim((0, 1))
-    ax.set_ylim((0, 1))
+
     fig.tight_layout()
-    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.png'.format(args.dataset, epoch)), dpi=300)
+    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.pdf'.format(args.dataset, epoch)), dpi=300)
     plt.close()

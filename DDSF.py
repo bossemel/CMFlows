@@ -14,24 +14,49 @@ from DDSF_modules import nn_modules as nn_, flows, utils, optim
 from tqdm import tqdm
 
 
+def build_model(args):
+
+    dim = args.num_ds_dim
+    dimh = args.dimh_DDSF
+    num_flow_layers = args.num_flow_layers_DDSF
+
+    act = nn.ELU()
+    sequels = [nn_.SequentialFlow(
+        flows.IAF_DDSF(dim=dim,
+                       hid_dim=dimh,
+                       context_dim=1,
+                       num_layers=args.num_hidden_layers_DDSF + 1,
+                       activation=act,
+                       fixed_order=True),
+        flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
+
+#    model = flows.DDSF_sequential(*sequels)
+    model = nn.Sequential(*sequels)
+
+    # if args.cuda:
+    #     model = model.cuda()
+
+    return model
+
+
 class MAF(object):
 
-    def __init__(self, args, pp):
+    def __init__(self, args):
 
         self.args = args
         self.__dict__.update(args.__dict__)
-        self.pp = pp
+        self.num_hidden_units = args.num_hidden_units_DDSF
 
-        dim = pp
-        dimh = args.dimh
-        num_flow_layers = args.num_flow_layers
+        dim = args.batch_size
+        dimh = args.batch_size * 2 # args.dimh_DDSF
+        num_flow_layers = args.num_flow_layers_DDSF
 
         act = nn.ELU()
         sequels = [nn_.SequentialFlow(
             flows.IAF_DDSF(dim=dim,
                            hid_dim=dimh,
                            context_dim=1,
-                           num_layers=args.num_hid_layers + 1,
+                           num_layers=args.num_hidden_layers_DDSF + 1,
                            activation=act,
                            fixed_order=True),
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
@@ -41,11 +66,14 @@ class MAF(object):
         if self.cuda:
             self.flow = self.flow.cuda()
 
+    def get_model(self):
+        return self.flow
+
     def density(self, spl):
         n = spl.size(0)
         context = Variable(torch.FloatTensor(n, 1).zero_())
         lgd = Variable(torch.FloatTensor(n).zero_())
-        zeros = Variable(torch.FloatTensor(n, self.pp).zero_())
+        zeros = Variable(torch.FloatTensor(n, self.num_hidden_units).zero_())
         if self.cuda:
             context = context.cuda()
             lgd = lgd.cuda()
@@ -127,11 +155,12 @@ def parse_args():
     parser.add_argument('--amsgrad', type=int, default=0)
     parser.add_argument('--polyak', type=float, default=0.0)
     parser.add_argument('--cuda', type=bool, default=False)
-    parser.add_argument('--dimh', type=int, default=72)
+    parser.add_argument('--dimh_DDSF', type=int, default=72)
     parser.add_argument('--flowtype', type=str, default='affine')
-    parser.add_argument('--num_flow_layers', type=int, default=2)
-    parser.add_argument('--num_hid_layers', type=int, default=1)
-    parser.add_argument('--num_ds_dim', type=int, default=16)
+    parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
+    parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
+    parser.add_argument('--num_hidden_units_DDSF', type=int, default=43)
+    parser.add_argument('--num_ds_dim', type=int, default=43)
     parser.add_argument('--num_ds_layers', type=int, default=1)
     parser.add_argument('--fixed_order', type=bool, default=True,
                         help='Fix the made ordering to be the given order')
@@ -167,10 +196,10 @@ def args2fn(args):
         ('e', 'epochs'),
         ('s', 'seed'),
         ('p', 'polyak'),
-        ('h', 'dimh'),
+        ('h', 'dimh_DDSF'),
         ('f', 'flowtype'),
-        ('fl', 'num_flow_layers'),
-        ('l', 'num_hid_layers'),
+        ('fl', 'num_flow_layers_DDSF'),
+        ('l', 'num_hidden_layers_DDSF'),
         ('dsdim', 'num_ds_dim'),
         ('dsl', 'num_ds_layers'),
     ]
@@ -182,27 +211,24 @@ class model(object):
 
     patience = 30
 
-    def __init__(self, args, filename):
+    def __init__(self, args):
 
         self.__dict__.update(args.__dict__)
 
-        self.filename = filename
+        # self.filename = filename
         self.args = args
         if args.dataset == 'power':
-            pp = 6
             D = load_maf_data('power')
         elif args.dataset == 'gas':
-            pp = 8
             D = load_maf_data('gas')
         elif args.dataset == 'hepmass':
-            pp = 21
             D = load_maf_data('hepmass')
         elif args.dataset == 'miniboone':
-            pp = 43
             D = load_maf_data('miniboone')
         elif args.dataset == 'bsds300':
-            pp = 63
             D = load_maf_data('bsds300')
+
+        num_hidden_units = args.num_hidden_units_DDSF
 
         tr, va, te = D.trn.x, D.val.x, D.tst.x
 
@@ -216,7 +242,7 @@ class model(object):
                                                        batch_size=args.batch_size,
                                                        shuffle=False)
 
-        self.maf = MAF(args, pp=pp)
+        self.maf = MAF(args)
 
         # optim
         amsgrad = bool(args.amsgrad)
@@ -271,7 +297,7 @@ class model(object):
                        loss_val))
                 if loss_val < self.checkpoint['best_val']:
                     print(' [^] Best validation loss [^] ... [saving]')
-                    self.save(self.save_dir+'/'+self.filename + '_best')
+                    # self.save(self.save_dir+'/'+self.filename + '_best')
                     self.checkpoint['best_val'] = loss_val
                     self.checkpoint['best_val_epoch'] = self.checkpoint['e'] + 1
 
@@ -281,7 +307,8 @@ class model(object):
 
             # self.checkpoint['e'] += 1
             if epoch % 5 == 0:
-                self.save(self.save_dir + '/' + self.filename + '_last')
+                pass
+                # self.save(self.save_dir + '/' + self.filename + '_last')
 
             if self.impatient():
                 print('Terminating due to impatience ... \n')
@@ -290,7 +317,7 @@ class model(object):
             pbar.close()
 
         # loading best valid model (early stopping)
-        self.load(self.save_dir + '/' + self.filename + '_best')
+        # self.load(self.save_dir + '/' + self.filename + '_best')
 
     def impatient(self):
         current_epoch = self.checkpoint['e']
@@ -337,10 +364,9 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed + 10000)
 
-    # fn = str(time.time()).replace('.','')
     fn = args2fn(args)
     print(args)
-    print('\nfilename: ', fn)
+    # print('\nfilename: ', fn)
 
     print(" [*] Building model!")
     if args.fn != '0':
@@ -368,12 +394,12 @@ def main():
             fn = args2fn(args)
         print(" New args:")
         print(args)
-        print('\nfilename: ', fn)
-        mdl = model(args, fn)
+        # print('\nfilename: ', fn)
+        mdl = model(args)
         print(" [*] Loading model!")
         mdl.resume(old_path)
     else:
-        mdl = model(args, fn)
+        mdl = model(args)
 
     # launch the graph in a session
     if args.to_train:
@@ -391,9 +417,9 @@ if __name__ == '__main__':
     main()
     res = 200
     rng = [(-5, 5), (-5, 5)]
-    distr_1 = distributions.SwissRoll(0.5)
+    # distr_1 = distributions.SwissRoll(0.5)
     # distr_1 = distributions.Gaussian(0.5)
-    # distr_1 = distributions.Copula_Joint(cop_type='CLAYTON', marginal='GAUSSIAN', tau=0.5, seed=5)
+    distr_1 = distributions.Copula_Joint(cop_type='CLAYTON', marginal='GAUSSIAN', tau=0.5, seed=5)
     denaf = DensityEstimator(dim=2)
     denaf.fit(distr_1, 1000)
     fig = visualizer.visualize2D(distr_1, denaf, res=res, rng=rng)

@@ -248,6 +248,7 @@ class IAF_DDSF(BaseFlow):
             start = end
 
         assert out_dim == 1, 'last dsf out dim should be 1'
+
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet, context
 
 

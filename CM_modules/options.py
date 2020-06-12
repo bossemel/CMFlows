@@ -17,11 +17,11 @@ class TrainOptions():
             '--batch-size',
             type=int,
             default=100,
-            help='input batch size for training (default: 100)')
+            help='input batch size for training (default: 128)')
         parser.add_argument(
             '--test-batch-size',
             type=int,
-            default=1000,
+            default=100,
             help='input batch size for testing (default: 1000)')
         parser.add_argument(
             '--epochs',
@@ -34,9 +34,13 @@ class TrainOptions():
             default=0.0001,
             help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--dataset',
+            '--copula',
             default='CLAYTON',
             help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+        parser.add_argument(
+            '--marginal',
+            default='GAUSSIAN',
+            help='GAUSSIAN')
         parser.add_argument(
             '--no-cuda',
             action='store_true',
@@ -67,6 +71,30 @@ class TrainOptions():
             type=int,
             default=64,
             help='number of hidden units')
+        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
+        parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
+        parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
+        parser.add_argument('--num_ds_dim', type=int, default=16)
+        parser.add_argument('--num_ds_layers', type=int, default=1)
+        parser.add_argument('--dimh_DDSF', type=int, default=64)
+        # parser.add_argument(
+        #     '--num_hidden_DDSF',
+        #     type=int,
+        #     default=36,
+        #     help='number of hidden units')
+        # # @Todo: rething the name 'num hidden DDSF' - this used to be pp
+        # parser.add_argument(
+        #     '--num_hid_layers_DDSF',
+        #     type=int,
+        #     default=1)
+        # parser.add_argument(
+        #     '--dimh_DDSF',
+        #     type=int,
+        #     default=72)
+        # parser.add_argument(
+        #     '--num_flow_layers_DDSF',
+        #     type=int,
+        #     default=2)
         parser.add_argument(
             '--random_seed',
             type=int,
@@ -95,12 +123,12 @@ class TrainOptions():
         parser.add_argument(
             '--exp_name',
             type=str,
-            default='default_name',
+            default='default_name_cm',
             help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path',
             type=str,
-            default='figures',
+            default='figures_cm',
             help='experiment name to store plots and logs')
         parser.add_argument(
             '--plot_frequ',
