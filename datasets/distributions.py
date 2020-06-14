@@ -1,10 +1,11 @@
 from sklearn.datasets import make_swiss_roll
 import torch
 from scipy import stats
-import datasets  # .copulas import sample_copulas
+import datasets.copulas  # .copulas import sample_copulas
 from utils.split_train_test import split_train_val_test
 import numpy as np
 import scipy.stats
+import datasets.distributions as distributions
 
 
 class Distr(object):
@@ -131,3 +132,51 @@ class Copula_Joint:
 
         xx = np.concatenate([x_1.reshape(-1, 1), x_2.reshape(-1, 1)], axis=1)
         self.xx = xx
+
+
+class Marginals:
+    class Data:
+        def __init__(self, data):
+
+            self.x = data.astype(np.float32)
+            self.N = self.x.shape[0]
+
+    def __init__(self, args):
+
+        if args.tau:
+            self.tau = args.tau
+        if args.theta:
+            self.theta = args.theta
+        if args.df:
+            self.df = args.df
+        self.obs = args.obs
+        self.transform_fct = args.transform_fct
+        self.cop_type = args.copula
+        self.marginal = args.marginal
+        self.seed = args.random_seed
+        self.obs = args.obs
+
+        args.dataset = args.copula
+        Marginals.marginal_distr(self, args)
+
+        trn, val, tst = split_train_val_test(self.xx)
+
+        self.trn = self.Data(trn)
+        self.val = self.Data(val)
+        self.tst = self.Data(tst)
+
+        self.n_dims = args.obs
+
+    def marginal_distr(self, args):
+        # @Todo: Fix Seed
+        dataset = distributions.Gaussian(0.5)
+
+        if self.marginal == 'GAUSSIAN':
+            assert hasattr(args, 'mu'), 'Please specify mu for %r distribution' % (self.marginal)
+            assert hasattr(args, 'var'), 'Please specify variance var for %r distribution' % (self.marginal)
+
+            dataset = np.random.normal(loc=args.mu, scale=args.var, size=args.obs)
+        else:
+            raise NotImplementedError
+
+        self.xx = dataset

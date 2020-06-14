@@ -6,12 +6,14 @@ import os
 import numpy as np
 import torch
 import json
-import datasets
 from torch.autograd import Variable
 import torch.utils.data
 import torch.nn as nn
 from DDSF_modules import nn_modules as nn_, flows, utils, optim
 from tqdm import tqdm
+from DDSF_modules.utils import load_data
+from DDSF_modules.options import TrainOptions
+import math
 
 
 class MAF(object):
@@ -49,18 +51,31 @@ class MAF(object):
         n = spl.size(0)
         context = Variable(torch.FloatTensor(n, 1).zero_())
         lgd = Variable(torch.FloatTensor(n).zero_())
-        zeros = Variable(torch.FloatTensor(n, self.num_hidden_units).zero_())
+        zeros = Variable(torch.FloatTensor(spl.shape).zero_())
         if self.cuda:
             context = context.cuda()
             lgd = lgd.cuda()
             zeros = zeros.cuda()
 
         z, logdet, _ = self.flow((spl, lgd, context))
+
         losses = - utils.log_normal(z, zeros, zeros + 1.0).sum(1) - logdet
         return - losses
 
     def loss(self, x):
         return - self.density(x)
+
+    # def loss(self, spl):
+    #     n = spl.size(0)
+
+    #     context = Variable(torch.FloatTensor(n, 1).zero_())
+    #     lgd = Variable(torch.FloatTensor(n).zero_())
+    #     zeros = Variable(torch.FloatTensor(n, self.num_hidden_units).zero_())
+
+    #     u, log_jacob, __ = self.flow((spl, lgd, context))
+    #     log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
+    #         -1, keepdim=True)
+    #     return - (log_probs + log_jacob).sum(-1, keepdim=True)
 
     def state_dict(self):
         return self.flow.state_dict()
@@ -72,42 +87,38 @@ class MAF(object):
         nn.utils.clip_grad_norm_(self.flow.parameters(), self.clip)
 
 
-def load_maf_data(name):
-    if name == 'mnist':
-        return datasets.MNIST(logit=True, dequantize=True)
+# def load_maf_data(name):
+#     if name == 'mnist':
+#         return datasets.MNIST(logit=True, dequantize=True)
 
-    elif name == 'bsds300':
-        return datasets.BSDS300()
+#     elif name == 'bsds300':
+#         return datasets.BSDS300()
 
-    elif name == 'cifar10':
-        return datasets.CIFAR10(logit=True, flip=True, dequantize=True)
+#     elif name == 'cifar10':
+#         return datasets.CIFAR10(logit=True, flip=True, dequantize=True)
 
-    elif name == 'power':
-        return datasets.POWER()
+#     elif name == 'power':
+#         return datasets.POWER()
 
-    elif name == 'gas':
-        return datasets.GAS()
+#     elif name == 'gas':
+#         return datasets.GAS()
 
-    elif name == 'hepmass':
-        return datasets.HEPMASS()
+#     elif name == 'hepmass':
+#         return datasets.HEPMASS()
 
-    elif name == 'miniboone':
-        return datasets.MINIBOONE()
+#     elif name == 'miniboone':
+#         return datasets.MINIBOONE()
 
-    else:
-        raise ValueError('Unknown dataset')
+#     else:
+#         raise ValueError('Unknown dataset')
 
 
 def parse_args():
     desc = "MAF"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--dataset', type=str, default='miniboone',
-                        choices=['power',
-                                 'gas',
-                                 'hepmass',
-                                 'miniboone',
-                                 'bsds300'])
+    parser.add_argument('--copula', type=str, default='CLAYTON', choices=['CLAYTON', 'FRANK', 'GUMBEL'])
+    parser.add_argument('--marginal', type=str, default='GAUSSIAN', choices=['GAUSSIAN'])
     parser.add_argument('--epochs', type=int, default=400,
                         help='The number of epochs to run')
     parser.add_argument('--batch_size', type=int, default=100,
@@ -118,7 +129,7 @@ def parse_args():
                         help='Directory name to save the generated images')
     parser.add_argument('--log_dir', type=str, default='logs',
                         help='Directory name to save training logs')
-    parser.add_argument('--seed', type=int, default=1993,
+    parser.add_argument('--random_seed', type=int, default=1993,
                         help='Random seed')
     parser.add_argument('--fn', type=str, default='0',
                         help='Filename of model to be loaded')
@@ -131,15 +142,22 @@ def parse_args():
     parser.add_argument('--amsgrad', type=int, default=0)
     parser.add_argument('--polyak', type=float, default=0.0)
     parser.add_argument('--cuda', type=bool, default=False)
-    parser.add_argument('--dimh_DDSF', type=int, default=72)
-    parser.add_argument('--flowtype', type=str, default='affine')
     parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
     parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
-    parser.add_argument('--num_hidden_units_DDSF', type=int, default=43)
-    parser.add_argument('--num_ds_dim', type=int, default=43)
+    parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
+    parser.add_argument('--num_ds_dim', type=int, default=16)
     parser.add_argument('--num_ds_layers', type=int, default=1)
+    parser.add_argument('--dimh_DDSF', type=int, default=64)
+    parser.add_argument('--tau', type=int, required=False)
+    parser.add_argument('--theta', type=int, required=False)
+    parser.add_argument('--df', type=int, required=False)
+    parser.add_argument('--obs', type=int, default=1000)
+    parser.add_argument('--mu', type=float, required=False)
+    parser.add_argument('--var', type=float, required=False)
+    parser.add_argument('--transform_fct', type=str, default='sigmoid')
     parser.add_argument('--fixed_order', type=bool, default=True,
                         help='Fix the made ordering to be the given order')
+    parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
     return check_args(parser.parse_args())
 
 
@@ -149,8 +167,8 @@ def check_args(args):
         os.makedirs(args.save_dir)
 
     # --result_dir
-    if not os.path.exists(args.result_dir + '_' + args.dataset):
-        os.makedirs(args.result_dir + '_' + args.dataset)
+    if not os.path.exists(args.result_dir + '_' + args.copula + '_' + args.marginal):
+        os.makedirs(args.result_dir + '_' + args.copula + '_' + args.marginal)
 
     # --result_dir
     if not os.path.exists(args.log_dir):
@@ -165,58 +183,22 @@ def check_args(args):
     return args
 
 
-def args2fn(args):
-
-    prefix_key_pairs = [
-        ('', 'dataset'),
-        ('e', 'epochs'),
-        ('s', 'seed'),
-        ('p', 'polyak'),
-        ('h', 'dimh_DDSF'),
-        ('f', 'flowtype'),
-        ('fl', 'num_flow_layers_DDSF'),
-        ('l', 'num_hidden_layers_DDSF'),
-        ('dsdim', 'num_ds_dim'),
-        ('dsl', 'num_ds_layers'),
-    ]
-
-    return '_'.join([p + str(args.__dict__[k]) for p, k in prefix_key_pairs])
-
-
 class model(object):
 
-    patience = 30
+    # patience = 30
 
     def __init__(self, args):
 
         self.__dict__.update(args.__dict__)
 
-        # self.filename = filename
-        self.args = args
-        if args.dataset == 'power':
-            D = load_maf_data('power')
-        elif args.dataset == 'gas':
-            D = load_maf_data('gas')
-        elif args.dataset == 'hepmass':
-            D = load_maf_data('hepmass')
-        elif args.dataset == 'miniboone':
-            D = load_maf_data('miniboone')
-        elif args.dataset == 'bsds300':
-            D = load_maf_data('bsds300')
+        # Set up data loader
+        dataset, num_inputs, data_loaders = load_data(args)
 
-        num_hidden_units = args.num_hidden_units_DDSF
+        self.train_loader = data_loaders['train_loader']
 
-        tr, va, te = D.trn.x, D.val.x, D.tst.x
+        self.valid_loader = data_loaders['valid_loader']
 
-        self.train_loader = torch.utils.data.DataLoader(tr,
-                                                        batch_size=args.batch_size,
-                                                        shuffle=True)
-        self.valid_loader = torch.utils.data.DataLoader(va,
-                                                        batch_size=args.batch_size,
-                                                        shuffle=False)
-        self.test_loader = torch.utils.data.DataLoader(te,
-                                                       batch_size=args.batch_size,
-                                                       shuffle=False)
+        self.test_loader = data_loaders['test_loader']
 
         self.maf = MAF(args)
 
@@ -244,13 +226,15 @@ class model(object):
 
         for epoch in range(epochs):
             pbar = tqdm(total=len(self.train_loader.dataset))
-            for batch_idx, x in tqdm(enumerate(self.train_loader)):
+            for batch_idx, data in tqdm(enumerate(self.train_loader)):
+                if isinstance(data, list):
+                    data = data[0]
                 optim.zero_grad()
-                x = Variable(x)
+                data = Variable(data)
                 if self.cuda:
-                    x = x.cuda()
+                    data = data.cuda()
 
-                losses = self.maf.loss(x)
+                losses = self.maf.loss(data)
 
                 loss = losses.mean()
 
@@ -263,52 +247,36 @@ class model(object):
                 t += 1
 
                 optim.swap()
-                loss_val = self.evaluate(self.valid_loader)
-                # loss_tst = self.evaluate(self.test_loader)
-                pbar.update(x.size(0))
-                pbar.set_description('Train, Log likelihood in nats: {:.6f}' % (losses))
-                print('Epoch: [%4d/%4d] train <= %.2f '
-                      'valid: %.3f' %
-                      (self.checkpoint['e'] + 1, epoch, LOSSES / float(counter),
-                       loss_val))
-                if loss_val < self.checkpoint['best_val']:
-                    print(' [^] Best validation loss [^] ... [saving]')
-                    # self.save(self.save_dir+'/'+self.filename + '_best')
-                    self.checkpoint['best_val'] = loss_val
-                    self.checkpoint['best_val_epoch'] = self.checkpoint['e'] + 1
+                pbar.update(data.size(0))
 
-                LOSSES = 0
-                counter = 0
-                optim.swap()
+            loss_val = self.evaluate(self.valid_loader)
+            pbar.set_description('Train, Log likelihood in nats: {:.6f}' % (losses))
+            print('Epoch: [%4d/%4d] train <= %.2f '
+                  'valid: %.3f' %
+                  (self.checkpoint['e'] + 1, epoch, LOSSES / float(counter),
+                   loss_val))
+            if loss_val < self.checkpoint['best_val']:
+                print(' [^] Best validation loss [^] ... [saving]')
+                self.checkpoint['best_val'] = loss_val
+                self.checkpoint['best_val_epoch'] = self.checkpoint['e'] + 1
 
-            # self.checkpoint['e'] += 1
-            if epoch % 5 == 0:
-                pass
-                # self.save(self.save_dir + '/' + self.filename + '_last')
-
-            if self.impatient():
-                print('Terminating due to impatience ... \n')
-                break
+            LOSSES = 0
+            counter = 0
+            optim.swap()
 
             pbar.close()
-
-        # loading best valid model (early stopping)
-        # self.load(self.save_dir + '/' + self.filename + '_best')
-
-    def impatient(self):
-        current_epoch = self.checkpoint['e']
-        bestv_epoch = self.checkpoint['best_val_epoch']
-        return current_epoch - bestv_epoch > self.patience
 
     def evaluate(self, dataloader):
         LOSSES = 0
         c = 0
-        for x in dataloader:
-            x = Variable(x)
+        for data in dataloader:
+            if isinstance(data, list):
+                data = data[0]
+            data = Variable(data)
             if self.cuda:
-                x = x.cuda()
+                data = data.cuda()
 
-            losses = self.maf.loss(x).data.cpu().numpy()
+            losses = self.maf.loss(data).data.cpu().numpy()
             LOSSES += losses.sum()
             c += losses.shape[0]
         return LOSSES / float(c)
@@ -332,50 +300,28 @@ class model(object):
 
 
 def main():
+    # Training settings
+    args = TrainOptions().parse()   # get training options
+
     # parse arguments
     args = parse_args()
     if args is None:
         exit()
 
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed + 10000)
+    # Cuda settings
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
-    fn = args2fn(args)
+    args.test_batch_size = args.batch_size
+
+    np.random.seed(args.random_seed)
+    torch.manual_seed(args.random_seed + 10000)
+
     print(args)
-    # print('\nfilename: ', fn)
 
     print(" [*] Building model!")
-    if args.fn != '0':
-        # overwrite
-        # args.fn ends with ``_last'' or ``_best''
-        old_fn = args.fn
-        overwrite_args = True
-        print('MANUALLY RESUMING')
-    else:
-        # automatic resuming the last model
-        # (of the same args) if it exists
-        old_fn = fn + '_last'
-        overwrite_args = False
-        print('AUTOMATICALLY RESUMING')
 
-    old_args = args.save_dir + '/' + old_fn + '_args.txt'
-    old_path = args.save_dir + '/' + old_fn
-    if os.path.isfile(old_args):
-        def without_keys(d, keys):
-            return {x: d[x] for x in d if x not in keys}
-        d = without_keys(json.loads(open(old_args, 'r').read()),
-                         ['to_train', 'epoch'])
-        args.__dict__.update(d)
-        if overwrite_args:
-            fn = args2fn(args)
-        print(" New args:")
-        print(args)
-        # print('\nfilename: ', fn)
-        mdl = model(args)
-        print(" [*] Loading model!")
-        mdl.resume(old_path)
-    else:
-        mdl = model(args)
+    mdl = model(args)
 
     # launch the graph in a session
     if args.to_train:

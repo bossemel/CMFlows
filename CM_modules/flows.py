@@ -2,8 +2,7 @@ import torch.nn as nn
 import torch
 import math
 from torch.autograd import Variable
-import scipy.special
-from utils.various import logit, sigmoid
+from utils.various import sigmoid
 
 
 class CMFlow(nn.Module):
