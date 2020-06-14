@@ -2,7 +2,7 @@
 import pickle
 import os
 import csv
-
+import torch
 
 def save_to_stats_pkl_file(experiment_log_filepath, filename, stats_dict):
     summary_filename = os.path.join(experiment_log_filepath, filename)
@@ -77,3 +77,41 @@ def load_statistics(experiment_log_dir, filename):
             stats[keys[idx]].append(value)
 
     return stats
+
+
+def save_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
+               best_validation_model_loss):
+    """
+    Save the network parameter state and current best val epoch idx and best val accuracy.
+    :param model_save_name: Name to use to save model without the epoch index
+    :param model_idx: The index to save the model with.
+    :param best_validation_model_idx: The index of the best validation model to be stored for future use.
+    :param best_validation_model_acc: The best validation accuracy to be stored for use at test time.
+    :param model_save_dir: The directory to store the state at.
+    :param state: The dictionary containing the system state.
+    """
+    model.state['network'] = model.state_dict()  # save network parameter and other variables.
+    model.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
+    model.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
+    model_RealNVP.state['network'] = model_RealNVP.state_dict()  # save network parameter and other variables.
+    model_RealNVP.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
+    model_RealNVP.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
+    torch.save(model.state, f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(
+        model_idx))))  # save state at prespecified filepath
+    torch.save(model_RealNVP.state, f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(
+        model_idx))))  # save state at prespecified filepath
+
+
+def load_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx):
+    """
+    Load the network parameter state and the best val model idx and best val acc to be compared with the future val accuracies, in order to choose the best val model
+    :param model_save_dir: The directory to store the state at.
+    :param model_save_name: Name to use to save model without the epoch index
+    :param model_idx: The index to save the model with.
+    :return: best val idx and best val model acc, also it loads the network state into the system state without returning it
+    """
+    state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(model_idx))))
+    model.load_state_dict(state_dict=state['network'])
+    state_RealNVP = torch.load(f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(model_idx))))
+    model_RealNVP.load_state_dict(state_dict=state_RealNVP['network'])
+    return state, state['best_val_model_idx'], state['best_val_model_acc']

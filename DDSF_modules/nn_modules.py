@@ -101,7 +101,7 @@ class WNlinear(Module):
 
 class CWNlinear(Module):
 
-    def __init__(self, in_features, out_features, context_features,
+    def __init__(self, in_features, out_features, context_features, device,
                  mask=None, norm=True):
         super(CWNlinear, self).__init__()
         self.in_features = in_features
@@ -115,12 +115,13 @@ class CWNlinear(Module):
         self.reset_parameters()
         self.cscale.weight.data.normal_(0, 0.001)
         self.cbias.weight.data.normal_(0, 0.001)
+        self.device = device
 
     def reset_parameters(self):
         self.direction.data.normal_(0, 0.001)
 
     def forward(self, inputs):
-        input, context = inputs
+        input_, context = inputs
         scale = self.cscale(context)
         bias = self.cbias(context)
         if self.norm:
@@ -133,7 +134,7 @@ class CWNlinear(Module):
             # weight = weight * getattr(self.mask,
             #                          ('cpu', 'cuda')[weight.is_cuda])()
             weight = weight * Variable(self.mask)
-        return scale * F.linear(input, weight.type('torch.FloatTensor'), None) + bias, context
+        return scale * F.linear(input_, weight.type('torch.FloatTensor').to(self.device), None) + bias, context
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \
@@ -157,10 +158,10 @@ class ResLinear(nn.Module):
 
         self.activation = activation
 
-    def forward(self, input):
-        h = self.activation(self.dot_0h(input))
+    def forward(self, input_):
+        h = self.activation(self.dot_0h(input_))
         out_nonlinear = self.dot_h1(h)
-        out_skip = input if self.same_dim else self.dot_01(input)
+        out_skip = input_ if self.same_dim else self.dot_01(input_)
         return out_nonlinear + out_skip
 
 
@@ -176,5 +177,5 @@ class Lambda(nn.Module):
         super(Lambda, self).__init__()
         self.function = function
 
-    def forward(self, input):
-        return self.function(input)
+    def forward(self, input_):
+        return self.function(input_)

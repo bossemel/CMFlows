@@ -14,31 +14,6 @@ from DDSF_modules import nn_modules as nn_, flows, utils, optim
 from tqdm import tqdm
 
 
-def build_model(args):
-
-    dim = args.num_ds_dim
-    dimh = args.dimh_DDSF
-    num_flow_layers = args.num_flow_layers_DDSF
-
-    act = nn.ELU()
-    sequels = [nn_.SequentialFlow(
-        flows.IAF_DDSF(dim=dim,
-                       hid_dim=dimh,
-                       context_dim=1,
-                       num_layers=args.num_hidden_layers_DDSF + 1,
-                       activation=act,
-                       fixed_order=True),
-        flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
-
-#    model = flows.DDSF_sequential(*sequels)
-    model = nn.Sequential(*sequels)
-
-    # if args.cuda:
-    #     model = model.cuda()
-
-    return model
-
-
 class MAF(object):
 
     def __init__(self, args):
@@ -58,10 +33,11 @@ class MAF(object):
                            context_dim=1,
                            num_layers=args.num_hidden_layers_DDSF + 1,
                            activation=act,
-                           fixed_order=True),
+                           fixed_order=True,
+                           device=args.device),
             flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
 
-        self.flow = nn.Sequential(*sequels)
+        self.flow = nn.Sequential(*sequels).to(args.device)
 
         if self.cuda:
             self.flow = self.flow.cuda()

@@ -77,24 +77,6 @@ class TrainOptions():
         parser.add_argument('--num_ds_dim', type=int, default=16)
         parser.add_argument('--num_ds_layers', type=int, default=1)
         parser.add_argument('--dimh_DDSF', type=int, default=64)
-        # parser.add_argument(
-        #     '--num_hidden_DDSF',
-        #     type=int,
-        #     default=36,
-        #     help='number of hidden units')
-        # # @Todo: rething the name 'num hidden DDSF' - this used to be pp
-        # parser.add_argument(
-        #     '--num_hid_layers_DDSF',
-        #     type=int,
-        #     default=1)
-        # parser.add_argument(
-        #     '--dimh_DDSF',
-        #     type=int,
-        #     default=72)
-        # parser.add_argument(
-        #     '--num_flow_layers_DDSF',
-        #     type=int,
-        #     default=2)
         parser.add_argument(
             '--random_seed',
             type=int,
@@ -115,11 +97,6 @@ class TrainOptions():
             type=str,
             default='sigmoid',
             help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
-        # parser.add_argument(
-        #     '--no_sigmoid',
-        #     action='store_true',
-        #     default=False,
-        #     help='applied logit on copula samples, and sigmoid before evaluation')
         parser.add_argument(
             '--exp_name',
             type=str,
@@ -135,6 +112,10 @@ class TrainOptions():
             type=int,
             default=10,
             help='save plots every x epochs')
+        parser.add_argument(
+            '--experiment_saved_models',
+            type=str,
+            default='saved_models')
         self.initialized = True
         return parser
 

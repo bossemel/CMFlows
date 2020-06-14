@@ -7,42 +7,38 @@ from utils.various import logit, sigmoid
 
 
 class CMFlow(nn.Module):
-    def __init__(self, transform, model_RealNVP, model_DDSF_1, model_DDSF_2):
+    def __init__(self, transform, model_RealNVP, model_DDSF_1, model_DDSF_2, device):
         super(CMFlow, self).__init__()
         self.model_RealNVP = model_RealNVP
         self.model_DDSF_1 = model_DDSF_1
         self.model_DDSF_2 = model_DDSF_2
         self.transform_fct = transform
+        self.device = device
 
     def forward(self, xx, context=None):
         # @Todo: implement gaussian cdf transform
         # xx = logit(xx)
+        # @Todo: Fix loss
 
-        # if self.transform_fct == 'gaussian':
-        #     norm = scipy.stats.norm()
-        #     xx = norm.ppf(xx)
+        inputs, logdets_RealNVP = self.model_RealNVP(xx)
+        if self.transform_fct == 'sigmoid':
+            inputs = sigmoid(inputs)
+        if self.transform_fct == 'gaussian':
+            raise NotImplementedError
 
-        inputs, logdets = self.model_RealNVP(xx)
-
-        # if self.transform_fct == 'sigmoid':
-        inputs = sigmoid(inputs)
-        # if self.transform_fct == 'gaussian':
-        #     norm = scipy.stats.norm()
-        #     inputs = norm.cdf(inputs)
         n = xx.size(0)
-        context = Variable(torch.FloatTensor(n, 1).zero_())
-        inputs_1, logdets_1, __ = self.model_DDSF_1((inputs[:, 0], logdets, context))
-        inputs_2, logdets_2, __ = self.model_DDSF_2((inputs[:, 1], logdets, context))
-
+        context = Variable(torch.FloatTensor(n, 1).zero_()).to(self.device)
+        inputs_1, logdets_1, context = self.model_DDSF_1((inputs[:, 0], logdets_RealNVP, context))
+        inputs_2, logdets_2, __ = self.model_DDSF_2((inputs[:, 1], logdets_RealNVP, context))
         xx = torch.cat((inputs_1, inputs_2), dim=1)
         logdets = logdets_1 + logdets_2
-        return xx, logdets
+        return xx, logdets, context
 
     def log_probs(self, inputs):
         n = inputs.size(0)
         context = Variable(torch.FloatTensor(n, 1).zero_())
 
-        u, log_jacob = self(inputs, context)
+        u, log_jacob, context = self(inputs, context)
         log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
             -1, keepdim=True)
         return (log_probs + log_jacob).sum(-1, keepdim=True)

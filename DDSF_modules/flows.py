@@ -160,7 +160,7 @@ class DenseSigmoidFlow(BaseFlow):
 
 class IAF_DDSF(BaseFlow):
 
-    def __init__(self, dim, hid_dim, context_dim, num_layers,
+    def __init__(self, dim, hid_dim, context_dim, num_layers, device,
                  activation=nn.ELU(), fixed_order=False,
                  num_ds_dim=4, num_ds_layers=1, num_ds_multiplier=3):
         super(IAF_DDSF, self).__init__()
@@ -171,9 +171,14 @@ class IAF_DDSF(BaseFlow):
         self.num_ds_layers = num_ds_layers
 
         assert int(hid_dim / dim) == hid_dim / dim, 'hid_dim / dim is not an integer. hid_dim: %s, dim: %s' % (hid_dim, dim)
-        self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
+        self.mdl = iaf_modules.cMADE(dim=dim,
+                                     hid_dim=hid_dim,
+                                     context_dim=context_dim,
+                                     num_layers=num_layers,
                                      num_outlayers=(num_ds_multiplier * int(hid_dim / dim) * num_ds_layers),
-                                     activation=activation, fixed_order=fixed_order)
+                                     device=device,
+                                     activation=activation,
+                                     fixed_order=fixed_order)
         # self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
         #                              num_outlayers=1,
         #                              activation=activation, fixed_order=fixed_order)

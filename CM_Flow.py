@@ -1,14 +1,12 @@
 import torch
 import torch.optim as optim
 import torch.utils.data
-import torch.nn as nn
 
 from tqdm import tqdm
 import os
 import numpy as np
 from pathlib import Path
 import random
-# import copy
 
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
@@ -17,33 +15,31 @@ import CM_modules.flows as flows
 from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_margins
 from RealNVP import build_model as build_model_RealNVP
 import RealNVP_modules.flows as fnn
+import RealNVP_modules.utils
+from DDSF import MAF
 
-from DDSF import build_model as model_DDSF, MAF
-
-from utils.save_statistics import save_statistics
+from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
-def build_model(args, num_inputs, device):
+def build_model(args, num_inputs):
     args.num_hidden_units_DDSF = args.num_hidden_units_DDSF
 
-    model_RealNVP = build_model_RealNVP(args, num_inputs, device)
+    model_RealNVP = build_model_RealNVP(args, num_inputs, args.device)
     MAF_DDSF = MAF(args)
     model_DDSF_1 = MAF_DDSF.get_model()
     model_DDSF_2 = MAF_DDSF.get_model()
 
-    # model_DDSF_1 = model_DDSF(args)
-    # model_DDSF_2 = model_DDSF(args)
-
     model = flows.CMFlow(transform=args.transform_fct,
                          model_RealNVP=model_RealNVP,
                          model_DDSF_1=model_DDSF_1,
-                         model_DDSF_2=model_DDSF_2)
+                         model_DDSF_2=model_DDSF_2,
+                         device=args.device)
 
-    return model
+    return model, model_RealNVP, model_DDSF_1, model_DDSF_2
 
 
-def train(epoch, train_loader, current_epoch_losses):
+def train(epoch, train_loader, current_epoch_losses, device):
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset))
@@ -53,6 +49,7 @@ def train(epoch, train_loader, current_epoch_losses):
         data = data.to(device)
         optimizer.zero_grad()
         loss = -model.log_probs(data).mean()
+
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
@@ -162,13 +159,15 @@ if __name__ == '__main__':
     args.exp_path = os.path.join('results', args.exp_name)
     args.figures_path = os.path.join(args.exp_path, args.figures_path)
     args.experiment_logs = os.path.join(args.exp_path, 'result_outputs')
+    args.experiment_saved_models = os.path.join(args.experiment_saved_models, args.exp_name)
     Path(args.exp_path).mkdir(parents=True, exist_ok=True)
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
+    Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
-    device = torch.device("cuda:0" if args.cuda else "cpu")
+    args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
     # Set Seed
     np.random.seed(args.random_seed)
@@ -181,8 +180,12 @@ if __name__ == '__main__':
     dataset, num_inputs, data_loaders = utils.load_data(args)
 
     # Build model and send to device
-    model = build_model(args, num_inputs, device)
-    model.to(device)
+    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args, num_inputs)
+    model.state = dict()
+    model_RealNVP.state = dict()
+
+    model.to(args.device)
+
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
 
     # Save losses and best epoch stats and model in dictionary
@@ -195,13 +198,31 @@ if __name__ == '__main__':
         print('\nEpoch: {}'.format(epoch))
 
         current_epoch_losses = {"train_loss": [], "val_loss": []}
-        current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
+        current_epoch_losses = train(epoch,
+                                     data_loaders['train_loader'],
+                                     current_epoch_losses,
+                                     args.device)
         current_epoch_losses, best_dict = validate(epoch,
                                                    model,
                                                    data_loaders['valid_loader'],
-                                                   device,
+                                                   args.device,
                                                    current_epoch_losses=current_epoch_losses,
                                                    best_dict=best_dict)
+
+        model.state['model_epoch'] = epoch
+
+        # save model and best val idx and best val acc, using the model dir, model name and model idx
+        save_model(model=model, model_RealNVP=model_RealNVP,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
+
+        save_model(model=model, model_RealNVP=model_RealNVP,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
 
         # Save mean of each epoch in total losses dictionary
         for key, value in current_epoch_losses.items():
@@ -227,25 +248,29 @@ if __name__ == '__main__':
         #     utils.save_samples_plot(args, epoch, model, dataset)
 
     # Calculate test statistics
+    # load best validation model
+    load_model(model=model, model_RealNVP=model_RealNVP, model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
+               model_save_name="train_model")
+
     current_epoch_test = test(best_dict['best_validation_epoch'],
-                              best_dict['best_model'],
+                              model,
                               data_loaders['test_loader'],
-                              device,
+                              args.device,
                               current_epoch_test=current_epoch_test)
 
     # Calculate Jensen-Shannon Divergence on test set
     current_epoch_test = jsd_eval(args,
                                   best_dict['best_validation_epoch'],
-                                  best_dict['best_model'],
+                                  model_RealNVP,
                                   data_loaders['test_loader'],
-                                  device,
+                                  args.device,
                                   current_epoch_test=current_epoch_test)
 
     # Evaluate margins on test set
     current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
-                                           best_dict['best_model'],
+                                           model_RealNVP,
                                            data_loaders['test_loader'],
-                                           device,
+                                           args.device,
                                            transform_fct=args.transform_fct,
                                            current_epoch_test=current_epoch_test)
 
@@ -261,15 +286,15 @@ if __name__ == '__main__':
     plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
 
     # Plot samples for best epoch
-    utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
+    RealNVP_modules.utils.save_samples_plot(args, best_dict['best_validation_epoch'], model_RealNVP, dataset)
 
     # Plot Margins
     plot_margins(args,
                  best_dict['best_validation_epoch'],
-                 best_dict['best_model'],
+                 model_RealNVP,
                  data_loaders['test_loader'])
 
     # Plot pointwise difference
     jsd_graph(args,
               best_dict['best_validation_epoch'],
-              best_dict['best_model'])
+              model_RealNVP)

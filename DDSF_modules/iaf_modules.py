@@ -8,12 +8,10 @@ from functools import reduce
 
 class cMADE(Module):
 
-    def __init__(self, dim, hid_dim, context_dim, num_layers,
+    def __init__(self, dim, hid_dim, context_dim, num_layers, device,
                  num_outlayers=1, activation=nn.ELU(), fixed_order=False,
                  derank=1):
         super(cMADE, self).__init__()
-
-        oper = nn_.CWNlinear
 
         self.dim = dim
         self.hid_dim = hid_dim
@@ -30,16 +28,28 @@ class cMADE(Module):
         sequels = list()
         for i in range(num_layers - 1):
             if i == 0:
-                sequels.append(oper(dim, hid_dim, context_dim,
-                                    ms[i], False))
+                sequels.append(nn_.CWNlinear(in_features=dim,
+                                             out_features=hid_dim,
+                                             context_features=context_dim,
+                                             device=device,
+                                             mask=ms[i],
+                                             norm=False))
                 sequels.append(self.activation)
             else:
-                sequels.append(oper(hid_dim, hid_dim, context_dim,
-                                    ms[i], False))
+                sequels.append(nn_.CWNlinear(in_features=dim,
+                                             out_features=hid_dim,
+                                             context_features=context_dim,
+                                             device=device,
+                                             mask=ms[i],
+                                             norm=False))
                 sequels.append(self.activation)
 
         self.input_to_hidden = nn.Sequential(*sequels)
-        self.hidden_to_output = oper(hid_dim, dim * num_outlayers, context_dim, ms[-1])
+        self.hidden_to_output = nn_.CWNlinear(in_features=hid_dim,
+                                              out_features=dim * num_outlayers,
+                                              context_features=context_dim,
+                                              device=device,
+                                              mask=ms[-1])
 
     def forward(self, inputs):
         input_, context = inputs
