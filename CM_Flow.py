@@ -48,7 +48,7 @@ def train(epoch, train_loader, current_epoch_losses, device):
             data = data[0]
         data = data.to(device)
         optimizer.zero_grad()
-        loss = -model.log_probs(data).mean()
+        loss = model.loss(data).mean()
 
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
@@ -100,7 +100,7 @@ def validate(epoch, model, loader, device,
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = -model.log_probs(data).mean().item()
+            current_loss = model.loss(data).mean().item()
         if current_epoch_losses is not None:
             current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
             val_mean_loss = np.mean(current_epoch_losses['val_loss'])
@@ -139,7 +139,7 @@ def test(epoch, model, loader, device,
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = -model.log_probs(data).mean().item()
+            current_loss = model.loss(data).mean().item()
         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))

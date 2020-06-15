@@ -1,7 +1,6 @@
-from sklearn.datasets import make_swiss_roll
 import torch
 from scipy import stats
-import datasets.copulas  # .copulas import sample_copulas
+import datasets.copulas
 from utils.split_train_test import split_train_val_test
 import numpy as np
 import scipy.stats
@@ -18,20 +17,6 @@ class Distr(object):
 
     def sampler(self, x):
         raise NotImplementedError
-
-
-class SwissRoll(Distr):
-
-    hasenergyf = False
-    hassplr = True
-
-    def __init__(self, noise=0.5):
-        self.noise = noise
-
-    def sampler(self, n):
-        #print(make_swiss_roll(n, self.noise)[0][:, [0, 2]].shape)
-        return torch.from_numpy(
-            make_swiss_roll(n, self.noise)[0][:, [0, 2]].astype('float32') / 3.)
 
 
 def sample_normal_uniform(obs):
@@ -55,8 +40,6 @@ class Gaussian():
 
 
 def copula_corr_joint(cop_type='CLAYTON', marginal='GAUSSIAN', obs=1000, tau=0.5, df=2, seed=5):
-    # print('obs', obs)
-    # @Todo: Fix Seed
     xx = datasets.sample_copulas(cop_type, obs, tau, df, seed)
     if marginal == 'GAUSSIAN':
         invnorm = stats.invgauss(mu=0)
@@ -65,24 +48,6 @@ def copula_corr_joint(cop_type='CLAYTON', marginal='GAUSSIAN', obs=1000, tau=0.5
     else:
         raise NotImplementedError
     return x_1, x_2
-
-
-# class Copula_Joint():
-
-#     def __init__(self, cop_type='CLAYTON', marginal='GAUSSIAN', tau=0.5, df=2, seed=5, noise=0.5):
-#         # @Todo: Look at what noise is for
-#         self.noise = noise
-#         self.cop_type = cop_type
-#         self.marginal = marginal
-#         self.tau = tau
-#         self.df = df
-#         self.seed = seed
-
-#     def sampler(self, obs):
-#         # @Todo: implement calling two-ddsfs
-#         samples = copula_corr_joint(self.cop_type, self.marginal, obs, self.tau, self.df, self.seed)
-#         # print(samples[0].shape)
-#         return torch.from_numpy(samples[0].astype('float32')).reshape(-1,1)
 
 
 class Copula_Joint:
@@ -119,7 +84,6 @@ class Copula_Joint:
         self.n_dims = self.trn.x.shape[1]
 
     def copula_corr_joint(self, args):
-        # @Todo: Fix Seed
         copula_sampler = datasets.copulas.Copula_sampler(args, transform=False)
         copula_xx = copula_sampler.xx
 
@@ -158,19 +122,22 @@ class Marginals:
         self.n_dims = args.obs
 
     def sampler(self, args, obs=None):
-        # @Todo: Fix Seed
         dataset = distributions.Gaussian(0.5)
-
         if self.marginal == 'GAUSSIAN':
-            assert hasattr(args, 'mu'), 'Please specify mu for %r distribution' % (self.marginal)
-            assert hasattr(args, 'var'), 'Please specify variance var for %r distribution' % (self.marginal)
-
+            assert args.mu is not None, 'Please specify mean mu for %r distribution' % (self.marginal)
+            assert args.var is not None, 'Please specify variance var for %r distribution' % (self.marginal)
             dataset = np.random.normal(loc=args.mu,
                                        scale=args.var,
-                                       size=[args.obs if obs is None else obs]).reshape(-1,1)
+                                       size=[args.obs if obs is None else obs])
+        elif self.marginal == 'UNIFORM':
+            assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (self.marginal)
+            assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (self.marginal)
 
+            dataset = np.random.uniform(low=args.low,
+                                        high=args.high,
+                                        size=[args.obs if obs is None else obs])
         else:
             raise NotImplementedError
 
-        self.xx = dataset
+        self.xx = dataset.reshape(-1, 1)
         return self.xx

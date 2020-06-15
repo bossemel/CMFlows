@@ -31,7 +31,7 @@ class TrainOptions():
         parser.add_argument(
             '--marginal',
             default='GAUSSIAN',
-            help='GAUSSIAN')
+            choices=['GAUSSIAN', 'UNIFORM'])
         parser.add_argument(
             '--no-cuda',
             action='store_true',
@@ -81,6 +81,8 @@ class TrainOptions():
             type=int,
             default=10,
             help='save plots every x epochs')
+        parser.add_argument('--low', type=float, required=False)
+        parser.add_argument('--high', type=float, required=False)
         self.initialized = True
         return parser
 

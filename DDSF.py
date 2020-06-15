@@ -162,7 +162,7 @@ class MAF(nn.Sequential):
         logdet = Variable(torch.FloatTensor(num_samples).zero_())
 
         if noise is None:
-            noise = torch.Tensor(num_samples).normal_().reshape(-1, 1)
+            noise = torch.Tensor(num_samples).uniform_().reshape(-1, 1)
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples, __, __ = self((noise, logdet, context))
