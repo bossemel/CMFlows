@@ -15,7 +15,7 @@ from DDSF_modules.utils import load_data
 from DDSF_modules.options import TrainOptions
 
 from utils.save_statistics import save_statistics
-from utils.loss_plots import collect_experiment_dicts
+from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
 def build_model(args):
@@ -141,9 +141,6 @@ def test(epoch, model, loader, device,
 
 class MAF(nn.Sequential):
 
-    def get_model(self):
-        return self
-
     def density(self, samples, logdets=None, context=None, zeros=None):
         self.n = args.batch_size
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()) + 2.0
@@ -154,7 +151,7 @@ class MAF(nn.Sequential):
         context = self.context if context is None else context
         zeros = self.zeros if zeros is None else zeros
         z, logdet, _ = self((samples, logdets, context))
-        density = utils.log_normal(z, zeros, zeros + 1.0).sum(1) - logdet
+        density = utils.log_normal(z, zeros, zeros + 1.0).sum(1) + logdet
         return density
 
     def loss(self, x):
@@ -285,7 +282,7 @@ if __name__ == '__main__':
 
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
-    # plot_result_graphs(args.figures_path, args.exp_name, args.dataset, result_dict)
+    plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict)
 
     # Plot samples for best epoch
     # utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
