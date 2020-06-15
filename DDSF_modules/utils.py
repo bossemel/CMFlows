@@ -17,10 +17,6 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    assert args.copula in [
-        'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
-    ]
-
     assert args.marginal in [
         'GAUSSIAN'
     ]

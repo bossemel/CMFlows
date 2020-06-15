@@ -38,3 +38,28 @@ def visualize2D(distr, mdl, res=200, rng=[(-5, 5), (-5, 5)],
         plt.xlim(rng[0])
         plt.ylim(rng[1])
     return fig
+
+
+def visualize1D(marginal, model, args, res=100, rng=[(-5, 5), (-5, 5)],
+                sample_from_distr=True):
+
+    fig = plt.figure(figsize=(8, 6))
+
+    ax = fig.add_subplot(1, 2, 1)
+    data = marginal.sampler(args, res)
+    ax.hist(data)
+
+    Z = model.sample(num_samples=res, noise=None).detach().numpy()
+    print(Z.shape)
+    exit()
+    ax = fig.add_subplot(1, 2, 2)
+    # xx = np.linspace(rng[0][0], rng[0][1], res)
+    # xx = xx.astype('float32')
+    # xx = Variable(torch.from_numpy(xx))
+
+    # Z = model.density(xx).data.numpy()
+    # Z = np.exp(Z)
+    # print(xx[:10])
+    # print(Z[:10])
+    ax.hist(Z)
+    return fig

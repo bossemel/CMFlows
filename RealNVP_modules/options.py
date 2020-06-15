@@ -34,10 +34,6 @@ class TrainOptions():
             default=0.0001,
             help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--dataset',
-            default='CLAYTON',
-            help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
-        parser.add_argument(
             '--no-cuda',
             action='store_true',
             default=False,

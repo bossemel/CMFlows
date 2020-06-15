@@ -143,21 +143,11 @@ class Marginals:
 
     def __init__(self, args):
 
-        if args.tau:
-            self.tau = args.tau
-        if args.theta:
-            self.theta = args.theta
-        if args.df:
-            self.df = args.df
-        self.obs = args.obs
-        self.transform_fct = args.transform_fct
-        self.cop_type = args.copula
         self.marginal = args.marginal
         self.seed = args.random_seed
         self.obs = args.obs
 
-        args.dataset = args.copula
-        Marginals.marginal_distr(self, args)
+        Marginals.sampler(self, args)
 
         trn, val, tst = split_train_val_test(self.xx)
 
@@ -167,7 +157,7 @@ class Marginals:
 
         self.n_dims = args.obs
 
-    def marginal_distr(self, args):
+    def sampler(self, args, obs=None):
         # @Todo: Fix Seed
         dataset = distributions.Gaussian(0.5)
 
@@ -175,8 +165,12 @@ class Marginals:
             assert hasattr(args, 'mu'), 'Please specify mu for %r distribution' % (self.marginal)
             assert hasattr(args, 'var'), 'Please specify variance var for %r distribution' % (self.marginal)
 
-            dataset = np.random.normal(loc=args.mu, scale=args.var, size=args.obs)
+            dataset = np.random.normal(loc=args.mu,
+                                       scale=args.var,
+                                       size=[args.obs if obs is None else obs])
+
         else:
             raise NotImplementedError
 
         self.xx = dataset
+        return self.xx
