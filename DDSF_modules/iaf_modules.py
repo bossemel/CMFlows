@@ -13,6 +13,8 @@ class cMADE(Module):
                  derank=1):
         super(cMADE, self).__init__()
 
+        oper = nn_.CWNlinear
+
         self.dim = dim
         self.hid_dim = hid_dim
         self.num_layers = num_layers
@@ -28,35 +30,21 @@ class cMADE(Module):
         sequels = list()
         for i in range(num_layers - 1):
             if i == 0:
-                sequels.append(nn_.CWNlinear(in_features=dim,
-                                             out_features=hid_dim,
-                                             context_features=context_dim,
-                                             device=device,
-                                             mask=ms[i],
-                                             norm=False))
+                sequels.append(oper(dim, hid_dim, context_dim, device,
+                                    ms[i], False))
                 sequels.append(self.activation)
             else:
-                sequels.append(nn_.CWNlinear(in_features=dim,
-                                             out_features=hid_dim,
-                                             context_features=context_dim,
-                                             device=device,
-                                             mask=ms[i],
-                                             norm=False))
+                sequels.append(oper(hid_dim, hid_dim, context_dim, device,
+                                    ms[i], False))
                 sequels.append(self.activation)
 
         self.input_to_hidden = nn.Sequential(*sequels)
-        self.hidden_to_output = nn_.CWNlinear(in_features=hid_dim,
-                                              out_features=dim * num_outlayers,
-                                              context_features=context_dim,
-                                              device=device,
-                                              mask=ms[-1])
+        self.hidden_to_output = oper(hid_dim, dim * num_outlayers, context_dim, device, ms[-1])
 
     def forward(self, inputs):
-        input_, context = inputs
-        hid, _ = self.input_to_hidden((input_, context))
-
+        input, context = inputs
+        hid, _ = self.input_to_hidden((input, context))
         out, _ = self.hidden_to_output((hid, context))
-
         return out.view(-1, self.dim, int(self.num_outlayers)), context
 
     def randomize(self):
@@ -68,6 +56,70 @@ class cMADE(Module):
                 mask = mask.cuda()
             self.input_to_hidden[i * 2].mask.zero_().add_(mask)
         self.rx = rx
+
+
+# class cMADE(Module):
+
+#     def __init__(self, dim, hid_dim, context_dim, num_layers, device,
+#                  num_outlayers=1, activation=nn.ELU(), fixed_order=False,
+#                  derank=1):
+#         super(cMADE, self).__init__()
+
+#         self.dim = dim
+#         self.hid_dim = hid_dim
+#         self.num_layers = num_layers
+#         self.context_dim = context_dim
+#         self.num_outlayers = num_outlayers
+#         self.activation = nn_.Lambda(lambda x: (activation(x[0]), x[1]))
+
+#         ms, rx = get_masks(dim, hid_dim, num_layers, num_outlayers,
+#                            fixed_order, derank)
+#         ms = [m for m in map(torch.from_numpy, ms)]
+#         self.rx = rx
+
+#         sequels = list()
+#         for i in range(num_layers - 1):
+#             if i == 0:
+#                 sequels.append(nn_.CWNlinear(in_features=dim,
+#                                              out_features=hid_dim,
+#                                              context_features=context_dim,
+#                                              device=device,
+#                                              mask=ms[i],
+#                                              norm=False))
+#                 sequels.append(self.activation)
+#             else:
+#                 sequels.append(nn_.CWNlinear(in_features=dim,
+#                                              out_features=hid_dim,
+#                                              context_features=context_dim,
+#                                              device=device,
+#                                              mask=ms[i],
+#                                              norm=False))
+#                 sequels.append(self.activation)
+
+#         self.input_to_hidden = nn.Sequential(*sequels)
+#         self.hidden_to_output = nn_.CWNlinear(in_features=hid_dim,
+#                                               out_features=dim * num_outlayers,
+#                                               context_features=context_dim,
+#                                               device=device,
+#                                               mask=ms[-1])
+
+#     def forward(self, inputs):
+#         input_, context = inputs
+#         hid, _ = self.input_to_hidden((input_, context))
+
+#         out, _ = self.hidden_to_output((hid, context))
+
+#         return out.view(-1, self.dim, int(self.num_outlayers)), context
+
+#     def randomize(self):
+#         ms, rx = get_masks(self.dim, self.hid_dim,
+#                            self.num_layers, self.num_outlayers)
+#         for i in range(self.num_layers - 1):
+#             mask = torch.from_numpy(ms[i])
+#             if self.input_to_hidden[i * 2].mask.is_cuda:
+#                 mask = mask.cuda()
+#             self.input_to_hidden[i * 2].mask.zero_().add_(mask)
+#         self.rx = rx
 
 
 def get_mask_from_ranks(r1, r2):

@@ -12,6 +12,8 @@ class TrainOptions():
 
     def initialize(self, parser):
         # Training settings
+
+        # CM Options
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
             '--batch-size',
@@ -67,17 +69,6 @@ class TrainOptions():
             required=False,
             help='theta for copula sampling')
         parser.add_argument(
-            '--num_hidden_RealNVP',
-            type=int,
-            default=64,
-            help='number of hidden units')
-        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
-        parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
-        parser.add_argument('--num_ds_dim', type=int, default=16)
-        parser.add_argument('--num_ds_layers', type=int, default=1)
-        parser.add_argument('--dimh_DDSF', type=int, default=64)
-        parser.add_argument(
             '--random_seed',
             type=int,
             default=58093,
@@ -87,11 +78,6 @@ class TrainOptions():
             type=int,
             required=False,
             help='degrees of freedom for student-t copula')
-        parser.add_argument(
-            '--early_stopping',
-            action='store_true',
-            default=False,
-            help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
             '--transform_fct',
             type=str,
@@ -116,6 +102,35 @@ class TrainOptions():
             '--experiment_saved_models',
             type=str,
             default='saved_models')
+
+        # Options RealNVP
+        parser.add_argument(
+            '--num_hidden_RealNVP',
+            type=int,
+            default=64,
+            help='number of hidden units')
+        parser.add_argument(
+            '--early_stopping',
+            action='store_true',
+            default=False,
+            help='stops training after 30 unsuccessfull epochs')
+
+        # Options DDSF
+        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
+        parser.add_argument('--num_hid_layers_DDSF', type=int, default=2)
+        parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
+        parser.add_argument('--num_ds_dim', type=int, default=16)
+        parser.add_argument('--num_ds_layers', type=int, default=1)
+        parser.add_argument('--dimh_DDSF', type=int, default=64)
+        parser.add_argument('--amsgrad', type=int, default=0)
+        parser.add_argument('--polyak', type=float, default=0.0)
+        parser.add_argument('--clip', type=float, default=5.0)
+        parser.add_argument('--beta1', type=float, default=0.9)
+        parser.add_argument('--beta2', type=float, default=0.999)
+
+
+
+
         self.initialized = True
         return parser
 

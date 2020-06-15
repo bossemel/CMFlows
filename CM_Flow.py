@@ -16,7 +16,7 @@ from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_ma
 from RealNVP import build_model as build_model_RealNVP
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils
-from DDSF import MAF
+from DDSF import build_model as build_model_DDSF
 
 from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
@@ -24,9 +24,11 @@ from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 def build_model(args, num_inputs):
     model_RealNVP = build_model_RealNVP(args, num_inputs, args.device)
-    MAF_DDSF = MAF(args)
-    model_DDSF_1 = MAF_DDSF.get_model()
-    model_DDSF_2 = MAF_DDSF.get_model()
+    # MAF_DDSF = MAF(args)
+    # model_DDSF_1 = MAF_DDSF.get_model()
+    # model_DDSF_2 = MAF_DDSF.get_model()
+    model_DDSF_1 = build_model_DDSF(args)
+    model_DDSF_2 = build_model_DDSF(args)
 
     model = flows.CMFlow(transform=args.transform_fct,
                          model_RealNVP=model_RealNVP,

@@ -167,7 +167,7 @@ class Marginals:
 
             dataset = np.random.normal(loc=args.mu,
                                        scale=args.var,
-                                       size=[args.obs if obs is None else obs])
+                                       size=[args.obs if obs is None else obs]).reshape(-1,1)
 
         else:
             raise NotImplementedError
