@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from DDSF_modules.DensityEstimator import DensityEstimator
 from torch.autograd import Variable
 import torch
+import os
 
 
 def visualize2D(distr, mdl, res=200, rng=[(-5, 5), (-5, 5)],
@@ -40,8 +41,8 @@ def visualize2D(distr, mdl, res=200, rng=[(-5, 5), (-5, 5)],
     return fig
 
 
-def visualize1D(marginal, model, args, res=100, rng=[(-5, 5), (-5, 5)],
-                sample_from_distr=True):
+def visualize1D(marginal, model, epoch, args, res=100, rng=[(-5, 5), (-5, 5)],
+                sample_from_distr=True, best_val=False):
 
     fig = plt.figure(figsize=(8, 6))
 
@@ -50,16 +51,12 @@ def visualize1D(marginal, model, args, res=100, rng=[(-5, 5), (-5, 5)],
     ax.hist(data)
 
     Z = model.sample(num_samples=res, noise=None).detach().numpy()
-    print(Z.shape)
-    exit()
-    ax = fig.add_subplot(1, 2, 2)
-    # xx = np.linspace(rng[0][0], rng[0][1], res)
-    # xx = xx.astype('float32')
-    # xx = Variable(torch.from_numpy(xx))
 
-    # Z = model.density(xx).data.numpy()
-    # Z = np.exp(Z)
-    # print(xx[:10])
-    # print(Z[:10])
+    ax = fig.add_subplot(1, 2, 2)
+
     ax.hist(Z)
-    return fig
+    if not best_val:
+        fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), bbox_inches='tight')
+    else:
+        fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), bbox_inches='tight')
+

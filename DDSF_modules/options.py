@@ -43,13 +43,14 @@ class TrainOptions():
             default=3000,
             help='How many data samples to generate')
         parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
+        parser.add_argument('--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument('--num_hidden_units_DDSF', type=int, default=100)
         parser.add_argument('--num_ds_dim', type=int, default=16)
         parser.add_argument('--num_ds_layers', type=int, default=1)
         parser.add_argument('--dimh_DDSF', type=int, default=64)
         parser.add_argument('--mu', type=float, required=False)
         parser.add_argument('--var', type=float, required=False)
+
         parser.add_argument(
             '--random_seed',
             type=int,
@@ -75,7 +76,11 @@ class TrainOptions():
         parser.add_argument('--clip', type=float, default=5.0)
         parser.add_argument('--beta1', type=float, default=0.9)
         parser.add_argument('--beta2', type=float, default=0.999)
-
+        parser.add_argument(
+            '--plot_frequ',
+            type=int,
+            default=10,
+            help='save plots every x epochs')
         self.initialized = True
         return parser
 

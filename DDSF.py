@@ -1,298 +1,182 @@
-import DDSF_modules.visualizer as visualizer
 import os
 import numpy as np
 import torch
-import json
 from torch.autograd import Variable
 import torch.utils.data
 import torch.nn as nn
-from DDSF_modules import nn_modules as nn_, flows, utils, optim
 from tqdm import tqdm
+from pathlib import Path
+import random
+import copy
+
+import DDSF_modules.visualizer as visualizer
+from DDSF_modules import nn_modules as nn_, flows, utils, optim
 from DDSF_modules.utils import load_data
 from DDSF_modules.options import TrainOptions
-from pathlib import Path
+
+from utils.save_statistics import save_statistics
+from utils.loss_plots import collect_experiment_dicts
 
 
+def build_model(args):
+    args.dimh = args.batch_size
+    args.act = nn.ELU()
+    args.dim = 1
+    args.betas = (args.beta1, args.beta2)
 
-class MAF(object):
+    sequels = [nn_.SequentialFlow(
+        flows.IAF_DDSF(dim=args.dim,
+                       hid_dim=args.dimh,
+                       context_dim=1,
+                       num_layers=args.num_hid_layers_DDSF + 1,
+                       activation=args.act,
+                       device=args.device,
+                       fixed_order=True),
+        flows.FlipFlow(1)) for i in range(args.num_flow_layers_DDSF)] + \
+        [flows.LinearFlow(args.dim, 1), ]
 
-    def __init__(self, args):
+    model = MAF(*sequels)
+    return model
 
-        self.args = args
-        self.__dict__.update(args.__dict__)
-        self.num_hidden_units = args.num_hidden_units_DDSF
 
-        # dim = 2
-        # dimh = 64
-        # args.num_hidden_layers_DDSF = 2
+def train(epoch, train_loader, current_epoch_losses):
+    model.train()
 
-        dim = args.batch_size
-        dimh = args.batch_size * 2 # args.dimh_DDSF
-        num_flow_layers = args.num_flow_layers_DDSF
+    pbar = tqdm(total=len(train_loader.dataset))
+    for batch_idx, data in enumerate(train_loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(args.device)
+        optimizer.zero_grad()
 
-        act = nn.ELU()
-        sequels = [nn_.SequentialFlow(
-            flows.IAF_DDSF(dim=dim,
-                           hid_dim=dimh,
-                           context_dim=1,
-                           num_layers=args.num_hidden_layers_DDSF + 1,
-                           activation=act,
-                           fixed_order=True,
-                           device=args.device),
-            flows.FlipFlow(1)) for i in range(num_flow_layers)] + [flows.LinearFlow(dim, 1), ]
+        loss = model.loss(data).mean()
+        current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
-        self.flow = nn.Sequential(*sequels).to(args.device)
+        loss.backward()
+        optimizer.step()
 
-        if self.cuda:
-            self.flow = self.flow.cuda()
+        pbar.update(data.size(0))
+        pbar.set_description('Train, Log likelihood in nats: {:.6f}'.format(loss))
+
+    pbar.close()
+
+    return current_epoch_losses
+
+
+def validate(epoch, model, loader, device,
+             current_epoch_losses=None, best_dict=None):
+    """Return log probabilities on validation set.
+
+    Params:
+        epoch: epoch to validate
+        model: model to validate
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_losses: dictionary with the current epoch losses
+        best_dict: dictionary containing the best validation loss, best validation epoch
+                   and best model
+
+    Returns:
+        current_epoch_losses: updated current_epoch_losses
+        best_dict: updated best_dict
+    """
+    model.eval()
+
+    pbar = tqdm(total=len(loader.dataset))
+    pbar.set_description('Eval')
+    for batch_idx, data in enumerate(loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(device)
+        with torch.no_grad():
+            current_loss = model.loss(data).mean().item()
+        if current_epoch_losses is not None:
+            current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
+            val_mean_loss = np.mean(current_epoch_losses['val_loss'])
+            if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
+                best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
+                best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
+                best_dict['best_model'] = copy.deepcopy(model)
+
+        pbar.update(data.size(0))
+        pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
+
+    pbar.close()
+    return current_epoch_losses, best_dict
+
+
+def test(epoch, model, loader, device,
+         current_epoch_test):
+    """Return log probabilities on test set.
+
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch test stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
+    model.eval()
+
+    pbar = tqdm(total=len(loader.dataset))
+    pbar.set_description('Eval')
+    for batch_idx, data in enumerate(loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(device)
+        with torch.no_grad():
+            current_loss = model.loss(data).mean().item()
+        current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
+
+        pbar.update(data.size(0))
+        pbar.set_description('Test, Log likelihood in nats in epoch {}: {:.6f}'.format(epoch, np.mean(current_epoch_test["test_loss"])))
+
+    pbar.close()
+
+    return current_epoch_test
+
+
+class MAF(nn.Sequential):
 
     def get_model(self):
-        return self.flow
+        return self
 
-    def density(self, samples):
-        n = samples.size(0)
-        context = Variable(torch.FloatTensor(n, 1).zero_())
-        logdet = Variable(torch.FloatTensor(n).zero_())
-        zeros = Variable(torch.FloatTensor(samples.shape).zero_())
-        if self.cuda:
-            context = context.cuda()
-            logdet = logdet.cuda()
-            zeros = zeros.cuda()
+    def density(self, samples, logdets=None, context=None, zeros=None):
+        self.n = args.batch_size
+        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()) + 2.0
+        self.logdets = Variable(torch.FloatTensor(self.n).zero_())
+        self.zeros = Variable(torch.FloatTensor(self.n, 2).zero_())
 
-        z, logdet, _ = self.flow.forward((samples, logdet, context))
-
-        losses = - utils.log_normal(z, zeros, zeros + 1.0).sum(1) - logdet
-        return - losses
+        logdets = self.logdets if logdets is None else logdets
+        context = self.context if context is None else context
+        zeros = self.zeros if zeros is None else zeros
+        z, logdet, _ = self((samples, logdets, context))
+        density = utils.log_normal(z, zeros, zeros + 1.0).sum(1) - logdet
+        return density
 
     def loss(self, x):
         return - self.density(x)
-
-    # def loss(self, spl):
-    #     n = spl.size(0)
-
-    #     context = Variable(torch.FloatTensor(n, 1).zero_())
-    #     lgd = Variable(torch.FloatTensor(n).zero_())
-
-    #     u, log_jacob, __ = self.flow((spl, lgd, context))
-    #     log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
-    #         -1, keepdim=True)
-    #     return - (log_probs + log_jacob).sum(-1, keepdim=True)
 
     def sample(self, num_samples=None, noise=None):
         context = Variable(torch.FloatTensor(num_samples, 1).zero_())
         logdet = Variable(torch.FloatTensor(num_samples).zero_())
 
         if noise is None:
-            noise = torch.Tensor(num_samples).normal_()
-        device = next(self.flow.parameters()).device
+            noise = torch.Tensor(num_samples).normal_().reshape(-1, 1)
+        device = next(self.parameters()).device
         noise = noise.to(device)
-        # if cond_inputs is not None:
-        #     cond_inputs = cond_inputs.to(device)
-        samples, __, __ = self.flow((noise, logdet, context))
+        samples, __, __ = self((noise, logdet, context))
         return samples
 
-    def state_dict(self):
-        return self.flow.state_dict()
-
-    def load_state_dict(self, states):
-        self.flow.load_state_dict(states)
-
-    def clip_grad_norm(self):
-        nn.utils.clip_grad_norm_(self.flow.parameters(), self.clip)
+    # def clip_grad_norm(self):
+    #     nn.utils.clip_grad_norm_(self.flow.parameters(), self.clip)
 
 
-# def parse_args():
-#     desc = "MAF"
-#     parser = argparse.ArgumentParser(description=desc)
+if __name__ == '__main__':
 
-#     parser.add_argument('--copula', type=str, default='CLAYTON', choices=['CLAYTON', 'FRANK', 'GUMBEL'])
-#     parser.add_argument('--marginal', type=str, default='GAUSSIAN', choices=['GAUSSIAN'])
-#     parser.add_argument('--epochs', type=int, default=400,
-#                         help='The number of epochs to run')
-#     parser.add_argument('--batch_size', type=int, default=100,
-#                         help='The size of batch')
-#     parser.add_argument('--save_dir', type=str, default='models',
-#                         help='Directory name to save the model')
-#     parser.add_argument('--result_dir', type=str, default='results',
-#                         help='Directory name to save the generated images')
-#     parser.add_argument('--log_dir', type=str, default='logs',
-#                         help='Directory name to save training logs')
-#     parser.add_argument('--random_seed', type=int, default=1993,
-#                         help='Random seed')
-#     parser.add_argument('--fn', type=str, default='0',
-#                         help='Filename of model to be loaded')
-#     parser.add_argument('--to_train', type=int, default=1,
-#                         help='1 if to train 0 if not')
-#     parser.add_argument('--lr', type=float, default=0.0001)
-#     parser.add_argument('--clip', type=float, default=5.0)
-#     parser.add_argument('--beta1', type=float, default=0.9)
-#     parser.add_argument('--beta2', type=float, default=0.999)
-#     parser.add_argument('--amsgrad', type=int, default=0)
-#     parser.add_argument('--polyak', type=float, default=0.0)
-#     parser.add_argument('--cuda', type=bool, default=False)
-#     parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
-#     parser.add_argument('--num_hidden_layers_DDSF', type=int, default=1)
-#     parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
-#     parser.add_argument('--num_ds_dim', type=int, default=16)
-#     parser.add_argument('--num_ds_layers', type=int, default=1)
-#     parser.add_argument('--dimh_DDSF', type=int, default=64)
-#     parser.add_argument('--tau', type=int, required=False)
-#     parser.add_argument('--theta', type=int, required=False)
-#     parser.add_argument('--df', type=int, required=False)
-#     parser.add_argument('--obs', type=int, default=1000)
-#     parser.add_argument('--mu', type=float, required=False)
-#     parser.add_argument('--var', type=float, required=False)
-#     parser.add_argument('--transform_fct', type=str, default='sigmoid')
-#     parser.add_argument('--fixed_order', type=bool, default=True,
-#                         help='Fix the made ordering to be the given order')
-#     parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
-#     return check_args(parser.parse_args())
-
-
-def check_args(args):
-    # --save_dir
-    if not os.path.exists(args.save_dir):
-        os.makedirs(args.save_dir)
-
-    # --result_dir
-    if not os.path.exists(args.result_dir + '_' + args.copula + '_' + args.marginal):
-        os.makedirs(args.result_dir + '_' + args.copula + '_' + args.marginal)
-
-    # --result_dir
-    if not os.path.exists(args.log_dir):
-        os.makedirs(args.log_dir)
-
-    # --epoch
-    assert args.epochs >= 1, 'number of epochs must be larger than or equal to one'
-
-    # --batch_size
-    assert args.batch_size >= 1, 'batch size must be larger than or equal to one'
-
-    return args
-
-
-class model_class(object):
-
-    # patience = 30
-
-    def __init__(self, args):
-
-        self.__dict__.update(args.__dict__)
-
-        # Set up data loader
-        dataset, num_inputs, data_loaders = load_data(args)
-
-        self.train_loader = data_loaders['train_loader']
-
-        self.valid_loader = data_loaders['valid_loader']
-
-        self.test_loader = data_loaders['test_loader']
-
-        self.dataset = dataset
-
-        self.maf = MAF(args)
-
-        # optim
-        amsgrad = bool(args.amsgrad)
-        polyak = args.polyak
-        self.optim = optim.Adam(self.maf.flow.parameters(),
-                                lr=args.lr,
-                                betas=(args.beta1, args.beta2),
-                                amsgrad=amsgrad,
-                                polyak=polyak)
-
-        # initialize checkpoint
-        self.checkpoint = dict()
-        self.checkpoint['best_val'] = float('inf')
-        self.checkpoint['best_val_epoch'] = 0
-        self.checkpoint['e'] = 0
-
-    def train(self, args):
-        optim = self.optim
-        t = 0
-
-        LOSSES = 0
-        counter = 0
-
-        for epoch in range(args.epochs):
-            pbar = tqdm(total=len(self.train_loader.dataset))
-            for batch_idx, data in tqdm(enumerate(self.train_loader)):
-                if isinstance(data, list):
-                    data = data[0]
-                optim.zero_grad()
-                data = Variable(data)
-                if self.cuda:
-                    data = data.cuda()
-
-                losses = self.maf.loss(data)
-
-                loss = losses.mean()
-
-                LOSSES += losses.sum().data.cpu().numpy()
-                counter += losses.size(0)
-
-                loss.backward()
-                self.maf.clip_grad_norm()
-                optim.step()
-                t += 1
-
-                pbar.update(data.size(0))
-
-            optim.swap()
-            loss_val = self.evaluate(self.valid_loader)
-            pbar.set_description('Train, Log likelihood in nats: {:.6f}' % (losses))
-            print('Epoch: [%4d/%4d] train <= %.2f '
-                  'valid: %.3f' %
-                  (self.checkpoint['e'] + 1, epoch, LOSSES / float(counter),
-                   loss_val))
-            if loss_val < self.checkpoint['best_val']:
-                print(' [^] Best validation loss [^] ... [saving]')
-                self.checkpoint['best_val'] = loss_val
-                self.checkpoint['best_val_epoch'] = self.checkpoint['e'] + 1
-
-            fig = visualizer.visualize1D(self.dataset, self.maf, args)
-            fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), bbox_inches='tight')
-
-            LOSSES = 0
-            counter = 0
-            optim.swap()
-
-            pbar.close()
-
-    def evaluate(self, dataloader):
-        LOSSES = 0
-        c = 0
-        for data in dataloader:
-            if isinstance(data, list):
-                data = data[0]
-            data = Variable(data)
-            if self.cuda:
-                data = data.cuda()
-
-            losses = self.maf.loss(data).data.cpu().numpy()
-            LOSSES += losses.sum()
-            c += losses.shape[0]
-        return LOSSES / float(c)
-
-    def save(self, fn):
-        torch.save(self.maf.state_dict(), fn + '_model.pt')
-        torch.save(self.optim.state_dict(), fn + '_optim.pt')
-        with open(fn + '_args.txt', 'w') as out:
-            out.write(json.dumps(self.args.__dict__, indent=4))
-        with open(fn + '_checkpoint.txt', 'w') as out:
-            out.write(json.dumps(self.checkpoint, indent=4))
-
-    def load(self, fn):
-        self.maf.load_state_dict(torch.load(fn + '_model.pt'))
-        self.optim.load_state_dict(torch.load(fn + '_optim.pt'))
-
-    def resume(self, fn):
-        self.load(fn)
-        self.checkpoint.update(
-            json.loads(open(fn + '_checkpoint.txt', 'r').read()))
-
-
-def main():
     # Training settings
     args = TrainOptions().parse()   # get training options
 
@@ -300,48 +184,119 @@ def main():
     args.exp_path = os.path.join('results', args.exp_name)
     args.figures_path = os.path.join(args.exp_path, args.figures_path)
     args.experiment_logs = os.path.join(args.exp_path, 'result_outputs')
-    args.experiment_saved_models = os.path.join(args.experiment_saved_models, args.exp_name)
     Path(args.exp_path).mkdir(parents=True, exist_ok=True)
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
-    Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
-
-
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
-    args.test_batch_size = args.batch_size
-
+    # Set Seed
     np.random.seed(args.random_seed)
-    torch.manual_seed(args.random_seed + 10000)
+    torch.manual_seed(args.random_seed)
+    random.seed(args.random_seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.random_seed)
 
-    print(args)
+    # Set up data loader
+    dataset, num_inputs, data_loaders = load_data(args)
 
-    print(" [*] Building model!")
+    # Build model and send to device
+    model = build_model(args)
+    model.state = dict()
+    model.to(args.device)
+    # optimizer in MAF:
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
+    # optimizer in train model:
+    # optimizer = optim.Adam(model.parameters(),
+    # lr=args.lr,
+    # betas=(args.beta1, args.beta2),
+    # amsgrad=bool(args.amsgrad),
+    # polyak=args.polyak)
 
-    model = model_class(args)
+    # Save losses and best epoch stats and model in dictionary
+    total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
+    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
+    current_epoch_test = {"test_loss": [], 'jsd_test': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
 
-    # launch the graph in a session
-    print(" [*] Training started!")
-    model.train(args)
-    print(" [*] Training finished!")
+    # Train
+    for epoch in range(args.epochs):
+        print('\nEpoch: {}'.format(epoch))
 
-    print(" [**] Valid: %.4f" % model.evaluate(model.valid_loader))
-    print(" [**] Test: %.4f" % model.evaluate(model.test_loader))
+        current_epoch_losses = {"train_loss": [], "val_loss": []}
+        current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
+        current_epoch_losses, best_dict = validate(epoch,
+                                                   model,
+                                                   data_loaders['valid_loader'],
+                                                   args.device,
+                                                   current_epoch_losses=current_epoch_losses,
+                                                   best_dict=best_dict)
 
-    print(" [*] Testing finished!")
+        # Save mean of each epoch in total losses dictionary
+        for key, value in current_epoch_losses.items():
+            total_losses[key].append(np.mean(
+                value))  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
 
+        # Save current epoch statistics
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='summary.csv',
+                        stats_dict=total_losses, current_epoch=epoch,
+                        continue_from_mode=epoch)  # save statistics to stats file.
 
-if __name__ == '__main__':
-    main()
-    # res = 200
-    # rng = [(-5, 5), (-5, 5)]
-    # distr_1 = distributions.SwissRoll(0.5)
-    # distr_1 = distributions.Gaussian(0.5)
-    # distr_1 = distributions.Copula_Joint(cop_type='CLAYTON', marginal='GAUSSIAN', tau=0.5, seed=5)
-    # denaf = DensityEstimator(dim=2)
-    # denaf.fit(distr_1, 1000)
-    # fig = visualizer.visualize2D(distr_1, denaf, res=res, rng=rng)
-    # fig.savefig('figures/swissroll_DDSF.png', format='png', bbox_inches='tight')
+        print(
+            'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
+            format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
+
+        # Save sample plots every 10 epochs
+        if epoch % args.plot_frequ == 0:
+            visualizer.visualize1D(dataset, model, epoch, args)
+
+    # Calculate test statistics
+    current_epoch_test = test(best_dict['best_validation_epoch'],
+                              best_dict['best_model'],
+                              data_loaders['test_loader'],
+                              args.device,
+                              current_epoch_test=current_epoch_test)
+
+    visualizer.visualize1D(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args)
+
+    # # Calculate Jensen-Shannon Divergence on test set
+    # current_epoch_test = jsd_eval(args,
+    #                               best_dict['best_validation_epoch'],
+    #                               best_dict['best_model'],
+    #                               data_loaders['test_loader'],
+    #                               device,
+    #                               current_epoch_test=current_epoch_test)
+
+    # # Evaluate margins on test set
+    # current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
+    #                                        best_dict['best_model'],
+    #                                        data_loaders['test_loader'],
+    #                                        device,
+    #                                        transform_fct=args.transform_fct,
+    #                                        current_epoch_test=current_epoch_test)
+
+    # Gather test losses and save statistics
+    test_losses = {key: [np.mean(value)] for key, value in
+                   current_epoch_test.items()}  # save test set metrics in dict format
+    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                    # save test set metrics on disk in .csv format
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+
+    # Plot losses
+    result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
+    # plot_result_graphs(args.figures_path, args.exp_name, args.dataset, result_dict)
+
+    # Plot samples for best epoch
+    # utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
+
+    # # Plot Margins
+    # plot_margins(args,
+    #              best_dict['best_validation_epoch'],
+    #              best_dict['best_model'],
+    #              data_loaders['test_loader'])
+
+    # # Plot pointwise difference
+    # jsd_graph(args,
+    #           best_dict['best_validation_epoch'],
+    #           best_dict['best_model'])
