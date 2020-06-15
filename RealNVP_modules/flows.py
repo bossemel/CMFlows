@@ -119,6 +119,9 @@ class FlowSequential(nn.Sequential):
             -1, keepdim=True)
         return (log_probs + log_jacob).sum(-1, keepdim=True)
 
+    def loss(self, inputs):
+        return - self.log_probs(inputs)
+
     def sample(self, num_samples=None, noise=None):
         if noise is None:
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()

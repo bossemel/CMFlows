@@ -43,7 +43,7 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    assert args.dataset in [
+    assert args.copula in [
         'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
     ]
 
@@ -107,11 +107,11 @@ def save_samples_plot(args, epoch, best_model, dataset):
 
     ax = fig.add_subplot(121)
     ax.plot(val_x[:num_samples, 0], val_x[:num_samples, 1], '.')
-    if args.dataset == 'CLAYTON':
+    if args.copula == 'CLAYTON':
         ax.set_title('Clayton Copula', fontsize=16)
-    if args.dataset == 'FRANK':
+    if args.copula == 'FRANK':
         ax.set_title('Frank Copula', fontsize=16)
-    if args.dataset == 'GUMBEL':
+    if args.copula == 'GUMBEL':
         ax.set_title('Gumbel Copula', fontsize=16)
     ax.set_xlabel('U1', fontsize=16)
     ax.set_ylabel('U2', fontsize=16)
@@ -123,5 +123,5 @@ def save_samples_plot(args, epoch, best_model, dataset):
     ax.set_ylabel('U2', fontsize=16)
 
     fig.tight_layout()
-    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.pdf'.format(args.dataset, epoch)), dpi=300)
+    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.pdf'.format(args.copula, epoch)), dpi=300)
     plt.close()
