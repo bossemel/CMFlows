@@ -5,6 +5,95 @@ import numpy as np
 import scipy
 
 
+class FlowSequential(nn.Sequential):
+    """ A sequential container for flows.
+    In addition to a forward pass it implements a backward pass and
+    computes log jacobians.
+    """
+
+    def forward(self, inputs, mode='direct', logdets=None):
+        """ Performs a forward or backward pass for flow modules.
+        Args:
+            inputs: a tuple of inputs and logdets
+            mode: to run direct computation or inverse
+        """
+        if isinstance(inputs, tuple):
+            inputs, __, __ = inputs
+        self.num_inputs = inputs.size(-1)
+
+        if logdets is None:
+            logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
+
+        assert mode in ['direct', 'inverse']
+        if mode == 'direct':
+            for module in self._modules.values():
+                inputs, logdet = module(inputs, mode)
+                logdets += logdet
+        else:
+            for module in reversed(self._modules.values()):
+                inputs, logdet = module(inputs, mode)
+                logdets += logdet
+
+        return inputs, logdets
+
+    def log_probs(self, inputs):
+        u, log_jacob = self(inputs)
+        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
+        return (log_probs + log_jacob)
+
+    def loss(self, inputs):
+        return - self.log_probs(inputs)
+
+    def sample(self, num_samples=None, noise=None):
+        if noise is None:
+            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        # if cond_inputs is not None:
+        #     cond_inputs = cond_inputs.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
+        return samples
+
+    def jsd(self, inputs, transform_fct):
+        num_samples = inputs.shape[0]
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
+        if transform_fct == 'sigmoid':
+            samples = scipy.special.expit(samples.detach().cpu())
+            inputs = scipy.special.expit(inputs.detach().cpu())
+        if transform_fct == 'gaussian':
+            norm = scipy.stats.norm()
+            samples = norm.cdf(samples.cpu())
+            inputs = norm.cdf(inputs.cpu())
+        # if sigmoid is True:
+        #     samples = scipy.special.expit(samples.detach().cpu())
+        #     inputs = scipy.special.expit(inputs.detach().cpu())
+        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+        return divergence
+
+    def t_metric_eval(self, inputs, transform_fct, intervals=25):
+        num_samples = inputs.shape[0]
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
+        if transform_fct == 'sigmoid':
+            samples = scipy.special.expit(samples.detach().cpu())
+        if transform_fct == 'gaussian':
+            norm = scipy.stats.norm()
+            samples = norm.cdf(samples.cpu())
+        # if sigmoid is True:
+        #     samples = scipy.special.expit(samples.cpu())
+        # margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
+        margin_x1 = samples[:, 0]
+        margin_x2 = samples[:, 1]
+        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+
+
 def t_m_metric_eval(margin_x1, intervals):
     sum_probs = 0
     highest_interval = 0
@@ -82,94 +171,6 @@ class CouplingLayer(nn.Module):
             t = self.translate_net(masked_inputs) * (1 - mask)
             s = torch.exp(-log_s)
             return (inputs - t) * s, -log_s.sum(-1, keepdim=True)
-
-
-class FlowSequential(nn.Sequential):
-    """ A sequential container for flows.
-    In addition to a forward pass it implements a backward pass and
-    computes log jacobians.
-    """
-
-    def forward(self, inputs, mode='direct', logdets=None):
-        """ Performs a forward or backward pass for flow modules.
-        Args:
-            inputs: a tuple of inputs and logdets
-            mode: to run direct computation or inverse
-        """
-        self.num_inputs = inputs.size(-1)
-
-        if logdets is None:
-            logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
-
-        assert mode in ['direct', 'inverse']
-        if mode == 'direct':
-            for module in self._modules.values():
-                inputs, logdet = module(inputs, mode)
-                logdets += logdet
-        else:
-            for module in reversed(self._modules.values()):
-                inputs, logdet = module(inputs, mode)
-                logdets += logdet
-
-        return inputs, logdets
-
-    def log_probs(self, inputs):
-        u, log_jacob = self(inputs)
-        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
-            -1, keepdim=True)
-        return (log_probs + log_jacob).sum(-1, keepdim=True)
-
-    def loss(self, inputs):
-        return - self.log_probs(inputs)
-
-    def sample(self, num_samples=None, noise=None):
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        # if cond_inputs is not None:
-        #     cond_inputs = cond_inputs.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        return samples
-
-    def jsd(self, inputs, transform_fct):
-        num_samples = inputs.shape[0]
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        if transform_fct == 'sigmoid':
-            samples = scipy.special.expit(samples.detach().cpu())
-            inputs = scipy.special.expit(inputs.detach().cpu())
-        if transform_fct == 'gaussian':
-            norm = scipy.stats.norm()
-            samples = norm.cdf(samples.cpu())
-            inputs = norm.cdf(inputs.cpu())
-        # if sigmoid is True:
-        #     samples = scipy.special.expit(samples.detach().cpu())
-        #     inputs = scipy.special.expit(inputs.detach().cpu())
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
-        return divergence
-
-    def t_metric_eval(self, inputs, transform_fct, intervals=25):
-        num_samples = inputs.shape[0]
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        if transform_fct == 'sigmoid':
-            samples = scipy.special.expit(samples.detach().cpu())
-        if transform_fct == 'gaussian':
-            norm = scipy.stats.norm()
-            samples = norm.cdf(samples.cpu())
-        # if sigmoid is True:
-        #     samples = scipy.special.expit(samples.cpu())
-        # margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
-        margin_x1 = samples[:, 0]
-        margin_x2 = samples[:, 1]
-        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
-        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
-        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
 class BatchNormFlow(nn.Module):

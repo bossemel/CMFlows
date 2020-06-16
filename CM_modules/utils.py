@@ -16,14 +16,6 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    assert args.copula in [
-        'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
-    ]
-
-    assert args.marginal in [
-        'GAUSSIAN'
-    ]
-
     dataset = datasets.distributions.Copula_Joint(args)
 
     train_tensor = torch.from_numpy(dataset.trn.x)
@@ -34,8 +26,6 @@ def load_data(args):
 
     test_tensor = torch.from_numpy(dataset.tst.x)
     test_dataset = torch.utils.data.TensorDataset(test_tensor)
-
-    num_inputs = dataset.n_dims
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
@@ -57,4 +47,4 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, num_inputs, data_loaders
+    return dataset, data_loaders

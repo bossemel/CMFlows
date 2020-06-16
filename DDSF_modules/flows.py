@@ -3,12 +3,54 @@ import torch.nn as nn
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 from torch.nn import functional as F
-import DDSF_modules.nn_modules as nn_
 from DDSF_modules.nn_modules import log
 from torch.autograd import Variable
 import DDSF_modules.iaf_modules as iaf_modules
-import DDSF_modules.utils as utils
 import numpy as np
+from DDSF_modules import nn_modules as nn_, utils
+import math
+
+
+class MAF(nn.Sequential):
+    """ A sequential container for DDSFs.
+    """
+    def __init__(self, args, *modules):
+        super(MAF, self).__init__(*modules)
+        self.clip = args.clip
+        self.device = args.device
+        self.args = args
+
+    def log_density(self, inputs, logdets=None, context=None):
+        """Returns log of target density of the Flow
+
+        Params:
+            inputs: target distribution samples
+
+        Returns:
+            log density of the model
+        """
+        self.n = inputs.shape[0]
+        self.clip = self.args.clip
+        self.context = Variable(torch.FloatTensor(self.n, 1).zero_())
+        self.logdets = Variable(torch.FloatTensor(self.n).zero_())
+        self.context.to(self.device)
+        self.logdets.to(self.device)
+        logdets = self.logdets if logdets is None else logdets
+        context = self.context if context is None else context
+        u, log_jacob, __ = self((inputs, logdets, context))
+        log_jacob = log_jacob.reshape(-1, 1)
+        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
+        return log_probs + log_jacob.reshape(-1, 1)
+
+    def loss(self, x):
+        """Loss is negative log density
+        """
+        return - self.log_density(x)
+
+    def clip_grad_norm(self):
+        """Performs gradient clipping
+        """
+        nn.utils.clip_grad_norm_(self.parameters(), self.clip)
 
 
 class BaseFlow(Module):
@@ -169,6 +211,7 @@ class IAF_DDSF(BaseFlow):
         self.context_dim = context_dim
         self.num_ds_dim = num_ds_dim
         self.num_ds_layers = num_ds_layers
+        self.device = device
 
         if type(dim) is int:
             self.mdl = iaf_modules.cMADE(dim=dim,
@@ -186,7 +229,7 @@ class IAF_DDSF(BaseFlow):
                 in_dim = 1
             else:
                 in_dim = num_ds_dim
-            if i == num_ds_layers-1:
+            if i == num_ds_layers - 1:
                 out_dim = 1
             else:
                 out_dim = num_ds_dim
@@ -202,36 +245,32 @@ class IAF_DDSF(BaseFlow):
                                              out_dim))
         if type(dim) is int:
             self.out_to_dsparams = nn.Conv1d(int(
-                num_ds_multiplier*(hid_dim/dim)*int(num_ds_layers)),\
-            int(num_dsparams), 1)
+                num_ds_multiplier * (hid_dim / dim) * int(num_ds_layers)),
+                int(num_dsparams), 1)
         else:
             self.out_to_dsparams = nn.Conv1d(int(
-                num_ds_multiplier*(hid_dim/dim[0])*num_ds_layers),int(
+                num_ds_multiplier * (hid_dim / dim[0]) * num_ds_layers), int(
                 num_dsparams), 1)
 
-
         self.reset_parameters()
-
 
     def reset_parameters(self):
         self.out_to_dsparams.weight.data.uniform_(-0.001, 0.001)
         self.out_to_dsparams.bias.data.uniform_(0.0, 0.0)
 
-
     def forward(self, inputs):
         x, logdet, context = inputs
         out, _ = self.mdl((x, context))
-        out = out.permute(0,2,1)
-        dsparams = self.out_to_dsparams(out).permute(0,2,1)
-
+        out = out.permute(0, 2, 1)
+        dsparams = self.out_to_dsparams(out).permute(0, 2, 1)
 
         start = 0
 
-        h = x.view(x.size(0),-1)[:,:,None]
+        h = x.view(x.size(0), -1)[:, :, None].to(self.device)
         n = x.size(0)
         dim = self.dim if type(self.dim) is int else self.dim[0]
         lgd = Variable(torch.from_numpy(
-            np.zeros((n, dim, 1, 1)).astype('float32')))
+            np.zeros((n, dim, 1, 1)).astype('float32'))).to(self.device)
         if self.out_to_dsparams.weight.is_cuda:
             lgd = lgd.cuda()
         for i in range(self.num_ds_layers):
@@ -239,7 +278,7 @@ class IAF_DDSF(BaseFlow):
                 in_dim = 1
             else:
                 in_dim = self.num_ds_dim
-            if i == self.num_ds_layers-1:
+            if i == self.num_ds_layers - 1:
                 out_dim = 1
             else:
                 out_dim = self.num_ds_dim
@@ -249,112 +288,12 @@ class IAF_DDSF(BaseFlow):
             a_dim = b_dim = self.num_ds_dim
             end = start + u_dim + w_dim + a_dim + b_dim
 
-            params = dsparams[:,:,start:end]
+            params = dsparams[:, :, start:end]
             h, lgd = getattr(self,'sf{}'.format(i))(h, lgd, params)
             start = end
 
         assert out_dim == 1, 'last dsf out dim should be 1'
-        return h[:,:,0], lgd[:,:,0,0].sum(1) + logdet, context
-
-
-
-# class IAF_DDSF(BaseFlow):
-
-#     def __init__(self, dim, hid_dim, context_dim, num_layers, device,
-#                  activation=nn.ELU(), fixed_order=False,
-#                  num_ds_dim=4, num_ds_layers=1, num_ds_multiplier=3):
-#         super(IAF_DDSF, self).__init__()
-
-#         self.dim = dim
-#         self.context_dim = context_dim
-#         self.num_ds_dim = num_ds_dim
-#         self.num_ds_layers = num_ds_layers
-
-#         assert int(hid_dim / dim) == hid_dim / dim, 'hid_dim / dim is not an integer. hid_dim: %s, dim: %s' % (hid_dim, dim)
-#         self.mdl = iaf_modules.cMADE(dim=dim,
-#                                      hid_dim=hid_dim,
-#                                      context_dim=context_dim,
-#                                      num_layers=num_layers,
-#                                      num_outlayers=(num_ds_multiplier * int(hid_dim / dim) * num_ds_layers),
-#                                      device=device,
-#                                      activation=activation,
-#                                      fixed_order=fixed_order)
-#         # self.mdl = iaf_modules.cMADE(dim=dim, hid_dim=hid_dim, context_dim=context_dim, num_layers=num_layers,
-#         #                              num_outlayers=1,
-#         #                              activation=activation, fixed_order=fixed_order)
-
-#         num_dsparams = 0
-#         for i in range(num_ds_layers):
-#             if i == 0:
-#                 in_dim = 1
-#             else:
-#                 in_dim = num_ds_dim
-#             if i == num_ds_layers - 1:
-#                 out_dim = 1
-#             else:
-#                 out_dim = num_ds_dim
-
-#             u_dim = in_dim
-#             w_dim = num_ds_dim
-#             a_dim = b_dim = num_ds_dim
-#             num_dsparams += u_dim + w_dim + a_dim + b_dim
-
-#             self.add_module('sf{}'.format(i),
-#                             DenseSigmoidFlow(in_dim,
-#                                              num_ds_dim,
-#                                              out_dim))
-#         if type(dim) is int:
-#             self.out_to_dsparams = nn.Conv1d(int(
-#                 num_ds_multiplier * (hid_dim / dim) * int(num_ds_layers)),
-#                 int(num_dsparams), 1)
-#         else:
-#             self.out_to_dsparams = nn.Conv1d(int(
-#                 num_ds_multiplier * (hid_dim / dim[0]) * num_ds_layers), int(
-#                 num_dsparams), 1)
-
-#         self.reset_parameters()
-
-#     def reset_parameters(self):
-#         self.out_to_dsparams.weight.data.uniform_(-0.001, 0.001)
-#         self.out_to_dsparams.bias.data.uniform_(0.0, 0.0)
-
-#     def forward(self, inputs):
-#         x, logdet, context = inputs
-#         out, _ = self.mdl((x, context))
-#         out = out.permute(0, 2, 1)
-#         dsparams = self.out_to_dsparams(out).permute(0, 2, 1)
-
-#         start = 0
-
-#         h = x.view(x.size(0), -1)[:, :, None]
-#         n = x.size(0)
-#         dim = self.dim if type(self.dim) is int else self.dim[0]
-#         lgd = Variable(torch.from_numpy(
-#             np.zeros((n, dim, 1, 1)).astype('float32')))
-#         if self.out_to_dsparams.weight.is_cuda:
-#             lgd = lgd.cuda()
-#         for i in range(self.num_ds_layers):
-#             if i == 0:
-#                 in_dim = 1
-#             else:
-#                 in_dim = self.num_ds_dim
-#             if i == self.num_ds_layers - 1:
-#                 out_dim = 1
-#             else:
-#                 out_dim = self.num_ds_dim
-
-#             u_dim = in_dim
-#             w_dim = self.num_ds_dim
-#             a_dim = b_dim = self.num_ds_dim
-#             end = start + u_dim + w_dim + a_dim + b_dim
-
-#             params = dsparams[:, :, start:end]
-#             h, lgd = getattr(self, 'sf{}'.format(i))(h, lgd, params)
-#             start = end
-
-#         assert out_dim == 1, 'last dsf out dim should be 1'
-
-#         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet, context
+        return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet.to(self.device), context.to(self.device)
 
 
 class FlipFlow(BaseFlow):
@@ -363,13 +302,13 @@ class FlipFlow(BaseFlow):
         self.dim = dim
         super(FlipFlow, self).__init__()
 
-    def forward(self, inputs):
-        input, logdet, context = inputs
+    def forward(self, inputs_touple):
+        inputs, logdet, context = inputs_touple
 
         dim = self.dim
-        index = Variable(getattr(torch.arange(input.size(dim) - 1, -1, -1), (
-                         'cpu', 'cuda')[input.is_cuda])().long())
+        index = Variable(getattr(torch.arange(inputs.size(dim) - 1, -1, -1), (
+                         'cpu', 'cuda')[inputs.is_cuda])().long())
 
-        output = torch.index_select(input, dim, index)
+        output = torch.index_select(inputs, dim, index)
 
         return output, logdet, context

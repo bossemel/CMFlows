@@ -1,24 +1,31 @@
 import os
 import numpy as np
 import torch
-from torch.autograd import Variable
 import torch.utils.data
 import torch.nn as nn
 from tqdm import tqdm
 from pathlib import Path
 import random
-import copy
 
 import DDSF_modules.visualizer as visualizer
-from DDSF_modules import nn_modules as nn_, flows, utils, optim
+from DDSF_modules import nn_modules as nn_, flows, optim
 from DDSF_modules.utils import load_data
 from DDSF_modules.options import TrainOptions
+from DDSF_modules.flows import MAF
 
-from utils.save_statistics import save_statistics
+from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
 def build_model(args):
+    """Builds the DDSF model.
+
+    Params:
+        args: passed option arguments
+
+    Returns:
+        model: DDSF model
+    """
     args.dimh = args.batch_size
     args.act = nn.ELU()
     args.dim = 1
@@ -35,24 +42,37 @@ def build_model(args):
         flows.FlipFlow(1)) for i in range(args.num_flow_layers_DDSF)] + \
         [flows.LinearFlow(args.dim, 1), ]
 
-    model = MAF(*sequels)
+    model = MAF(args, *sequels)
     return model
 
 
 def train(epoch, train_loader, current_epoch_losses):
+    """Performs training.
+
+    Params:
+        epoch: current epoch
+        train_loader: data loader
+        current_epoch_loss: dictionary containing the training loss of the epoch
+        device: device
+
+    Returns:
+        current_epoch_losses: updated training loss dictionary
+    """
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset))
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
             data = data[0]
-        data = data.to(args.device)
+        data.to(args.device)
         optimizer.zero_grad()
 
         loss = model.loss(data).mean()
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
+        model.clip_grad_norm()
+
         optimizer.step()
 
         pbar.update(data.size(0))
@@ -87,7 +107,7 @@ def validate(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
-        data = data.to(device)
+        data.to(device)
         with torch.no_grad():
             current_loss = model.loss(data).mean().item()
         if current_epoch_losses is not None:
@@ -96,7 +116,7 @@ def validate(epoch, model, loader, device,
             if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
                 best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
                 best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
-                best_dict['best_model'] = copy.deepcopy(model)
+                # best_dict['best_model'] = copy.deepcopy(model)
 
         pbar.update(data.size(0))
         pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
@@ -126,7 +146,7 @@ def test(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
-        data = data.to(device)
+        data.to(device)
         with torch.no_grad():
             current_loss = model.loss(data).mean().item()
         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
@@ -139,39 +159,6 @@ def test(epoch, model, loader, device,
     return current_epoch_test
 
 
-class MAF(nn.Sequential):
-
-    def density(self, samples, logdets=None, context=None, zeros=None):
-        self.n = args.batch_size
-        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()) + 2.0
-        self.logdets = Variable(torch.FloatTensor(self.n).zero_())
-        self.zeros = Variable(torch.FloatTensor(self.n, 2).zero_())
-
-        logdets = self.logdets if logdets is None else logdets
-        context = self.context if context is None else context
-        zeros = self.zeros if zeros is None else zeros
-        z, logdet, _ = self((samples, logdets, context))
-        density = utils.log_normal(z, zeros, zeros + 1.0).sum(1) + logdet
-        return density
-
-    def loss(self, x):
-        return - self.density(x)
-
-    def sample(self, num_samples=None, noise=None):
-        context = Variable(torch.FloatTensor(num_samples, 1).zero_())
-        logdet = Variable(torch.FloatTensor(num_samples).zero_())
-
-        if noise is None:
-            noise = torch.Tensor(num_samples).uniform_().reshape(-1, 1)
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples, __, __ = self((noise, logdet, context))
-        return samples
-
-    # def clip_grad_norm(self):
-    #     nn.utils.clip_grad_norm_(self.flow.parameters(), self.clip)
-
-
 if __name__ == '__main__':
 
     # Training settings
@@ -181,9 +168,11 @@ if __name__ == '__main__':
     args.exp_path = os.path.join('results', args.exp_name)
     args.figures_path = os.path.join(args.exp_path, args.figures_path)
     args.experiment_logs = os.path.join(args.exp_path, 'result_outputs')
+    args.experiment_saved_models = os.path.join(args.experiment_saved_models, args.exp_name)
     Path(args.exp_path).mkdir(parents=True, exist_ok=True)
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
+    Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -203,6 +192,7 @@ if __name__ == '__main__':
     model = build_model(args)
     model.state = dict()
     model.to(args.device)
+
     # optimizer in MAF:
     optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
     # optimizer in train model:
@@ -230,6 +220,21 @@ if __name__ == '__main__':
                                                    current_epoch_losses=current_epoch_losses,
                                                    best_dict=best_dict)
 
+        model.state['model_epoch'] = epoch
+
+        # save model and best val idx and best val acc, using the model dir, model name and model idx
+        save_model(model=model,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
+
+        save_model(model=model,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
+
         # Save mean of each epoch in total losses dictionary
         for key, value in current_epoch_losses.items():
             total_losses[key].append(np.mean(
@@ -246,32 +251,20 @@ if __name__ == '__main__':
 
         # Save sample plots every 10 epochs
         if epoch % args.plot_frequ == 0:
-            visualizer.visualize1D(dataset, model, epoch, args)
+            visualizer.visualize1D(dataset, model, epoch, args, obs=1000)
 
     # Calculate test statistics
+    # load best validation model
+    load_model(model=model, model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
+               model_save_name="train_model")
+
     current_epoch_test = test(best_dict['best_validation_epoch'],
                               best_dict['best_model'],
                               data_loaders['test_loader'],
                               args.device,
                               current_epoch_test=current_epoch_test)
 
-    visualizer.visualize1D(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args)
-
-    # # Calculate Jensen-Shannon Divergence on test set
-    # current_epoch_test = jsd_eval(args,
-    #                               best_dict['best_validation_epoch'],
-    #                               best_dict['best_model'],
-    #                               data_loaders['test_loader'],
-    #                               device,
-    #                               current_epoch_test=current_epoch_test)
-
-    # # Evaluate margins on test set
-    # current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
-    #                                        best_dict['best_model'],
-    #                                        data_loaders['test_loader'],
-    #                                        device,
-    #                                        transform_fct=args.transform_fct,
-    #                                        current_epoch_test=current_epoch_test)
+    visualizer.visualize1D(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -283,17 +276,3 @@ if __name__ == '__main__':
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
     plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict)
-
-    # Plot samples for best epoch
-    # utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
-
-    # # Plot Margins
-    # plot_margins(args,
-    #              best_dict['best_validation_epoch'],
-    #              best_dict['best_model'],
-    #              data_loaders['test_loader'])
-
-    # # Plot pointwise difference
-    # jsd_graph(args,
-    #           best_dict['best_validation_epoch'],
-    #           best_dict['best_model'])

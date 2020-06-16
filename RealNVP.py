@@ -2,29 +2,36 @@ import torch
 import torch.optim as optim
 import torch.utils.data
 import torch.nn as nn
-
 from tqdm import tqdm
+import os
+import numpy as np
+from pathlib import Path
+import random
+import copy
 
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
 from RealNVP_modules.options import TrainOptions
 from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_margins
+
 from utils.save_statistics import save_statistics
-import os
-import numpy as np
-from pathlib import Path
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-import random
-import copy
 
 
-def build_model(args, num_inputs, device):
+def build_model(args):
+    """Creates model.
+
+    Params:
+        args: option input arguments
+
+    Returns: RealNVP model
+    """
     num_hidden = {args.copula: args.num_hidden_RealNVP}[args.copula]
-
+    num_inputs = 2
     modules = []
 
     mask = torch.arange(0, num_inputs) % 2
-    mask = mask.to(device).float()
+    mask = mask.to(args.device).float()
 
     for _ in range(args.num_blocks):
         modules += [
@@ -46,13 +53,24 @@ def build_model(args, num_inputs, device):
 
 
 def train(epoch, train_loader, current_epoch_losses):
+    """Performs training.
+
+    Params:
+        epoch: current epoch
+        train_loader: data loader
+        current_epoch_loss: dictionary containing the training loss of the epoch
+        device: device
+
+    Returns:
+        current_epoch_losses: updated training loss dictionary
+    """
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset))
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
             data = data[0]
-        data = data.to(device)
+        data = data.to(args.device)
         optimizer.zero_grad()
         loss = model.loss(data).mean()
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
@@ -77,7 +95,6 @@ def train(epoch, train_loader, current_epoch_losses):
             module.momentum = 1
 
     return current_epoch_losses
-
 
 
 def validate(epoch, model, loader, device,
@@ -171,7 +188,7 @@ if __name__ == '__main__':
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
-    device = torch.device("cuda:0" if args.cuda else "cpu")
+    args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
     # Set Seed
     np.random.seed(args.random_seed)
@@ -181,11 +198,11 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    dataset, num_inputs, data_loaders = utils.load_data(args)
+    dataset, data_loaders = utils.load_data(args)
 
     # Build model and send to device
-    model = build_model(args, num_inputs, device)
-    model.to(device)
+    model = build_model(args)
+    model.to(args.device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
 
     # Save losses and best epoch stats and model in dictionary
@@ -202,7 +219,7 @@ if __name__ == '__main__':
         current_epoch_losses, best_dict = validate(epoch,
                                                    model,
                                                    data_loaders['valid_loader'],
-                                                   device,
+                                                   args.device,
                                                    current_epoch_losses=current_epoch_losses,
                                                    best_dict=best_dict)
 
@@ -233,7 +250,7 @@ if __name__ == '__main__':
     current_epoch_test = test(best_dict['best_validation_epoch'],
                               best_dict['best_model'],
                               data_loaders['test_loader'],
-                              device,
+                              args.device,
                               current_epoch_test=current_epoch_test)
 
     # Calculate Jensen-Shannon Divergence on test set
@@ -241,14 +258,14 @@ if __name__ == '__main__':
                                   best_dict['best_validation_epoch'],
                                   best_dict['best_model'],
                                   data_loaders['test_loader'],
-                                  device,
+                                  args.device,
                                   current_epoch_test=current_epoch_test)
 
     # Evaluate margins on test set
     current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
                                            best_dict['best_model'],
                                            data_loaders['test_loader'],
-                                           device,
+                                           args.device,
                                            transform_fct=args.transform_fct,
                                            current_epoch_test=current_epoch_test)
 

@@ -22,11 +22,20 @@ from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 
 
-def build_model(args, num_inputs):
-    model_RealNVP = build_model_RealNVP(args, num_inputs, args.device)
-    # MAF_DDSF = MAF(args)
-    # model_DDSF_1 = MAF_DDSF.get_model()
-    # model_DDSF_2 = MAF_DDSF.get_model()
+def build_model(args):
+    """Builds the CM Flow model. It is a concatenation of RealNVP and DDSF.
+
+    Params:
+        args: passed option arguments
+
+    Returns:
+        model: CM Flows model
+        model_RealNVP: RealNVP model
+        model_DDSF_1: 1st DDSF model
+        model_DDSF_2: 2nd DDSF model
+    """
+    model_RealNVP = build_model_RealNVP(args)
+
     model_DDSF_1 = build_model_DDSF(args)
     model_DDSF_2 = build_model_DDSF(args)
 
@@ -34,12 +43,25 @@ def build_model(args, num_inputs):
                          model_RealNVP=model_RealNVP,
                          model_DDSF_1=model_DDSF_1,
                          model_DDSF_2=model_DDSF_2,
-                         device=args.device)
+                         device=args.device,
+                         batch_size=args.batch_size,
+                         args=args)
 
     return model, model_RealNVP, model_DDSF_1, model_DDSF_2
 
 
 def train(epoch, train_loader, current_epoch_losses, device):
+    """Performs training.
+
+    Params:
+        epoch: current epoch
+        train_loader: data loader
+        current_epoch_loss: dictionary containing the training loss of the epoch
+        device: device
+
+    Returns:
+        current_epoch_losses: updated training loss dictionary
+    """
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset))
@@ -49,10 +71,11 @@ def train(epoch, train_loader, current_epoch_losses, device):
         data = data.to(device)
         optimizer.zero_grad()
         loss = model.loss(data).mean()
-
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
+        model.clip_grad_norm()
+
         optimizer.step()
 
         pbar.update(data.size(0))
@@ -177,16 +200,17 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    dataset, num_inputs, data_loaders = utils.load_data(args)
+    dataset, data_loaders = utils.load_data(args)
 
     # Build model and send to device
-    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args, num_inputs)
+    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
     model.state = dict()
     model_RealNVP.state = dict()
 
     model.to(args.device)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
 
     # Save losses and best epoch stats and model in dictionary
     total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
@@ -197,11 +221,16 @@ if __name__ == '__main__':
     for epoch in range(args.epochs):
         print('\nEpoch: {}'.format(epoch))
 
+        # Initialize dictionary for epoch losses
         current_epoch_losses = {"train_loss": [], "val_loss": []}
+
+        # Train model
         current_epoch_losses = train(epoch,
                                      data_loaders['train_loader'],
                                      current_epoch_losses,
                                      args.device)
+
+        # Perform Validation
         current_epoch_losses, best_dict = validate(epoch,
                                                    model,
                                                    data_loaders['valid_loader'],
@@ -209,6 +238,7 @@ if __name__ == '__main__':
                                                    current_epoch_losses=current_epoch_losses,
                                                    best_dict=best_dict)
 
+        # Set model state to epoch
         model.state['model_epoch'] = epoch
 
         # save model and best val idx and best val acc, using the model dir, model name and model idx
@@ -239,26 +269,26 @@ if __name__ == '__main__':
             if epoch - best_dict['best_validation_epoch'] >= 30:
                 break
 
-        print(
-            'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
-            format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
+        print('Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
+              format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
-        # # Save sample plots every 10 epochs
-        # if epoch % args.plot_frequ == 0:
-        #     utils.save_samples_plot(args, epoch, model, dataset)
+        # Save sample plots every n epochs
+        if epoch % args.plot_frequ == 0:
+            RealNVP_modules.utils.save_samples_plot(args, epoch, model_RealNVP, dataset)
 
     # Calculate test statistics
-    # load best validation model
+    # Load best validation model
     load_model(model=model, model_RealNVP=model_RealNVP, model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
                model_save_name="train_model")
 
+    # Perform test evaluation
     current_epoch_test = test(best_dict['best_validation_epoch'],
                               model,
                               data_loaders['test_loader'],
                               args.device,
                               current_epoch_test=current_epoch_test)
 
-    # Calculate Jensen-Shannon Divergence on test set
+    # Calculate Jensen-Shannon Divergence of copula
     current_epoch_test = jsd_eval(args,
                                   best_dict['best_validation_epoch'],
                                   model_RealNVP,
@@ -266,7 +296,7 @@ if __name__ == '__main__':
                                   args.device,
                                   current_epoch_test=current_epoch_test)
 
-    # Evaluate margins on test set
+    # Evaluate copula margins on test set
     current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
                                            model_RealNVP,
                                            data_loaders['test_loader'],
@@ -288,13 +318,13 @@ if __name__ == '__main__':
     # Plot samples for best epoch
     RealNVP_modules.utils.save_samples_plot(args, best_dict['best_validation_epoch'], model_RealNVP, dataset)
 
-    # Plot Margins
+    # Plot Copula Margins
     plot_margins(args,
                  best_dict['best_validation_epoch'],
                  model_RealNVP,
                  data_loaders['test_loader'])
 
-    # Plot pointwise difference
+    # Plot pointwise copula difference
     jsd_graph(args,
               best_dict['best_validation_epoch'],
               model_RealNVP)

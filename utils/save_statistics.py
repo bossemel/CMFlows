@@ -1,21 +1,6 @@
-# functions taken from https://github.com/CSTR-Edinburgh/mlpractical/blob/mlp2019-20/coursework_2
-import pickle
 import os
 import csv
 import torch
-
-def save_to_stats_pkl_file(experiment_log_filepath, filename, stats_dict):
-    summary_filename = os.path.join(experiment_log_filepath, filename)
-    with open("{}.pkl".format(summary_filename), "wb") as file_writer:
-        pickle.dump(stats_dict, file_writer)
-
-
-def load_from_stats_pkl_file(experiment_log_filepath, filename):
-    summary_filename = os.path.join(experiment_log_filepath, filename)
-    with open("{}.pkl".format(summary_filename), "rb") as file_reader:
-        stats = pickle.load(file_reader)
-
-    return stats
 
 
 def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch,
@@ -79,8 +64,8 @@ def load_statistics(experiment_log_dir, filename):
     return stats
 
 
-def save_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
-               best_validation_model_loss):
+def save_model(model, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
+               best_validation_model_loss, model_RealNVP=None):
     """
     Save the network parameter state and current best val epoch idx and best val accuracy.
     :param model_save_name: Name to use to save model without the epoch index
@@ -93,16 +78,17 @@ def save_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx,
     model.state['network'] = model.state_dict()  # save network parameter and other variables.
     model.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
     model.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
-    model_RealNVP.state['network'] = model_RealNVP.state_dict()  # save network parameter and other variables.
-    model_RealNVP.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
-    model_RealNVP.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
     torch.save(model.state, f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(
         model_idx))))  # save state at prespecified filepath
-    torch.save(model_RealNVP.state, f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(
-        model_idx))))  # save state at prespecified filepath
+    if model_RealNVP is not None:
+        model_RealNVP.state['network'] = model_RealNVP.state_dict()  # save network parameter and other variables.
+        model_RealNVP.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
+        model_RealNVP.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
+        torch.save(model_RealNVP.state, f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(
+            model_idx))))  # save state at prespecified filepath
 
 
-def load_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx):
+def load_model(model, model_save_dir, model_save_name, model_idx, model_RealNVP=None):
     """
     Load the network parameter state and the best val model idx and best val acc to be compared with the future val accuracies, in order to choose the best val model
     :param model_save_dir: The directory to store the state at.
@@ -112,6 +98,7 @@ def load_model(model, model_RealNVP, model_save_dir, model_save_name, model_idx)
     """
     state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(model_idx))))
     model.load_state_dict(state_dict=state['network'])
-    state_RealNVP = torch.load(f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(model_idx))))
-    model_RealNVP.load_state_dict(state_dict=state_RealNVP['network'])
-    return state, state['best_val_model_idx'], state['best_val_model_acc']
+
+    if model_RealNVP is not None:
+        state_RealNVP = torch.load(f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(model_idx))))
+        model_RealNVP.load_state_dict(state_dict=state_RealNVP['network'])

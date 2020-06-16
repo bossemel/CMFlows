@@ -1,14 +1,7 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import datasets
-import datasets.util
 import sys
 import scipy
-import warnings
 from utils.split_train_test import split_train_val_test
-
-
-warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 class Copula_sampler:
@@ -39,15 +32,6 @@ class Copula_sampler:
         self.tst = self.Data(tst)
 
         self.n_dims = self.trn.x.shape[1]
-
-    def show_histograms(self, split):
-
-        data_split = getattr(self, split, None)
-        if data_split is None:
-            raise ValueError('Invalid data split')
-
-        datasets.util.plot_hist_marginals(data_split.x)
-        plt.show()
 
     def sample_copulas(self, transform):
         """Produce obs samples of 2-dimensional Copula density distribution

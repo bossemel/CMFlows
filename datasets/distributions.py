@@ -4,19 +4,7 @@ import datasets.copulas
 from utils.split_train_test import split_train_val_test
 import numpy as np
 import scipy.stats
-import datasets.distributions as distributions
-
-
-class Distr(object):
-
-    hasenergyf = False
-    hassplr = False
-
-    def energy(self, x):
-        raise NotImplementedError
-
-    def sampler(self, x):
-        raise NotImplementedError
+from scipy.stats import gamma
 
 
 def sample_normal_uniform(obs):
@@ -50,7 +38,7 @@ def copula_corr_joint(cop_type='CLAYTON', marginal='GAUSSIAN', obs=1000, tau=0.5
     return x_1, x_2
 
 
-class Copula_Joint:
+class Copula_Joint():
     class Data:
         def __init__(self, data):
 
@@ -98,7 +86,7 @@ class Copula_Joint:
         self.xx = xx
 
 
-class Marginals:
+class Marginals():
     class Data:
         def __init__(self, data):
 
@@ -122,7 +110,7 @@ class Marginals:
         self.n_dims = args.obs
 
     def sampler(self, args, obs=None):
-        dataset = distributions.Gaussian(0.5)
+
         if self.marginal == 'GAUSSIAN':
             assert args.mu is not None, 'Please specify mean mu for %r distribution' % (self.marginal)
             assert args.var is not None, 'Please specify variance var for %r distribution' % (self.marginal)
@@ -136,8 +124,10 @@ class Marginals:
             dataset = np.random.uniform(low=args.low,
                                         high=args.high,
                                         size=[args.obs if obs is None else obs])
-        else:
-            raise NotImplementedError
+        elif self.marginal == 'GAMMA':
+            assert args.a_param is not None, 'Please specify a_param for %r distribution' % (self.marginal)
+
+            dataset = gamma.rvs(a=5, size=10000)
 
         self.xx = dataset.reshape(-1, 1)
         return self.xx

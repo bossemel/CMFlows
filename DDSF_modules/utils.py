@@ -1,6 +1,6 @@
 import torch
-import numpy as np
 import datasets.distributions
+import math
 
 
 def load_data(args):
@@ -78,6 +78,6 @@ def oper_fct(array, oper, A_max=None, axis=-1, keepdims=False):
     return a_oper
 
 
-def log_normal(x, mean, log_var, eps=0.00001):
-    c = - 0.5 * np.log(2 * np.pi)
-    return - (x - mean) ** 2 / (2. * torch.exp(log_var) + eps) - log_var / 2. + c
+def log_normal(inputs, mean, log_var, device, eps=0.00001):
+    c = torch.tensor(- 0.5 * math.log(2 * math.pi)).to(device)
+    return - (inputs - mean.to(device)) ** 2 / (2. * torch.exp(log_var).to(device) + eps) - log_var.to(device) / 2. + c

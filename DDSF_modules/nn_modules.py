@@ -108,22 +108,23 @@ class CWNlinear(Module):
         self.in_features = in_features
         self.out_features = out_features
         self.context_features = context_features
-        self.register_buffer('mask',mask)
+        self.register_buffer('mask', mask)
         self.norm = norm
-        self.direction = Parameter(torch.zeros(int(out_features), in_features))
-        self.cscale = nn.Linear(context_features, int(out_features))
-        self.cbias = nn.Linear(context_features, int(out_features))
+        self.direction = Parameter(torch.zeros(int(out_features), in_features)).to(device)
+        self.cscale = nn.Linear(context_features, int(out_features)).to(device)
+        self.cbias = nn.Linear(context_features, int(out_features)).to(device)
         self.reset_parameters()
         self.cscale.weight.data.normal_(0, 0.001)
         self.cbias.weight.data.normal_(0, 0.001)
+        self.device = device
 
     def reset_parameters(self):
         self.direction.data.normal_(0, 0.001)
 
     def forward(self, inputs):
-        input, context = inputs
-        scale = self.cscale(context)
-        bias = self.cbias(context)
+        input_, context = inputs
+        scale = self.cscale(context.to(self.device))
+        bias = self.cbias(context.to(self.device))
         if self.norm:
             dir_ = self.direction
             direction = dir_.div(dir_.pow(2).sum(1).sqrt()[:,N_])
@@ -131,10 +132,12 @@ class CWNlinear(Module):
         else:
             weight = self.direction
         if self.mask is not N_:
-            #weight = weight * getattr(self.mask,
+            # weight = weight * getattr(self.mask,
             #                          ('cpu', 'cuda')[weight.is_cuda])()
             weight = weight * Variable(self.mask)
-        return scale * F.linear(input, weight.type('torch.FloatTensor'), None) + bias, context
+        flinear = F.linear(input_.to(self.device), weight.type('torch.FloatTensor').to(self.device), None)
+        inputs = scale.to(self.device) * flinear + bias.to(self.device)
+        return inputs, context
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \

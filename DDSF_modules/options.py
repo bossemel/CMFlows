@@ -31,7 +31,7 @@ class TrainOptions():
         parser.add_argument(
             '--marginal',
             default='GAUSSIAN',
-            choices=['GAUSSIAN', 'UNIFORM'])
+            choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
         parser.add_argument(
             '--no-cuda',
             action='store_true',
@@ -48,8 +48,9 @@ class TrainOptions():
         parser.add_argument('--num_ds_dim', type=int, default=16)
         parser.add_argument('--num_ds_layers', type=int, default=1)
         parser.add_argument('--dimh_DDSF', type=int, default=64)
-        parser.add_argument('--mu', type=float, required=False)
-        parser.add_argument('--var', type=float, required=False)
+        parser.add_argument('--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
+        parser.add_argument('--var', type=float, required=False, help='Variance of the Gaussian Distribution')
+        parser.add_argument('--a_param', type=float, required=False, help='Parameter for the Gamma distribution')
 
         parser.add_argument(
             '--random_seed',

@@ -16,120 +16,71 @@ class TrainOptions():
         # CM Options
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--batch-size',
-            type=int,
-            default=100,
-            help='input batch size for training (default: 128)')
+            '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
-            '--test-batch-size',
-            type=int,
-            default=100,
-            help='input batch size for testing (default: 1000)')
+            '--test-batch-size', type=int, default=100, help='input batch size for testing')
         parser.add_argument(
-            '--epochs',
-            type=int,
-            default=100,
-            help='number of epochs to train (default: 100)')
+            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr',
-            type=float,
-            default=0.0001,
-            help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--copula',
-            default='CLAYTON',
-            help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+            '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
         parser.add_argument(
-            '--marginal',
-            default='GAUSSIAN',
-            help='GAUSSIAN')
+            '--marginal', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
         parser.add_argument(
-            '--no-cuda',
-            action='store_true',
-            default=False,
-            help='disables CUDA training')
+            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks',
-            type=int,
-            default=5,
-            help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
         parser.add_argument(
-            '--obs',
-            type=int,
-            default=3000,
-            help='How many data samples to generate')
+            '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
-            '--tau',
-            type=float,
-            required=False,
-            help='tau to use for copula sampling')
+            '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta',
-            type=float,
-            required=False,
-            help='theta for copula sampling')
+            '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
-            '--random_seed',
-            type=int,
-            default=58093,
-            help='random seed')
+            '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
-            '--df',
-            type=int,
-            required=False,
-            help='degrees of freedom for student-t copula')
+            '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
-            '--transform_fct',
-            type=str,
-            default='sigmoid',
-            help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--exp_name',
-            type=str,
-            default='default_name_cm',
-            help='experiment name to store plots and logs')
+            '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path',
-            type=str,
-            default='figures_cm',
-            help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--plot_frequ',
-            type=int,
-            default=10,
-            help='save plots every x epochs')
+            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
         parser.add_argument(
-            '--experiment_saved_models',
-            type=str,
-            default='saved_models')
+            '--experiment_saved_models', type=str, default='saved_models')
 
         # Options RealNVP
         parser.add_argument(
-            '--num_hidden_RealNVP',
-            type=int,
-            default=64,
-            help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=64, help='number of hidden units')
         parser.add_argument(
-            '--early_stopping',
-            action='store_true',
-            default=False,
-            help='stops training after 30 unsuccessfull epochs')
+            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
 
         # Options DDSF
-        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hid_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hidden_units_DDSF', type=int, default=16)
-        parser.add_argument('--num_ds_dim', type=int, default=16)
-        parser.add_argument('--num_ds_layers', type=int, default=1)
-        parser.add_argument('--dimh_DDSF', type=int, default=64)
-        parser.add_argument('--amsgrad', type=int, default=0)
-        parser.add_argument('--polyak', type=float, default=0.0)
-        parser.add_argument('--clip', type=float, default=5.0)
-        parser.add_argument('--beta1', type=float, default=0.9)
-        parser.add_argument('--beta2', type=float, default=0.999)
-
-
-
+        parser.add_argument(
+            '--num_flow_layers_DDSF', type=int, default=2)
+        parser.add_argument(
+            '--num_hid_layers_DDSF', type=int, default=2)
+        parser.add_argument(
+            '--num_hidden_units_DDSF', type=int, default=16)
+        parser.add_argument(
+            '--num_ds_dim', type=int, default=16)
+        parser.add_argument(
+            '--num_ds_layers', type=int, default=1)
+        parser.add_argument(
+            '--dimh_DDSF', type=int, default=64)
+        parser.add_argument(
+            '--amsgrad', type=int, default=0)
+        parser.add_argument(
+            '--polyak', type=float, default=0.0)
+        parser.add_argument(
+            '--clip', type=float, default=5.0)
+        parser.add_argument(
+            '--beta1', type=float, default=0.9)
+        parser.add_argument(
+            '--beta2', type=float, default=0.999)
 
         self.initialized = True
         return parser
