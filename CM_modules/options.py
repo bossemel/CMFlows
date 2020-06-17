@@ -26,7 +26,9 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
         parser.add_argument(
-            '--marginal', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
+            '--marginal_1', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'], help='marginal in first dimension')
+        parser.add_argument(
+            '--marginal_2', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'], help='marginal in second dimension')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -51,6 +53,8 @@ class TrainOptions():
             '--plot_frequ', type=int, default=10, help='save plots every x epochs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
 
         # Options RealNVP
         parser.add_argument(
@@ -81,6 +85,10 @@ class TrainOptions():
             '--beta1', type=float, default=0.9)
         parser.add_argument(
             '--beta2', type=float, default=0.999)
+        parser.add_argument(
+            '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
+        parser.add_argument(
+            '--var', type=float, required=False, help='var for marginal gaussian distribution')
 
         self.initialized = True
         return parser

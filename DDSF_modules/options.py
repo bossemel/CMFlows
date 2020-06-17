@@ -14,76 +14,63 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--batch-size',
-            type=int,
-            default=100,
-            help='input batch size for training (default: 128)')
+            '--batch-size', type=int, default=100, help='input batch size for training (default: 128)')
         parser.add_argument(
-            '--test-batch-size',
-            type=int,
-            default=100,
-            help='input batch size for testing (default: 1000)')
+            '--test-batch-size', type=int, default=100, help='input batch size for testing (default: 1000)')
         parser.add_argument(
-            '--epochs',
-            type=int,
-            default=100,
-            help='number of epochs to train (default: 100)')
+            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal',
-            default='GAUSSIAN',
-            choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
+            '--marginal', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
         parser.add_argument(
-            '--no-cuda',
-            action='store_true',
-            default=False,
-            help='disables CUDA training')
+            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--obs',
-            type=int,
-            default=3000,
-            help='How many data samples to generate')
-        parser.add_argument('--num_flow_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hid_layers_DDSF', type=int, default=2)
-        parser.add_argument('--num_hidden_units_DDSF', type=int, default=100)
-        parser.add_argument('--num_ds_dim', type=int, default=16)
-        parser.add_argument('--num_ds_layers', type=int, default=1)
-        parser.add_argument('--dimh_DDSF', type=int, default=64)
-        parser.add_argument('--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
-        parser.add_argument('--var', type=float, required=False, help='Variance of the Gaussian Distribution')
-        parser.add_argument('--a_param', type=float, required=False, help='Parameter for the Gamma distribution')
-
+            '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
-            '--random_seed',
-            type=int,
-            default=58093,
-            help='random seed')
+            '--num_flow_layers_DDSF', type=int, default=2)
         parser.add_argument(
-            '--exp_name',
-            type=str,
-            default='default_name_ddsf',
-            help='experiment name to store plots and logs')
+            '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
-            '--figures_path',
-            type=str,
-            default='figures_cm',
-            help='experiment name to store plots and logs')
+            '--num_ds_dim', type=int, default=16)
         parser.add_argument(
-            '--experiment_saved_models',
-            type=str,
-            default='saved_models')
-        parser.add_argument('--amsgrad', type=int, default=0)
-        parser.add_argument('--polyak', type=float, default=0.0)
-        parser.add_argument('--lr', type=float, default=0.0001)
-        parser.add_argument('--clip', type=float, default=5.0)
-        parser.add_argument('--beta1', type=float, default=0.9)
-        parser.add_argument('--beta2', type=float, default=0.999)
+            '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--plot_frequ',
-            type=int,
-            default=10,
-            help='save plots every x epochs')
-        parser.add_argument('--low', type=float, required=False)
-        parser.add_argument('--high', type=float, required=False)
+            '--dimh_DDSF', type=int, default=64)
+        parser.add_argument(
+            '--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
+        parser.add_argument(
+            '--var', type=float, required=False, help='Variance of the Gaussian Distribution')
+        parser.add_argument(
+            '--a_param', type=float, required=False, help='Parameter for the Gamma distribution')
+        parser.add_argument(
+            '--random_seed', type=int, default=58093, help='random seed')
+        parser.add_argument(
+            '--exp_name', type=str, default='default_name_ddsf', help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--amsgrad', type=int, default=0)
+        parser.add_argument(
+            '--polyak', type=float, default=0.0)
+        parser.add_argument(
+            '--lr', type=float, default=0.0001)
+        parser.add_argument(
+            '--clip', type=float, default=5.0)
+        parser.add_argument(
+            '--beta1', type=float, default=0.9)
+        parser.add_argument(
+            '--beta2', type=float, default=0.999)
+        parser.add_argument(
+            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
+        parser.add_argument(
+            '--low', type=float, required=False)
+        parser.add_argument(
+            '--high', type=float, required=False)
+        parser.add_argument(
+            '--mplot_low', type=float, default=-5)
+        parser.add_argument(
+            '--mplot_high', type=float, required=5)
         self.initialized = True
         return parser
 

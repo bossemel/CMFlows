@@ -14,99 +14,41 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--copula',
-            default='CLAYTON',
-            help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+            '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
         parser.add_argument(
-            '--batch-size',
-            type=int,
-            default=100,
-            help='input batch size for training (default: 100)')
+            '--batch-size', type=int, default=100, help='input batch size for training (default: 100)')
         parser.add_argument(
-            '--test-batch-size',
-            type=int,
-            default=1000,
-            help='input batch size for testing (default: 1000)')
+            '--test-batch-size', type=int, default=1000, help='input batch size for testing (default: 1000)')
         parser.add_argument(
-            '--epochs',
-            type=int,
-            default=100,
-            help='number of epochs to train (default: 100)')
+            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr',
-            type=float,
-            default=0.0001,
-            help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--no-cuda',
-            action='store_true',
-            default=False,
-            help='disables CUDA training')
+            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks',
-            type=int,
-            default=5,
-            help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
         parser.add_argument(
-            '--obs',
-            type=int,
-            default=3000,
-            help='How many data samples to generate')
+            '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
-            '--tau',
-            type=float,
-            required=False,
-            help='tau to use for copula sampling')
+            '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta',
-            type=float,
-            required=False,
-            help='theta for copula sampling')
+            '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
-            '--num_hidden_RealNVP',
-            type=int,
-            default=64,
-            help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=64, help='number of hidden units')
         parser.add_argument(
-            '--random_seed',
-            type=int,
-            default=58093,
-            help='random seed')
+            '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
-            '--df',
-            type=int,
-            required=False,
-            help='degrees of freedom for student-t copula')
+            '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
-            '--early_stopping',
-            action='store_true',
-            default=False,
-            help='stops training after 30 unsuccessfull epochs')
+            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--transform_fct',
-            type=str,
-            default='sigmoid',
-            help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
-        # parser.add_argument(
-        #     '--no_sigmoid',
-        #     action='store_true',
-        #     default=False,
-        #     help='applied logit on copula samples, and sigmoid before evaluation')
+            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--exp_name',
-            type=str,
-            default='default_name',
-            help='experiment name to store plots and logs')
+            '--exp_name', type=str, default='default_name', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path',
-            type=str,
-            default='figures',
-            help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--plot_frequ',
-            type=int,
-            default=10,
-            help='save plots every x epochs')
+            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
         self.initialized = True
         return parser
 

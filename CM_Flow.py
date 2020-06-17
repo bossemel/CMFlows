@@ -16,7 +16,10 @@ from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_ma
 from RealNVP import build_model as build_model_RealNVP
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils
+
+from DDSF_modules.utils import load_data as load_data_DDSF
 from DDSF import build_model as build_model_DDSF
+import DDSF_modules.visualizer as visualizer
 
 from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
@@ -70,11 +73,15 @@ def train(epoch, train_loader, current_epoch_losses, device):
             data = data[0]
         data = data.to(device)
         optimizer.zero_grad()
-        loss = model.loss(data).mean()
+        losses = model.loss(data)
+        loss = 0
+        for loss_element in losses:
+            loss += loss_element.mean()
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
-        model.clip_grad_norm()
+        if args.clip_grad_norm:
+            model.clip_grad_norm()
 
         optimizer.step()
 
@@ -123,7 +130,10 @@ def validate(epoch, model, loader, device,
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = model.loss(data).mean().item()
+            losses = model.loss(data)
+            current_loss = 0
+            for loss_element in losses:
+                current_loss += loss_element.mean()
         if current_epoch_losses is not None:
             current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
             val_mean_loss = np.mean(current_epoch_losses['val_loss'])
@@ -162,7 +172,10 @@ def test(epoch, model, loader, device,
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_loss = model.loss(data).mean().item()
+            losses = model.loss(data)
+            current_loss = 0
+            for loss_element in losses:
+                current_loss += loss_element.mean()
         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
@@ -324,7 +337,16 @@ if __name__ == '__main__':
                  model_RealNVP,
                  data_loaders['test_loader'])
 
+    # Plot Margins
+    args.mu = 0
+    args.var = 1
+    marginal_dataset, __, __ = load_data_DDSF(args)
+
+    #visualizer.visualize1D_CM(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
+    #visualizer.visualize1D_CM(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
+
     # Plot pointwise copula difference
     jsd_graph(args,
               best_dict['best_validation_epoch'],
               model_RealNVP)
+

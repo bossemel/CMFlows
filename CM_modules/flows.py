@@ -3,6 +3,13 @@ import torch
 import math
 from torch.autograd import Variable
 from utils.various import sigmoid, logit
+import scipy
+import matplotlib.pyplot as plt
+
+
+def flow_density(inputs, log_jacob):
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
+    return log_prob + log_jacob
 
 
 class CMFlow(nn.Module):
@@ -26,41 +33,43 @@ class CMFlow(nn.Module):
         Params:
             inputs: joint distribution samples
 
-        Returns:
+        Returns:z
             inputs: inputs after forward pass
             logdets: sum of the log of the determinant of the jacobian of the models
             context: context parameter for DDSF
         """
         # @Todo: implement gaussian cdf transform
+        eps = 0.00001
         inputs, logdets, context = inputs
+        # inputs_clone = inputs.clone()
+        # logdets_clone = logdets.clone()
+        # context_clone = context.clone()
 
         # The inputs are split and fed to each of the DDSF models
-        inputs_1, logdets_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
-        inputs_2, logdets_2, __ = self.model_DDSF_2((inputs[:, 1].reshape(-1, 1), logdets, context))
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs[:, 1].reshape(-1, 1), logdets, context))
+
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        outputs_DDSF_1 = normal_distr.cdf(outputs_DDSF_1)
+        outputs_DDSF_2 = normal_distr.cdf(outputs_DDSF_2)
 
         # The outputs of the DDSF are concatenated to form a bivariate distribution
-        xx = torch.cat((inputs_1, inputs_2), dim=1)
+        outputs_DDSFs = torch.cat((outputs_DDSF_1, outputs_DDSF_2), dim=1)
+        outputs_DDSFs[outputs_DDSFs >= 1] = 1 - eps
+        outputs_DDSFs[outputs_DDSFs <= 0] = 0 + eps
+        # outputs_DDSFs_clone = outputs_DDSFs.clone()
 
-        # RealNVP is preceded by a logit and proceded by a sigmoid function
         if self.transform_fct == 'sigmoid':
-            inputs = logit(inputs)
+            outputs_DDSFs = logit(outputs_DDSFs)
         if self.transform_fct == 'gaussian':
             raise NotImplementedError
 
         # forward pass in RealNVp
-        inputs, logdets_RealNVP = self.model_RealNVP(xx)
+        outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(outputs_DDSFs)
 
-        if self.transform_fct == 'sigmoid':
-            inputs = sigmoid(inputs)
-        if self.transform_fct == 'gaussian':
-            raise NotImplementedError
-
-        # log of the determinants of the jacobian are summed up
-        logdets = logdets_1.reshape(-1, 1) + logdets_2.reshape(-1, 1) + logdets_RealNVP
-        # print('realNVP', logdets_RealNVP.mean())
-        # print('ddsf1', logdets_1.mean())
-        # print('ddsf2', logdets_2.mean())
-        return inputs, logdets, context
+        logdets = (logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1), logdets_RealNVP)
+        outputs = (outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP)
+        return outputs, logdets
 
     def log_density(self, inputs):
         """Returns log of target density of the Flow
@@ -74,16 +83,20 @@ class CMFlow(nn.Module):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        u, log_jacob, __ = self((inputs, self.logdets, self.context))
-        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
-        return log_probs + log_jacob
+        outputs, log_jacob = self((inputs, self.logdets, self.context))
+        logdets_DDSF_1, logdets_DDSF_2, logdets_RealNVP = log_jacob
+        outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP = outputs
+        density_DDSF_1 = flow_density(outputs_DDSF_1, logdets_DDSF_1)
+        density_DDSF_2 = flow_density(outputs_DDSF_2, logdets_DDSF_2)
+        density_RealNVP = flow_density(outputs_RealNVP, logdets_RealNVP)
+
+        return (density_DDSF_1, density_DDSF_2, density_RealNVP)
 
     def loss(self, x):
         """Loss is negative log density
         """
-        loss = - self.log_density(x)
-        assert loss.shape == x.shape
-        return loss
+        density_DDSF_1, density_DDSF_2, density_RealNVP = self.log_density(x)
+        return (-density_DDSF_1, -density_DDSF_2, -density_RealNVP)
 
     def sample(self, num_samples=None, noise=None):
         """Samples from the Distribution
