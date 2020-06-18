@@ -16,7 +16,8 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Copula_Joint(args)
+    # @Todo: change thiso.
+    dataset = datasets.distributions.Joint_Distr(args)
 
     train_tensor = torch.from_numpy(dataset.trn.x)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)

@@ -8,6 +8,8 @@ from RealNVP_modules.utils import plot_3D
 
 
 def copula_sample_test(args):
+    """Plots the difference between copula samples estimated pdf and true copula pdf.
+    """
     x1 = np.arange(0.01, 1, 0.01)
     x2 = np.arange(0.01, 1, 0.01)
     grid1, grid2 = np.meshgrid(x1, x2)
@@ -40,20 +42,11 @@ if __name__ == '__main__':
     Path(figures_path).mkdir(parents=True, exist_ok=True)
 
     parser.add_argument(
-        '--cop_type',
-        type=str,
-        required=True,
-        help='type of copula')
+        '--cop_type', type=str, required=True, help='type of copula')
     parser.add_argument(
-        '--theta',
-        type=float,
-        required=True,
-        help='theta for copula sampling')
+        '--theta', type=float, required=True, help='theta for copula sampling')
     parser.add_argument(
-        '--random_seed',
-        type=int,
-        default=58093,
-        help='random seed')
+        '--random_seed', type=int, default=58093, help='random seed')
 
     args = parser.parse_args()
 

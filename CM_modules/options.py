@@ -26,9 +26,9 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
         parser.add_argument(
-            '--marginal_1', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'], help='marginal in first dimension')
+            '--marginal_1', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA', 'LOGNORM'], help='marginal in first dimension')
         parser.add_argument(
-            '--marginal_2', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'], help='marginal in second dimension')
+            '--marginal_2', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA', 'LOGNORM'], help='marginal in second dimension')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
