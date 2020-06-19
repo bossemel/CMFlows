@@ -5,15 +5,15 @@ import scipy.stats
 
 
 def marginal_transform(inputs, marginal):
-    if marginal == 'GAUSSIAN':
+    if marginal == 'gaussian':
         norm = scipy.stats.norm()
         inputs = norm.ppf(inputs)
-    elif marginal == 'UNIFORM':
+    elif marginal == 'uniform':
         return inputs
-    elif marginal == 'LOGNORM':
+    elif marginal == 'lognormal':
         lognorm = scipy.stats.lognorm()
         inputs = lognorm.ppf(inputs)
-    elif marginal == 'GAMMMA':
+    elif marginal == 'gamma':
         gamma = scipy.stats.gamma()
         inputs = gamma.ppf(gamma)
     else:
@@ -76,7 +76,7 @@ class Copula_Joint():
         copula_xx = copula_sampler.xx
 
         if transform:
-            if self.transform_fct == 'GAUSSIAN':
+            if self.transform_fct == 'gaussian':
                 norm = scipy.stats.norm()
                 x_1 = norm.ppf(copula_xx[:, 0])
                 x_2 = norm.ppf(copula_xx[:, 1])
@@ -110,22 +110,27 @@ class Marginals():
 
     def sampler(self, args, obs=None):
 
-        if args.marginal == 'GAUSSIAN':
+        if args.marginal == 'gaussian':
             assert args.mu is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
             assert args.var is not None, 'Please specify variance var for %r distribution' % (args.marginal)
-            dataset = np.random.normal(loc=args.mu,
-                                       scale=args.var,
-                                       size=[args.obs if obs is None else obs])
-        elif args.marginal == 'UNIFORM':
+            dataset = scipy.stats.norm.rvs(loc=args.mu,
+                                           scale=args.var,
+                                           size=[args.obs if obs is None else obs])
+        elif args.marginal == 'uniform':
             assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (args.marginal)
             assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (args.marginal)
 
-            dataset = np.random.uniform(low=args.low,
-                                        high=args.high,
-                                        size=[args.obs if obs is None else obs])
-        elif args.marginal == 'GAMMA':
-            assert args.a_param is not None, 'Please specify a_param for %r distribution' % (args.marginal)
+            dataset = scipy.stats.uniform.rvs(low=args.low,
+                                              high=args.high,
+                                              size=[args.obs if obs is None else obs])
+        elif args.marginal == 'gamma':
+            assert args.alpha is not None, 'Please specify %r for %r distribution' % (args.marginal)
 
-            dataset = scipy.stats.gamma.rvs(a=5, size=[args.obs if obs is None else obs])
+            dataset = scipy.stats.gamma.rvs(a=args.alpha, size=[args.obs if obs is None else obs])
+
+        elif args.marginal == 'lognormal':
+            assert args.loc is not None, 'Please specify shape %r distribution' % (args.marginal)
+
+            dataset = scipy.stats.lognorm.rvs(shape=args.alpha, size=[args.obs if obs is None else obs])
 
         return dataset.reshape(-1, 1)

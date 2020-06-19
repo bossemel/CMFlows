@@ -20,7 +20,7 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA'])
+            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -40,7 +40,7 @@ class TrainOptions():
         parser.add_argument(
             '--var', type=float, required=False, help='Variance of the Gaussian Distribution')
         parser.add_argument(
-            '--a_param', type=float, required=False, help='Parameter for the Gamma distribution')
+            '--alpha', type=float, required=False, help='Parameter for the Gamma distribution')
         parser.add_argument(
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
@@ -67,10 +67,6 @@ class TrainOptions():
             '--low', type=float, required=False)
         parser.add_argument(
             '--high', type=float, required=False)
-        parser.add_argument(
-            '--mplot_low', type=float, default=-5)
-        parser.add_argument(
-            '--mplot_high', type=float, required=5)
         self.initialized = True
         return parser
 

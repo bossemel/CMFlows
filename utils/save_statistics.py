@@ -65,7 +65,7 @@ def load_statistics(experiment_log_dir, filename):
 
 
 def save_model(model, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
-               best_validation_model_loss, model_RealNVP=None):
+               best_validation_model_loss, model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
     """
     Save the network parameter state and current best val epoch idx and best val accuracy.
     :param model_save_name: Name to use to save model without the epoch index
@@ -75,20 +75,27 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
     :param model_save_dir: The directory to store the state at.
     :param state: The dictionary containing the system state.
     """
-    model.state['network'] = model.state_dict()  # save network parameter and other variables.
-    model.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
-    model.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
-    torch.save(model.state, f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(
-        model_idx))))  # save state at prespecified filepath
+    def model_saver(model_type, name):
+        model_type.state['network'] = model_type.state_dict()  # save network parameter and other variables.
+        model_type.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
+        model_type.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
+        torch.save(model_type.state, f=os.path.join(model_save_dir, "{}_{}_model{}".format(model_save_name, str(
+            model_idx), name)))  # save state at prespecified filepath
+
+    model_saver(model, '')
+
     if model_RealNVP is not None:
-        model_RealNVP.state['network'] = model_RealNVP.state_dict()  # save network parameter and other variables.
-        model_RealNVP.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
-        model_RealNVP.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
-        torch.save(model_RealNVP.state, f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(
-            model_idx))))  # save state at prespecified filepath
+        model_saver(model_RealNVP, '_RealNVP')
+
+    if model_DDSF_1 is not None:
+        model_saver(model_DDSF_1, '_DDSF_1')
+
+    if model_RealNVP is not None:
+        model_saver(model_DDSF_2, '_DDSF_2')
 
 
-def load_model(model, model_save_dir, model_save_name, model_idx, model_RealNVP=None):
+def load_model(model, model_save_dir, model_save_name, model_idx,
+               model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
     """
     Load the network parameter state and the best val model idx and best val acc to be compared with the future val accuracies, in order to choose the best val model
     :param model_save_dir: The directory to store the state at.
@@ -96,9 +103,17 @@ def load_model(model, model_save_dir, model_save_name, model_idx, model_RealNVP=
     :param model_idx: The index to save the model with.
     :return: best val idx and best val model acc, also it loads the network state into the system state without returning it
     """
-    state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(model_idx))))
-    model.load_state_dict(state_dict=state['network'])
+    def model_loader(model_type, name):
+        state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model{}".format(model_save_name, str(model_idx), name)))
+        model_type.load_state_dict(state_dict=state['network'])
+
+    model_loader(model, '')
 
     if model_RealNVP is not None:
-        state_RealNVP = torch.load(f=os.path.join(model_save_dir, "{}_{}_model_RealNVP".format(model_save_name, str(model_idx))))
-        model_RealNVP.load_state_dict(state_dict=state_RealNVP['network'])
+        model_loader(model_RealNVP, '_RealNVP')
+
+    if model_DDSF_1 is not None:
+        model_loader(model_DDSF_1, '_DDSF_1')
+
+    if model_RealNVP is not None:
+        model_loader(model_DDSF_2, '_DDSF_2')

@@ -3,8 +3,6 @@ import torch
 import math
 from torch.autograd import Variable
 from utils.various import sigmoid, logit
-import scipy
-import matplotlib.pyplot as plt
 
 
 def flow_density(inputs, log_jacob):
@@ -41,9 +39,6 @@ class CMFlow(nn.Module):
         # @Todo: implement gaussian cdf transform
         eps = 0.00001
         inputs, logdets, context = inputs
-        # inputs_clone = inputs.clone()
-        # logdets_clone = logdets.clone()
-        # context_clone = context.clone()
 
         # The inputs are split and fed to each of the DDSF models
         outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
@@ -97,19 +92,6 @@ class CMFlow(nn.Module):
         """
         density_DDSF_1, density_DDSF_2, density_RealNVP = self.log_density(x)
         return (-density_DDSF_1, -density_DDSF_2, -density_RealNVP)
-
-    def sample(self, num_samples=None, noise=None):
-        """Samples from the Distribution
-        """
-        raise NotImplementedError
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        # if cond_inputs is not None:
-        #     cond_inputs = cond_inputs.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        return samples
 
     def clip_grad_norm(self):
         """Performs gradient clipping

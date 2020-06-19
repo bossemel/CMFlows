@@ -14,7 +14,7 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+            '--copula', default='clayton', help='gaussian | tdistr | clayton | frank | gumbel')
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training (default: 100)')
         parser.add_argument(

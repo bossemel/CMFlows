@@ -36,40 +36,40 @@ class Copula_sampler:
     def sample_copulas(self, transform):
         """Produce obs samples of 2-dimensional Copula density distribution
         """
-        assert self.copula in ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'], \
-            "%r is not a valid copula, choose from %r" % (self.copula, ['CLAYTON', 'FRANK', 'GUMBEL', 'GAUSSIAN', 'TDISTR'])
+        assert self.copula in ['clayton', 'frank', 'gumbel', 'gaussian', 'tdistr'], \
+            "%r is not a valid copula, choose from %r" % (self.copula, ['clayton', 'frank', 'gumbel', 'gaussian', 'tdistr'])
 
         # Following Copula definitions from
         # https://pydoc.net/copulalib/1.1.0/copulalib.copulalib/
         # Conditional Distribution Method:
-        # CLAYTON copula
-        if self.copula == 'CLAYTON':
+        # clayton copula
+        if self.copula == 'clayton':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
             uu, vv = sample_clayton(self.obs, self.theta)
 
-        # FRANK copula
-        elif self.copula == 'FRANK':
+        # frank copula
+        elif self.copula == 'frank':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
             uu, vv = sample_frank(self.obs, self.theta)
 
-        # GUMBEL copula
-        elif self.copula == 'GUMBEL':
+        # gumbel copula
+        elif self.copula == 'gumbel':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
             uu, vv = sample_gumbel(self.obs, self.theta)
 
-        # GAUSSIAN copula
-        elif self.copula == 'GAUSSIAN':
+        # gaussian copula
+        elif self.copula == 'gaussian':
             assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.copula)
 
             xx = sample_gaussian(self.obs, self.tau)
 
         # T-Copula
-        elif self.copula == 'TDISTR':
+        elif self.copula == 'tdistr':
             assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.copula)
             assert hasattr(self, 'df'), 'Please specify df for %r copula' % (self.copula)
             xx = sample_tdistr(self.obs, self.tau, self.df)
 
-        if self.copula not in ['GAUSSIAN', 'TDISTR']:
+        if self.copula not in ['gaussian', 'tdistr']:
             xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
 
         assert xx.all() > 0 & xx.all() < 1
@@ -153,7 +153,7 @@ def sample_gumbel(obs, theta, uu=None, ww=None):
         uu, vv: samples
     """
     if theta <= 1:
-        raise ValueError('the parameter for GUMBEL copula should be greater than 1')
+        raise ValueError('the parameter for gumbel copula should be greater than 1')
     if theta < 1 + sys.float_info.epsilon:
         if uu is None:
             uu = np.random.uniform(size=obs)
@@ -236,8 +236,8 @@ def multivariate_t(mu, sigma, dof, m):
 
 
 def _g(theta, z):
-    r"""Helper function to solve Frank copula.
-    This functions encapsulates :math:`g(z) = e^{-\theta z} - 1` used on Frank copulas.
+    r"""Helper function to solve frank copula.
+    This functions encapsulates :math:`g(z) = e^{-\theta z} - 1` used on frank copulas.
     Argument:
         z: np.ndarray
     Returns:
@@ -249,8 +249,8 @@ def _g(theta, z):
 
 
 def gumbel_cdf(theta, uu, vv):
-    r"""Compute the cumulative distribution function for the Gumbel copula.
-    The cumulative density(cdf), or distribution function for the Gumbel family of copulas
+    r"""Compute the cumulative distribution function for the gumbel copula.
+    The cumulative density(cdf), or distribution function for the gumbel family of copulas
     correspond to the formula:
     .. math:: C(u,v) = e^{-((-\ln u)^{\theta} + (-\ln v)^{\theta})^{\frac{1}{\theta}}}
     Args:
@@ -279,14 +279,14 @@ def copula_pdf(copula, theta, uu, vv):
     Source:
         https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
-    if copula == 'CLAYTON':
+    if copula == 'clayton':
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
         c = -(2 * theta + 1) / theta
         pdf = a * np.power(b, c)
         assert pdf.all() > 0 & pdf.all() < 1
         return pdf
-    if copula == 'FRANK':
+    if copula == 'frank':
         if theta == 0:
             return np.multiply(uu, vv)
 
@@ -297,7 +297,7 @@ def copula_pdf(copula, theta, uu, vv):
             pdf = num / den
             assert pdf.all() > 0 & pdf.all() < 1
             return pdf
-    if copula == 'GUMBEL':
+    if copula == 'gumbel':
         if theta == 1:
             return np.multiply(uu, vv)
 

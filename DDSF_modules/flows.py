@@ -203,8 +203,8 @@ class DenseSigmoidFlow(BaseFlow):
 class IAF_DDSF(BaseFlow):
 
     def __init__(self, dim, hid_dim, context_dim, num_layers, device,
-                 activation=nn.ELU(), fixed_order=False,
-                 num_ds_dim=4, num_ds_layers=1, num_ds_multiplier=3):
+                 activation, fixed_order,
+                 num_ds_dim, num_ds_layers, num_ds_multiplier=3):
         super(IAF_DDSF, self).__init__()
 
         self.dim = dim

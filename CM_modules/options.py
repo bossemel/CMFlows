@@ -24,11 +24,11 @@ class TrainOptions():
         parser.add_argument(
             '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--copula', default='CLAYTON', help='GAUSSIAN | TDISTR | CLAYTON | FRANK | GUMBEL')
+            '--copula', default='clayton', help='gaussian | tdistr | clayton | frank | gumbel')
         parser.add_argument(
-            '--marginal_1', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA', 'LOGNORM'], help='marginal in first dimension')
+            '--marginal_1', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in first dimension')
         parser.add_argument(
-            '--marginal_2', default='GAUSSIAN', choices=['GAUSSIAN', 'UNIFORM', 'GAMMA', 'LOGNORM'], help='marginal in second dimension')
+            '--marginal_2', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in second dimension')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -43,6 +43,9 @@ class TrainOptions():
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
+        parser.add_argument(
+            '--alpha', type=float, required=False, help='alpha for gamma distribution')
+
         parser.add_argument(
             '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
@@ -68,8 +71,6 @@ class TrainOptions():
         parser.add_argument(
             '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
-            '--num_hidden_units_DDSF', type=int, default=16)
-        parser.add_argument(
             '--num_ds_dim', type=int, default=16)
         parser.add_argument(
             '--num_ds_layers', type=int, default=1)
@@ -89,7 +90,6 @@ class TrainOptions():
             '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
         parser.add_argument(
             '--var', type=float, required=False, help='var for marginal gaussian distribution')
-
         self.initialized = True
         return parser
 

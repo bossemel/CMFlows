@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import os
+plt.style.use('ggplot')
 
 
 def visualize1D(marginal, model, epoch, args,
@@ -9,41 +10,21 @@ def visualize1D(marginal, model, epoch, args,
 
     fig = plt.figure(figsize=(8, 6))
 
-    ax = fig.add_subplot(1, 2, 1)
     data = marginal.sampler(args, obs=obs)
-    ax.hist(data)
+    plt.hist(data, bins=100, label='input samples', density=True)
 
     res = obs
-    xx = torch.linspace(args.mplot_low, args.mplot_high, res).reshape(-1, 1)
+    xx = torch.linspace(np.min(data), np.max(data), res).reshape(-1, 1)
 
     Z = model.log_density(xx).data.numpy()
-    ax = fig.add_subplot(1, 2, 2)
 
-    ax.plot(xx, np.exp(Z))
+    plt.plot(xx.numpy(), np.exp(Z), label='Marginal Flow PDF')
+    plt.xlabel('x', fontsize=16)
+    plt.ylabel('Probability', fontsize=16)
+    fig.legend()
+    fig.tight_layout()
+
     if not best_val:
-        fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), bbox_inches='tight')
+        fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), dpi=300)
     else:
-        fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), bbox_inches='tight')
-
-
-def visualize1D_CM(dataset, model, epoch, args, rng=(-10, 100),
-                   sample_from_distr=True, best_val=False, obs=None):
-
-    raise NotImplementedError
-    # fig = plt.figure(figsize=(8, 6))
-
-    # ax = fig.add_subplot(1, 2, 1)
-    # data = dataset.sampler(args, obs=obs)
-    # ax.hist(data[:, 0])
-
-    # res = obs
-    # xx = torch.linspace(rng[0], rng[1], res).reshape(-1, 1)
-
-    # Z = model.log_density(xx).data.numpy()
-    # ax = fig.add_subplot(1, 2, 2)
-
-    # ax.plot(xx, np.exp(Z))
-    # if not best_val:
-    #     fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), bbox_inches='tight')
-    # else:
-    #     fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), bbox_inches='tight')
+        fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), dpi=300)

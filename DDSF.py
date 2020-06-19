@@ -9,7 +9,7 @@ import random
 
 import DDSF_modules.visualizer as visualizer
 from DDSF_modules import nn_modules as nn_, flows, optim
-from DDSF_modules.utils import load_data
+from DDSF_modules.utils import load_data, jsd_eval
 from DDSF_modules.options import TrainOptions
 from DDSF_modules.flows import MAF
 
@@ -38,7 +38,9 @@ def build_model(args):
                        num_layers=args.num_hid_layers_DDSF + 1,
                        activation=args.act,
                        device=args.device,
-                       fixed_order=True),
+                       fixed_order=True,
+                       num_ds_dim=args.num_ds_dim,
+                       num_ds_layers=args.num_ds_layers),
         flows.FlipFlow(1)) for i in range(args.num_flow_layers_DDSF)] + \
         [flows.LinearFlow(args.dim, 1), ]
 
@@ -119,7 +121,7 @@ def validate(epoch, model, loader, device,
                 # best_dict['best_model'] = copy.deepcopy(model)
 
         pbar.update(data.size(0))
-        pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
+        pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(val_mean_loss))
 
     pbar.close()
     return current_epoch_losses, best_dict
@@ -194,7 +196,7 @@ if __name__ == '__main__':
     model.to(args.device)
 
     # optimizer in MAF:
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=1e-6)
     # optimizer in train model:
     # optimizer = optim.Adam(model.parameters(),
     # lr=args.lr,
@@ -204,8 +206,8 @@ if __name__ == '__main__':
 
     # Save losses and best epoch stats and model in dictionary
     total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
-    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
-    current_epoch_test = {"test_loss": [], 'jsd_test': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
+    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
+    current_epoch_test = {"test_loss": [], 'jsd_test': []}  # initialize a statistics dict
 
     # Train
     for epoch in range(args.epochs):
@@ -251,7 +253,7 @@ if __name__ == '__main__':
 
         # Save sample plots every 10 epochs
         if epoch % args.plot_frequ == 0:
-            visualizer.visualize1D(dataset, model, epoch, args, obs=1000)
+            visualizer.visualize1D(dataset, model, epoch, args, obs=10000)
 
     # Calculate test statistics
     # load best validation model
@@ -259,12 +261,21 @@ if __name__ == '__main__':
                model_save_name="train_model")
 
     current_epoch_test = test(best_dict['best_validation_epoch'],
-                              best_dict['best_model'],
+                              model,
                               data_loaders['test_loader'],
                               args.device,
                               current_epoch_test=current_epoch_test)
 
-    visualizer.visualize1D(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
+    # Calculate Jensen-Shannon Divergence of copula
+    current_epoch_test = jsd_eval(dataset,
+                                  args,
+                                  best_dict['best_validation_epoch'],
+                                  model,
+                                  data_loaders['test_loader'],
+                                  args.device,
+                                  current_epoch_test=current_epoch_test)
+
+    visualizer.visualize1D(dataset, model, best_dict['best_validation_epoch'], args, obs=10000, best_val=True)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in

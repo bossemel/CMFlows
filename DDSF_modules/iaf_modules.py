@@ -42,8 +42,8 @@ class cMADE(Module):
         self.hidden_to_output = oper(hid_dim, dim * num_outlayers, context_dim, device, ms[-1])
 
     def forward(self, inputs):
-        input, context = inputs
-        hid, _ = self.input_to_hidden((input, context))
+        input_, context = inputs
+        hid, _ = self.input_to_hidden((input_, context))
         out, _ = self.hidden_to_output((hid, context))
         return out.view(-1, self.dim, int(self.num_outlayers)), context
 

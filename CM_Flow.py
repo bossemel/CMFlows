@@ -19,7 +19,7 @@ import RealNVP_modules.utils
 
 from DDSF_modules.utils import load_data as load_data_DDSF
 from DDSF import build_model as build_model_DDSF
-import DDSF_modules.visualizer as visualizer
+from CM_modules.visualizer import visualize1D_CM, visualize_joint
 
 from utils.save_statistics import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
@@ -214,11 +214,14 @@ if __name__ == '__main__':
 
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)
+    visualize_joint(dataset, args)
 
     # Build model and send to device
     model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
     model.state = dict()
     model_RealNVP.state = dict()
+    model_DDSF_1.state = dict()
+    model_DDSF_2.state = dict()
 
     model.to(args.device)
 
@@ -227,7 +230,7 @@ if __name__ == '__main__':
 
     # Save losses and best epoch stats and model in dictionary
     total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
-    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
+    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     current_epoch_test = {"test_loss": [], 'jsd_test': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
 
     # Train
@@ -253,15 +256,18 @@ if __name__ == '__main__':
 
         # Set model state to epoch
         model.state['model_epoch'] = epoch
+        model_RealNVP.state['model_epoch'] = epoch
+        model_DDSF_1.state['model_epoch'] = epoch
+        model_DDSF_2.state['model_epoch'] = epoch
 
         # save model and best val idx and best val acc, using the model dir, model name and model idx
-        save_model(model=model, model_RealNVP=model_RealNVP,
+        save_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
                    model_save_dir=args.experiment_saved_models,
                    model_save_name="train_model", model_idx=epoch,
                    best_validation_model_idx=best_dict['best_validation_epoch'],
                    best_validation_model_loss=best_dict['best_validation_loss'])
 
-        save_model(model=model, model_RealNVP=model_RealNVP,
+        save_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
                    model_save_dir=args.experiment_saved_models,
                    model_save_name="train_model", model_idx=epoch,
                    best_validation_model_idx=best_dict['best_validation_epoch'],
@@ -291,7 +297,8 @@ if __name__ == '__main__':
 
     # Calculate test statistics
     # Load best validation model
-    load_model(model=model, model_RealNVP=model_RealNVP, model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
+    load_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
+               model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
                model_save_name="train_model")
 
     # Perform test evaluation
@@ -340,10 +347,14 @@ if __name__ == '__main__':
     # Plot Margins
     args.mu = 0
     args.var = 1
-    marginal_dataset, __, __ = load_data_DDSF(args)
 
-    #visualizer.visualize1D_CM(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
-    #visualizer.visualize1D_CM(dataset, best_dict['best_model'], best_dict['best_validation_epoch'], args, obs=1000)
+    args.marginal = args.marginal_1
+    marginal_dataset_1, __, __ = load_data_DDSF(args)
+    args.marginal = args.marginal_2
+    marginal_dataset_2, __, __ = load_data_DDSF(args)
+
+    visualize1D_CM(marginal_dataset_1, model_DDSF_1, best_dict['best_validation_epoch'], args, obs=1000)
+    visualize1D_CM(marginal_dataset_2, model_DDSF_2, best_dict['best_validation_epoch'], args, obs=1000)
 
     # Plot pointwise copula difference
     jsd_graph(args,

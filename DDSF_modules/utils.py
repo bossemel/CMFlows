@@ -1,6 +1,10 @@
 import torch
 import datasets.distributions
 import math
+import numpy as np
+import scipy
+import matplotlib.pyplot as plt
+import os
 
 
 def load_data(args):
@@ -81,3 +85,62 @@ def oper_fct(array, oper, A_max=None, axis=-1, keepdims=False):
 def log_normal(inputs, mean, log_var, device, eps=0.00001):
     c = torch.tensor(- 0.5 * math.log(2 * math.pi)).to(device)
     return - (inputs - mean.to(device)) ** 2 / (2. * torch.exp(log_var).to(device) + eps) - log_var.to(device) / 2. + c
+
+
+def jsd_eval(marginal, args, epoch, model, loader, device, current_epoch_test, obs=10000):
+    """Calculate Jensen-Shannon Divergence of best validation model samples.
+
+    Params:
+        epoch: best validation epoch
+        model: best validation model
+        loader: whether to use train/val/test set loader
+        device: used device
+        current_epoch_test: dictionary with the current epoch stats
+
+    Returns:
+        current_epoch_test: updated current_epoch_test
+    """
+    data = marginal.sampler(args, obs=obs)
+
+    xx = torch.linspace(np.min(data), np.max(data), obs).reshape(-1, 1)
+
+    if args.marginal == 'gaussian':
+        true_pdf = scipy.stats.norm.pdf(xx,
+                                        loc=args.mu,
+                                        scale=args.var)
+    elif args.marginal == 'uniform':
+        assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (args.marginal)
+        assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (args.marginal)
+
+        true_pdf = scipy.stats.uniform.pdf(xx,
+                                           low=args.low,
+                                           high=args.high)
+    elif args.marginal == 'gamma':
+        assert args.alpha is not None, 'Please specify %r for %r distribution' % (args.marginal)
+
+        true_pdf = scipy.stats.gamma.pdf(xx,
+                                         a=args.alpha)
+
+    elif args.marginal == 'lognormal':
+        assert args.loc is not None, 'Please specify shape %r distribution' % (args.marginal)
+
+        true_pdf = scipy.stats.lognorm.pdf(xx,
+                                           shape=args.alpha)
+
+    Z = model.log_density(xx).data.numpy()
+
+    divergence = scipy.spatial.distance.jensenshannon(true_pdf, np.array(Z))
+    current_epoch_test["jsd_test"].append(divergence)
+
+    fig = plt.figure(figsize=(8, 6))
+    plt.plot(xx.numpy(), true_pdf, label='True PDF')
+    Z = model.log_density(xx).data.numpy()
+
+    plt.plot(xx.numpy(), np.exp(Z), label='Marginal Flow PDF')
+    plt.xlabel('x', fontsize=16)
+    plt.ylabel('Probability', fontsize=16)
+    fig.legend()
+    fig.tight_layout()
+    fig.savefig(os.path.join(args.figures_path, 'pdf_compare_{}.pdf'.format(epoch)), dpi=300)
+
+    return current_epoch_test

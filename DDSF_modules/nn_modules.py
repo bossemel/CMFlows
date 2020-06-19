@@ -37,7 +37,7 @@ class SequentialFlow(nn.Sequential):
         if isinstance(dim, int):
             dim = [dim, ]
 
-        spl = torch.autograd.Variable(torch.FloatTensor(n,*dim).normal_())
+        spl = torch.autograd.Variable(torch.FloatTensor(n, *dim).normal_())
         lgd = torch.autograd.Variable(torch.from_numpy(
             np.random.rand(n).astype('float32')))
         if context is None:
@@ -143,48 +143,6 @@ class CWNlinear(Module):
         return self.__class__.__name__ + '(' \
             + 'in_features=' + str(self.in_features) \
             + ', out_features=' + str(self.out_features) + ')'
-
-# class CWNlinear(Module):
-
-#     def __init__(self, in_features, out_features, context_features, device,
-#                  mask=None, norm=True):
-#         super(CWNlinear, self).__init__()
-#         self.in_features = in_features
-#         self.out_features = out_features
-#         self.context_features = context_features
-#         self.register_buffer('mask', mask)
-#         self.norm = norm
-#         self.direction = Parameter(torch.zeros(int(out_features), in_features))
-#         self.cscale = nn.Linear(context_features, int(out_features))
-#         self.cbias = nn.Linear(context_features, int(out_features))
-#         self.reset_parameters()
-#         self.cscale.weight.data.normal_(0, 0.001)
-#         self.cbias.weight.data.normal_(0, 0.001)
-#         self.device = device
-
-#     def reset_parameters(self):
-#         self.direction.data.normal_(0, 0.001)
-
-#     def forward(self, inputs):
-#         input_, context = inputs
-#         scale = self.cscale(context)
-#         bias = self.cbias(context)
-#         if self.norm:
-#             dir_ = self.direction
-#             direction = dir_.div(dir_.pow(2).sum(1).sqrt()[:, None])
-#             weight = direction
-#         else:
-#             weight = self.direction
-#         if self.mask is not None:
-#             # weight = weight * getattr(self.mask,
-#             #                          ('cpu', 'cuda')[weight.is_cuda])()
-#             weight = weight * Variable(self.mask)
-#         return scale * F.linear(input_, weight.type('torch.FloatTensor').to(self.device), None) + bias, context
-
-#     def __repr__(self):
-#         return self.__class__.__name__ + '(' \
-#             + 'in_features=' + str(self.in_features) \
-#             + ', out_features=' + str(self.out_features) + ')'
 
 
 class ResLinear(nn.Module):

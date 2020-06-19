@@ -49,8 +49,6 @@ class FlowSequential(nn.Sequential):
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        # if cond_inputs is not None:
-        #     cond_inputs = cond_inputs.to(device)
         samples = self.forward(noise, mode='inverse')[0]
         return samples
 
@@ -67,9 +65,6 @@ class FlowSequential(nn.Sequential):
             norm = scipy.stats.norm()
             samples = norm.cdf(samples.cpu())
             inputs = norm.cdf(inputs.cpu())
-        # if sigmoid is True:
-        #     samples = scipy.special.expit(samples.detach().cpu())
-        #     inputs = scipy.special.expit(inputs.detach().cpu())
         divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
         return divergence
 
