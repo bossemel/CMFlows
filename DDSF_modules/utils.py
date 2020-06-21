@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import os
+from datasets.distributions import Marginals
 
 
 def load_data(args):
@@ -87,7 +88,7 @@ def log_normal(inputs, mean, log_var, device, eps=0.00001):
     return - (inputs - mean.to(device)) ** 2 / (2. * torch.exp(log_var).to(device) + eps) - log_var.to(device) / 2. + c
 
 
-def jsd_eval(marginal, args, epoch, model, loader, device, current_epoch_test, obs=10000):
+def jsd_eval(marginal, args, epoch, model, current_epoch_test, obs=10000):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
@@ -100,7 +101,8 @@ def jsd_eval(marginal, args, epoch, model, loader, device, current_epoch_test, o
     Returns:
         current_epoch_test: updated current_epoch_test
     """
-    data = marginal.sampler(args, obs=obs)
+    # data = Marginals.sampler(args, obs=obs)
+    data = datasets.distributions.Marginals(args).xx
 
     xx = torch.linspace(np.min(data), np.max(data), obs).reshape(-1, 1)
 
@@ -130,7 +132,7 @@ def jsd_eval(marginal, args, epoch, model, loader, device, current_epoch_test, o
     Z = model.log_density(xx).data.numpy()
 
     divergence = scipy.spatial.distance.jensenshannon(true_pdf, np.array(Z))
-    current_epoch_test["jsd_test"].append(divergence)
+    current_epoch_test["jsd_test_marginal"].append(divergence)
 
     fig = plt.figure(figsize=(8, 6))
     plt.plot(xx.numpy(), true_pdf, label='True PDF')

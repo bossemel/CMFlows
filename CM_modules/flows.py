@@ -3,6 +3,7 @@ import torch
 import math
 from torch.autograd import Variable
 from utils.various import sigmoid, logit
+import matplotlib.pyplot as plt
 
 
 def flow_density(inputs, log_jacob):
@@ -43,24 +44,36 @@ class CMFlow(nn.Module):
         # The inputs are split and fed to each of the DDSF models
         outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
         outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs[:, 1].reshape(-1, 1), logdets, context))
-
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        outputs_DDSF_1 = normal_distr.cdf(outputs_DDSF_1)
-        outputs_DDSF_2 = normal_distr.cdf(outputs_DDSF_2)
+        # with torch.no_grad():
+        #     plt.hist(outputs_DDSF_1.detach().numpy())
+        #     plt.title('before transform')
+        #     plt.show()
+        # normal_distr = torch.distributions.normal.Normal(0, 1)
+        # outputs_DDSF_1 = normal_distr.cdf(outputs_DDSF_1)
+        # outputs_DDSF_2 = normal_distr.cdf(outputs_DDSF_2)
+        # with torch.no_grad():
+        #     plt.hist(outputs_DDSF_1.detach().numpy())
+        #     plt.title('after transform')
+        #     plt.show()
 
         # The outputs of the DDSF are concatenated to form a bivariate distribution
         outputs_DDSFs = torch.cat((outputs_DDSF_1, outputs_DDSF_2), dim=1)
-        outputs_DDSFs[outputs_DDSFs >= 1] = 1 - eps
-        outputs_DDSFs[outputs_DDSFs <= 0] = 0 + eps
+        # outputs_DDSFs[outputs_DDSFs >= 1] = 1 - eps
+        # outputs_DDSFs[outputs_DDSFs <= 0] = 0 + eps
         # outputs_DDSFs_clone = outputs_DDSFs.clone()
 
-        if self.transform_fct == 'sigmoid':
-            outputs_DDSFs = logit(outputs_DDSFs)
-        if self.transform_fct == 'gaussian':
-            raise NotImplementedError
+        # if self.transform_fct == 'sigmoid':
+        #     outputs_DDSFs = logit(outputs_DDSFs)
+        # elif self.transform_fct == 'gaussian':
+        #     raise NotImplementedError
 
-        # forward pass in RealNVp
+        # forward pass in RealNVP
         outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(outputs_DDSFs)
+
+        # if self.transform_fct == 'sigmoid':
+        #     outputs_RealNVP = sigmoid(outputs_RealNVP)
+        # elif self.transform_fct == 'gaussian':
+        #     raise NotImplementedError
 
         logdets = (logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1), logdets_RealNVP)
         outputs = (outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP)

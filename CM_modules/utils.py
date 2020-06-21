@@ -1,6 +1,7 @@
 import torch
 import datasets
 
+
 def load_data(args):
     """Data Loader
 
@@ -47,5 +48,5 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, data_loaders
+    return dataset, data_loaders, train_tensor
 

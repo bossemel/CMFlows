@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import torch
 import os
 import seaborn as sns
+import scipy.special
+from datasets.distributions import Copula_Distr
+# plt.style.use('seaborn-paper')
+sns.set_palette("tab10")
 
 
 def visualize1D_CM(marginal, model, epoch, args, rng=(-10, 100),
@@ -26,9 +30,54 @@ def visualize1D_CM(marginal, model, epoch, args, rng=(-10, 100),
         fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), bbox_inches='tight')
 
 
-def visualize_joint(data, args):
+def visualize_joint(data, args, name):
 
+    with sns.color_palette("muted"):
+        fig = plt.figure()
+        fig = sns.jointplot(data[:, 0], data[:, 1], kind='kde', stat_func=None)
+        fig.set_axis_labels('X1', 'X2', fontsize=16)
+        fig.savefig(os.path.join(args.figures_path, name), dpi=300, bbox_inches='tight')
+
+
+def save_samples_plot_copula(args, epoch, model, dataset, obs=3000):
+    """Save sample plots
+
+    Params:
+        args: args passed by Training Options
+        epoch: best validation epoch so far
+        best_model: best model so far
+        dataset: full dataset
+    """
+    copula_xx = Copula_Distr.sampler(args, transform=False, obs=obs)
     fig = plt.figure()
-    fig = sns.jointplot(data.trn.x[:, 0], data.trn.x[:, 1], kind='kde', stat_func=None)
-    fig.set_axis_labels('X1', 'X2', fontsize=16)
-    fig.savefig(os.path.join(args.figures_path, 'true_distr'), dpi=300, bbox_inches='tight')
+
+    ax = fig.add_subplot(121)
+    ax.plot(copula_xx[:obs, 0], copula_xx[:obs, 1], '.')
+
+    model.eval()
+    with torch.no_grad():
+        x_synth = model.sample(obs).detach().cpu().numpy()
+    if args.transform_fct == 'sigmoid':
+        x_synth = scipy.special.expit(x_synth)
+    if args.transform_fct == 'gaussian':
+        norm = scipy.stats.norm()
+        x_synth = norm.cdf(x_synth)
+
+    if args.copula == 'CLAYTON':
+        ax.set_title('Clayton Copula', fontsize=16)
+    if args.copula == 'FRANK':
+        ax.set_title('Frank Copula', fontsize=16)
+    if args.copula == 'GUMBEL':
+        ax.set_title('Gumbel Copula', fontsize=16)
+    ax.set_xlabel('U1', fontsize=16)
+    ax.set_ylabel('U2', fontsize=16)
+
+    ax = fig.add_subplot(122)
+    ax.plot(x_synth[:, 0], x_synth[:, 1], '.')
+    ax.set_title('Copula Flow', fontsize=16)
+    ax.set_xlabel('U1', fontsize=16)
+    ax.set_ylabel('U2', fontsize=16)
+
+    fig.tight_layout()
+    plt.savefig(os.path.join(args.figures_path, '{}_plot_{:03d}.pdf'.format(args.copula, epoch)), dpi=300)
+    plt.close()

@@ -16,6 +16,8 @@ class TrainOptions():
         # CM Options
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
+            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
+        parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
             '--test-batch-size', type=int, default=100, help='input batch size for testing')
@@ -32,8 +34,6 @@ class TrainOptions():
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
-        parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
@@ -46,8 +46,6 @@ class TrainOptions():
         parser.add_argument(
             '--alpha', type=float, required=False, help='alpha for gamma distribution')
 
-        parser.add_argument(
-            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
             '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
         parser.add_argument(
@@ -64,6 +62,10 @@ class TrainOptions():
             '--num_hidden_RealNVP', type=int, default=64, help='number of hidden units')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
+        parser.add_argument(
+            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
+        parser.add_argument(
+            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 
         # Options DDSF
         parser.add_argument(

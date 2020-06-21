@@ -1,4 +1,4 @@
-from datasets.copulas import copula_pdf
+import datasets.distributions
 import numpy as np
 import torch
 import scipy
@@ -8,7 +8,7 @@ import os
 import seaborn as sns
 
 
-def jsd_eval(args, epoch, model, loader, device, current_epoch_test):
+def jsd_eval(args, epoch, model, loader, device, current_epoch_test, cm_flow=False):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
@@ -35,14 +35,14 @@ def jsd_eval(args, epoch, model, loader, device, current_epoch_test):
             data = data[0]
         data = data.to(device)
         with torch.no_grad():
-            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct).sum().item()
-        current_epoch_test["jsd_test"].append(current_jsd)
+            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+        current_epoch_test["jsd_test_copula"].append(current_jsd)
 
-    print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["jsd_test"])))
+    print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["jsd_test_copula"])))
     return current_epoch_test
 
 
-def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch_test):
+def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch_test, cm_flow):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -71,7 +71,7 @@ def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch
             current_t_metric_x1, \
                 current_m_metric_x1, \
                 current_t_metric_x2, \
-                current_m_metric_x2 = model.t_metric_eval(data, transform_fct)
+                current_m_metric_x2 = model.t_metric_eval(data, transform_fct, cm_flow=cm_flow)
         current_epoch_test["t_1"].append(current_t_metric_x1 / len(data))
         current_epoch_test["m_1"].append(current_m_metric_x1 / len(data))
         current_epoch_test["t_2"].append(current_t_metric_x2 / len(data))
@@ -144,7 +144,7 @@ def jsd_graph(args, epoch, model):
     pred_pdf = scipy.stats.gaussian_kde(pred.T)
     pred_grid = pred_pdf(grid.T)
 
-    cop_pdf = copula_pdf(args.copula, args.theta, uu=grid1, vv=grid2).reshape(-1)
+    cop_pdf = datasets.distributions.copula_pdf(args.copula, args.theta, uu=grid1, vv=grid2).reshape(-1)
 
     difference = abs(pred_grid - cop_pdf)
     assert pred.all() >= 0 & pred.all() <= 1

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import os
-plt.style.use('ggplot')
+# plt.style.use('ggplot')
 
 
 def visualize1D(marginal, model, epoch, args,
@@ -10,7 +10,7 @@ def visualize1D(marginal, model, epoch, args,
 
     fig = plt.figure(figsize=(8, 6))
 
-    data = marginal.sampler(args, obs=obs)
+    data = marginal.sampler(args=args, obs=obs)
     plt.hist(data, bins=100, label='input samples', density=True)
 
     res = obs

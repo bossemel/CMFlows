@@ -38,9 +38,16 @@ class MAF(nn.Sequential):
         logdets = self.logdets if logdets is None else logdets
         context = self.context if context is None else context
         u, log_jacob, __ = self((inputs, logdets, context))
+
         log_jacob = log_jacob.reshape(-1, 1)
+        # normal distr:
         log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
-        return log_probs + log_jacob.reshape(-1, 1)
+        # uniform distr:
+        # log_probs = Variable(torch.zeros(u.shape)) + math.log(0.5)
+        # log_probs[u > 2] = -1 / 0.1
+        # log_probs[u < 0] = -1 / 0.1
+        # print(log_probs + log_jacob.reshape(-1, 1))
+        return log_probs.reshape(-1, 1) + log_jacob.reshape(-1, 1)
 
     def loss(self, x):
         """Loss is negative log density

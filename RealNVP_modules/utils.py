@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import torch
 import datasets
 import scipy
-plt.style.use('ggplot')
+# plt.style.use('ggplot')
 
 
 def plot_3D(figures_path, cop_type, grid1, grid2, value, name):
@@ -43,11 +43,7 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    assert args.copula in [
-        'GAUSSIAN', 'TDISTR', 'CLAYTON', 'FRANK', 'GUMBEL'
-    ]
-
-    dataset = datasets.copulas.Copula_sampler(args)
+    dataset = datasets.distributions.Copula_Distr(args)
 
     train_tensor = torch.from_numpy(dataset.trn.x)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)
@@ -81,7 +77,7 @@ def load_data(args):
     return dataset, data_loaders
 
 
-def save_samples_plot(args, epoch, best_model, dataset):
+def save_samples_plot(args, epoch, best_model, dataset, obs=3000):
     """Save sample plots
 
     Params:
@@ -90,10 +86,9 @@ def save_samples_plot(args, epoch, best_model, dataset):
         best_model: best model so far
         dataset: full dataset
     """
-    num_samples = 3000
     best_model.eval()
     with torch.no_grad():
-        x_synth = best_model.sample(num_samples).detach().cpu().numpy()
+        x_synth = best_model.sample(obs).detach().cpu().numpy()
     if args.transform_fct == 'sigmoid':
         val_x = scipy.special.expit(dataset.val.x)
         x_synth = scipy.special.expit(x_synth)
@@ -104,7 +99,7 @@ def save_samples_plot(args, epoch, best_model, dataset):
     fig = plt.figure()
 
     ax = fig.add_subplot(121)
-    ax.plot(val_x[:num_samples, 0], val_x[:num_samples, 1], '.')
+    ax.plot(val_x[:obs, 0], val_x[:obs, 1], '.')
     if args.copula == 'CLAYTON':
         ax.set_title('Clayton Copula', fontsize=16)
     if args.copula == 'FRANK':

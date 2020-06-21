@@ -1,5 +1,5 @@
 import numpy as np
-from datasets.copulas import sample_clayton, sample_frank, sample_gumbel, copula_pdf
+from datasets.distributions import sample_clayton, sample_frank, sample_gumbel, copula_pdf
 import argparse
 import scipy
 from pathlib import Path

@@ -94,6 +94,12 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
         model_saver(model_DDSF_2, '_DDSF_2')
 
 
+def model_loader(model_type, model_save_dir, model_save_name, model_idx, name=''):
+    state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model{}".format(model_save_name, str(model_idx), name)))
+    model_type.load_state_dict(state_dict=state['network'])
+    return model_type
+
+
 def load_model(model, model_save_dir, model_save_name, model_idx,
                model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
     """
@@ -103,9 +109,11 @@ def load_model(model, model_save_dir, model_save_name, model_idx,
     :param model_idx: The index to save the model with.
     :return: best val idx and best val model acc, also it loads the network state into the system state without returning it
     """
+
     def model_loader(model_type, name):
         state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model{}".format(model_save_name, str(model_idx), name)))
         model_type.load_state_dict(state_dict=state['network'])
+        return model_type
 
     model_loader(model, '')
 

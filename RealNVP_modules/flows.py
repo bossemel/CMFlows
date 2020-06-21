@@ -52,36 +52,41 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, mode='inverse')[0]
         return samples
 
-    def jsd(self, inputs, transform_fct):
-        num_samples = inputs.shape[0]
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+    def sample_copula(self, num_samples=None, noise=None):
+        if noise is None:
+            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
-        if transform_fct == 'sigmoid':
-            samples = scipy.special.expit(samples.detach().cpu())
-            inputs = scipy.special.expit(inputs.detach().cpu())
-        if transform_fct == 'gaussian':
-            norm = scipy.stats.norm()
-            samples = norm.cdf(samples.cpu())
-            inputs = norm.cdf(inputs.cpu())
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        samples = normal_distr.cdf(samples)
+        return samples
+
+    def jsd(self, inputs, transform_fct, cm_flow=False):
+        if cm_flow:
+            samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        else:
+            samples = self.sample(num_samples=inputs.shape[0], noise=None)
+            if transform_fct == 'sigmoid':
+                # samples = scipy.special.expit(samples.detach().cpu())
+                inputs = scipy.special.expit(inputs.detach().cpu())
+            elif transform_fct == 'gaussian':
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                # samples = norm.cdf(samples.cpu())
+                inputs = normal_distr.cdf(inputs.cpu())
         divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
         return divergence
 
-    def t_metric_eval(self, inputs, transform_fct, intervals=25):
-        num_samples = inputs.shape[0]
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        if transform_fct == 'sigmoid':
-            samples = scipy.special.expit(samples.detach().cpu())
-        if transform_fct == 'gaussian':
-            norm = scipy.stats.norm()
-            samples = norm.cdf(samples.cpu())
-        # if sigmoid is True:
-        #     samples = scipy.special.expit(samples.cpu())
-        # margin_x1, margin_x2 = scipy.stats.contingency.margins(samples)
+    def t_metric_eval(self, inputs, transform_fct, intervals=25, cm_flow=False):
+        if cm_flow:
+            samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        else:
+            samples = self.sample(num_samples=inputs.shape[0], noise=None)
+            if transform_fct == 'sigmoid':
+                samples = scipy.special.expit(samples.detach().cpu())
+            if transform_fct == 'gaussian':
+                norm = scipy.stats.norm()
+                samples = norm.cdf(samples.cpu())
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

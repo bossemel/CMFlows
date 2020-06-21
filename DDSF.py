@@ -48,7 +48,7 @@ def build_model(args):
     return model
 
 
-def train(epoch, train_loader, current_epoch_losses):
+def train(epoch, model, train_loader, current_epoch_losses, device=None, dim=None):
     """Performs training.
 
     Params:
@@ -66,7 +66,9 @@ def train(epoch, train_loader, current_epoch_losses):
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
             data = data[0]
-        data.to(args.device)
+            if data.shape[1] > 1:
+                data = data[:, dim]
+        data.to(device)
         optimizer.zero_grad()
 
         loss = model.loss(data).mean()
@@ -86,7 +88,7 @@ def train(epoch, train_loader, current_epoch_losses):
 
 
 def validate(epoch, model, loader, device,
-             current_epoch_losses=None, best_dict=None):
+             current_epoch_losses=None, best_dict=None, dim=None):
     """Return log probabilities on validation set.
 
     Params:
@@ -109,6 +111,8 @@ def validate(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
+            if data.shape[1] > 1:
+                data = data[:, dim]
         data.to(device)
         with torch.no_grad():
             current_loss = model.loss(data).mean().item()
@@ -128,7 +132,7 @@ def validate(epoch, model, loader, device,
 
 
 def test(epoch, model, loader, device,
-         current_epoch_test):
+         current_epoch_test, dim=None):
     """Return log probabilities on test set.
 
     Params:
@@ -148,6 +152,8 @@ def test(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
+            if data.shape[1] > 1:
+                data = data[:, dim]
         data.to(device)
         with torch.no_grad():
             current_loss = model.loss(data).mean().item()
@@ -207,14 +213,18 @@ if __name__ == '__main__':
     # Save losses and best epoch stats and model in dictionary
     total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
-    current_epoch_test = {"test_loss": [], 'jsd_test': []}  # initialize a statistics dict
+    current_epoch_test = {"test_loss": [], 'jsd_test_marginal': []}  # initialize a statistics dict
 
     # Train
     for epoch in range(args.epochs):
         print('\nEpoch: {}'.format(epoch))
 
         current_epoch_losses = {"train_loss": [], "val_loss": []}
-        current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
+        current_epoch_losses = train(epoch=epoch,
+                                     model=model,
+                                     train_loader=data_loaders['train_loader'],
+                                     current_epoch_losses=current_epoch_losses,
+                                     device=args.device)
         current_epoch_losses, best_dict = validate(epoch,
                                                    model,
                                                    data_loaders['valid_loader'],
@@ -253,7 +263,7 @@ if __name__ == '__main__':
 
         # Save sample plots every 10 epochs
         if epoch % args.plot_frequ == 0:
-            visualizer.visualize1D(dataset, model, epoch, args, obs=10000)
+            visualizer.visualize1D(marginal=dataset, model=model, epoch=epoch, args=args, obs=10000)
 
     # Calculate test statistics
     # load best validation model
@@ -267,12 +277,10 @@ if __name__ == '__main__':
                               current_epoch_test=current_epoch_test)
 
     # Calculate Jensen-Shannon Divergence of copula
-    current_epoch_test = jsd_eval(dataset,
-                                  args,
-                                  best_dict['best_validation_epoch'],
-                                  model,
-                                  data_loaders['test_loader'],
-                                  args.device,
+    current_epoch_test = jsd_eval(marginal=dataset,
+                                  args=args,
+                                  epoch=best_dict['best_validation_epoch'],
+                                  model=model,
                                   current_epoch_test=current_epoch_test)
 
     visualizer.visualize1D(dataset, model, best_dict['best_validation_epoch'], args, obs=10000, best_val=True)

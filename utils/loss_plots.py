@@ -5,17 +5,17 @@ import numpy as np
 plt.style.use('ggplot')
 
 
-def collect_experiment_dicts(target_dir, test_flag=False):
+def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
     experiment_dicts = dict()
     for subdir, dir, files in os.walk(target_dir):
         for file in files:
             filepath = None
             if not test_flag:
-                if file == 'summary.csv':
+                if file == 'summary_{}.csv'.format(model_name):
                     filepath = os.path.join(subdir, file)
 
             elif test_flag:
-                if file == 'test_summary.csv':
+                if file == 'test_summary_{}.csv'.format(model_name):
                     filepath = os.path.join(subdir, file)
 
             if filepath is not None:
@@ -35,7 +35,7 @@ def collect_experiment_dicts(target_dir, test_flag=False):
     return experiment_dicts
 
 
-def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True):
+def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True, current_model_name=''):
     fig_1 = plt.figure(figsize=(8, 4))
     ax_1 = fig_1.add_subplot(111)
     for k in ['train_loss', 'val_loss']:
@@ -48,7 +48,7 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True
     ax_1.set_ylabel('Loss', fontsize=16)
     ax_1.set_xlabel('Epoch', fontsize=16)
 
-    path = os.path.join(figures_path, '{}_loss_performance.pdf'.format(plot_name))
+    path = os.path.join(figures_path, '{}_{}_loss_performance.pdf'.format(current_model_name, plot_name))
     fig_1.savefig(path, dpi=300, facecolor='w', edgecolor='w',
                   orientation='portrait', papertype=None, format='pdf',
                   transparent=False, bbox_inches='tight', pad_inches=0.1)
