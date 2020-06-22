@@ -45,7 +45,6 @@ class TrainOptions():
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
             '--alpha', type=float, required=False, help='alpha for gamma distribution')
-
         parser.add_argument(
             '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
         parser.add_argument(

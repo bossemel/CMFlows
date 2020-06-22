@@ -16,6 +16,9 @@ from RealNVP_modules.eval import jsd_eval, jsd_graph, margin_uniformity, plot_ma
 
 from utils.save_statistics import save_statistics
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
+from utils.visualizer import visualize_joint
+
+from experiment_runner import train_val
 
 
 def build_model(args):
@@ -52,125 +55,125 @@ def build_model(args):
     return model
 
 
-def train(epoch, train_loader, current_epoch_losses):
-    """Performs training.
+# def train(epoch, train_loader, current_epoch_losses):
+#     """Performs training.
 
-    Params:
-        epoch: current epoch
-        train_loader: data loader
-        current_epoch_loss: dictionary containing the training loss of the epoch
-        device: device
+#     Params:
+#         epoch: current epoch
+#         train_loader: data loader
+#         current_epoch_loss: dictionary containing the training loss of the epoch
+#         device: device
 
-    Returns:
-        current_epoch_losses: updated training loss dictionary
-    """
-    model.train()
+#     Returns:
+#         current_epoch_losses: updated training loss dictionary
+#     """
+#     model.train()
 
-    pbar = tqdm(total=len(train_loader.dataset))
-    for batch_idx, data in enumerate(train_loader):
-        if isinstance(data, list):
-            data = data[0]
-        data = data.to(args.device)
-        optimizer.zero_grad()
-        loss = model.loss(data).mean()
-        current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
+#     pbar = tqdm(total=len(train_loader.dataset))
+#     for batch_idx, data in enumerate(train_loader):
+#         if isinstance(data, list):
+#             data = data[0]
+#         data = data.to(args.device)
+#         optimizer.zero_grad()
+#         loss = model.loss(data).mean()
+#         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
-        loss.backward()
-        optimizer.step()
+#         loss.backward()
+#         optimizer.step()
 
-        pbar.update(data.size(0))
-        pbar.set_description('Train, Log likelihood in nats: {:.6f}'.format(loss))
+#         pbar.update(data.size(0))
+#         pbar.set_description('Train, Log likelihood in nats: {:.6f}'.format(loss))
 
-    pbar.close()
+#     pbar.close()
 
-    for module in model.modules():
-        if isinstance(module, fnn.BatchNormFlow):
-            module.momentum = 0
+#     for module in model.modules():
+#         if isinstance(module, fnn.BatchNormFlow):
+#             module.momentum = 0
 
-    with torch.no_grad():
-        model(train_loader.dataset.tensors[0].to(data.device))
+#     with torch.no_grad():
+#         model(train_loader.dataset.tensors[0].to(data.device))
 
-    for module in model.modules():
-        if isinstance(module, fnn.BatchNormFlow):
-            module.momentum = 1
+#     for module in model.modules():
+#         if isinstance(module, fnn.BatchNormFlow):
+#             module.momentum = 1
 
-    return current_epoch_losses
-
-
-def validate(epoch, model, loader, device,
-             current_epoch_losses=None, best_dict=None):
-    """Return log probabilities on validation set.
-
-    Params:
-        epoch: epoch to validate
-        model: model to validate
-        loader: whether to use train/val/test set loader
-        device: used device
-        current_epoch_losses: dictionary with the current epoch losses
-        best_dict: dictionary containing the best validation loss, best validation epoch
-                   and best model
-
-    Returns:
-        current_epoch_losses: updated current_epoch_losses
-        best_dict: updated best_dict
-    """
-    model.eval()
-
-    pbar = tqdm(total=len(loader.dataset))
-    pbar.set_description('Eval')
-    for batch_idx, data in enumerate(loader):
-        if isinstance(data, list):
-            data = data[0]
-        data = data.to(device)
-        with torch.no_grad():
-            current_loss = model.loss(data).mean().item()
-        if current_epoch_losses is not None:
-            current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
-            val_mean_loss = np.mean(current_epoch_losses['val_loss'])
-            if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
-                best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
-                best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
-                best_dict['best_model'] = copy.deepcopy(model)
-
-        pbar.update(data.size(0))
-        pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
-
-    pbar.close()
-    return current_epoch_losses, best_dict
+#     return current_epoch_losses
 
 
-def test(epoch, model, loader, device,
-         current_epoch_test):
-    """Return log probabilities on test set.
+# def validate(epoch, model, loader, device,
+#              current_epoch_losses=None, best_dict=None):
+#     """Return log probabilities on validation set.
 
-    Params:
-        epoch: best validation epoch
-        model: best validation model
-        loader: whether to use train/val/test set loader
-        device: used device
-        current_epoch_test: dictionary with the current epoch test stats
+#     Params:
+#         epoch: epoch to validate
+#         model: model to validate
+#         loader: whether to use train/val/test set loader
+#         device: used device
+#         current_epoch_losses: dictionary with the current epoch losses
+#         best_dict: dictionary containing the best validation loss, best validation epoch
+#                    and best model
 
-    Returns:
-        current_epoch_test: updated current_epoch_test
-    """
-    model.eval()
+#     Returns:
+#         current_epoch_losses: updated current_epoch_losses
+#         best_dict: updated best_dict
+#     """
+#     model.eval()
 
-    pbar = tqdm(total=len(loader.dataset))
-    pbar.set_description('Eval')
-    for batch_idx, data in enumerate(loader):
-        if isinstance(data, list):
-            data = data[0]
-        data = data.to(device)
-        with torch.no_grad():
-            current_loss = model.loss(data).mean().item()
-        current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
+#     pbar = tqdm(total=len(loader.dataset))
+#     pbar.set_description('Eval')
+#     for batch_idx, data in enumerate(loader):
+#         if isinstance(data, list):
+#             data = data[0]
+#         data = data.to(device)
+#         with torch.no_grad():
+#             current_loss = model.loss(data).mean().item()
+#         if current_epoch_losses is not None:
+#             current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
+#             val_mean_loss = np.mean(current_epoch_losses['val_loss'])
+#             if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
+#                 best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
+#                 best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
+#                 best_dict['best_model'] = copy.deepcopy(model)
 
-        pbar.update(data.size(0))
-        pbar.set_description('Test, Log likelihood in nats in epoch {}: {:.6f}'.format(epoch, np.mean(current_epoch_test["test_loss"])))
+#         pbar.update(data.size(0))
+#         pbar.set_description('Val, Log likelihood in nats: {:.6f}'.format(current_loss))
 
-    pbar.close()
+#     pbar.close()
+#     return current_epoch_losses, best_dict
 
-    return current_epoch_test
+
+# def test(epoch, model, loader, device,
+#          current_epoch_test):
+#     """Return log probabilities on test set.
+
+#     Params:
+#         epoch: best validation epoch
+#         model: best validation model
+#         loader: whether to use train/val/test set loader
+#         device: used device
+#         current_epoch_test: dictionary with the current epoch test stats
+
+#     Returns:
+#         current_epoch_test: updated current_epoch_test
+#     """
+#     model.eval()
+
+#     pbar = tqdm(total=len(loader.dataset))
+#     pbar.set_description('Eval')
+#     for batch_idx, data in enumerate(loader):
+#         if isinstance(data, list):
+#             data = data[0]
+#         data = data.to(device)
+#         with torch.no_grad():
+#             current_loss = model.loss(data).mean().item()
+#         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
+
+#         pbar.update(data.size(0))
+#         pbar.set_description('Test, Log likelihood in nats in epoch {}: {:.6f}'.format(epoch, np.mean(current_epoch_test["test_loss"])))
+
+#     pbar.close()
+
+#     return current_epoch_test
 
 
 if __name__ == '__main__':
@@ -182,9 +185,11 @@ if __name__ == '__main__':
     args.exp_path = os.path.join('results', args.exp_name)
     args.figures_path = os.path.join(args.exp_path, args.figures_path)
     args.experiment_logs = os.path.join(args.exp_path, 'result_outputs')
+    args.experiment_saved_models = os.path.join(args.experiment_saved_models, args.exp_name)
     Path(args.exp_path).mkdir(parents=True, exist_ok=True)
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
+    Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -202,8 +207,9 @@ if __name__ == '__main__':
 
     # Build model and send to device
     model = build_model(args)
+    model.state = dict()
     model.to(args.device)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
 
     # Save losses and best epoch stats and model in dictionary
     total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
@@ -211,85 +217,96 @@ if __name__ == '__main__':
     current_epoch_test = {"test_loss": [], 'jsd_test_copula': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
 
     # Train
-    for epoch in range(args.epochs):
-        print('\nEpoch: {}'.format(epoch))
+    model, best_dict, current_epoch_test = train_val(current_model=model,
+                                                     model_name='RealNVP',
+                                                     args=args,
+                                                     data_loaders=data_loaders,
+                                                     dataset=dataset,
+                                                     transform_inputs=False,
+                                                     cm_flow=False)
 
-        current_epoch_losses = {"train_loss": [], "val_loss": []}
-        current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
-        current_epoch_losses, best_dict = validate(epoch,
-                                                   model,
-                                                   data_loaders['valid_loader'],
-                                                   args.device,
-                                                   current_epoch_losses=current_epoch_losses,
-                                                   best_dict=best_dict)
+    output_copula = model.sample(num_samples=1000, transform=args.transform_fct)
+    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal')
 
-        # Save mean of each epoch in total losses dictionary
-        for key, value in current_epoch_losses.items():
-            total_losses[key].append(np.mean(
-                value))  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
+    # for epoch in range(args.epochs):
+    #     print('\nEpoch: {}'.format(epoch))
 
-        # Save current epoch statistics
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='summary.csv',
-                        stats_dict=total_losses, current_epoch=epoch,
-                        continue_from_mode=epoch)  # save statistics to stats file.
+    #     current_epoch_losses = {"train_loss": [], "val_loss": []}
+    #     current_epoch_losses = train(epoch, data_loaders['train_loader'], current_epoch_losses)
+    #     current_epoch_losses, best_dict = validate(epoch,
+    #                                                model,
+    #                                                data_loaders['valid_loader'],
+    #                                                args.device,
+    #                                                current_epoch_losses=current_epoch_losses,
+    #                                                best_dict=best_dict)
 
-        # Early stopping
-        if args.early_stopping is True:
-            if epoch - best_dict['best_validation_epoch'] >= 30:
-                break
+    #     # Save mean of each epoch in total losses dictionary
+    #     for key, value in current_epoch_losses.items():
+    #         total_losses[key].append(np.mean(
+    #             value))  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
 
-        print(
-            'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
-            format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
+    #     # Save current epoch statistics
+    #     save_statistics(experiment_log_dir=args.experiment_logs, filename='summary.csv',
+    #                     stats_dict=total_losses, current_epoch=epoch,
+    #                     continue_from_mode=epoch)  # save statistics to stats file.
 
-        # Save sample plots every 10 epochs
-        if epoch % args.plot_frequ == 0:
-            utils.save_samples_plot(args, epoch, model, dataset)
+    #     # Early stopping
+    #     if args.early_stopping is True:
+    #         if epoch - best_dict['best_validation_epoch'] >= 30:
+    #             break
 
-    # Calculate test statistics
-    current_epoch_test = test(best_dict['best_validation_epoch'],
-                              best_dict['best_model'],
-                              data_loaders['test_loader'],
-                              args.device,
-                              current_epoch_test=current_epoch_test)
+    #     print(
+    #         'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
+    #         format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
-    # Calculate Jensen-Shannon Divergence on test set
-    current_epoch_test = jsd_eval(args,
-                                  best_dict['best_validation_epoch'],
-                                  best_dict['best_model'],
-                                  data_loaders['test_loader'],
-                                  args.device,
-                                  current_epoch_test=current_epoch_test)
+    #     # Save sample plots every 10 epochs
+    #     if epoch % args.plot_frequ == 0:
+    #         utils.save_samples_plot(args, epoch, model, dataset)
 
-    # Evaluate margins on test set
-    current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
-                                           best_dict['best_model'],
-                                           data_loaders['test_loader'],
-                                           args.device,
-                                           transform_fct=args.transform_fct,
-                                           current_epoch_test=current_epoch_test)
+    # # Calculate test statistics
+    # current_epoch_test = test(best_dict['best_validation_epoch'],
+    #                           best_dict['best_model'],
+    #                           data_loaders['test_loader'],
+    #                           args.device,
+    #                           current_epoch_test=current_epoch_test)
 
-    # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
-                   current_epoch_test.items()}  # save test set metrics in dict format
-    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+    # # Calculate Jensen-Shannon Divergence on test set
+    # current_epoch_test = jsd_eval(args,
+    #                               best_dict['best_validation_epoch'],
+    #                               best_dict['best_model'],
+    #                               data_loaders['test_loader'],
+    #                               args.device,
+    #                               current_epoch_test=current_epoch_test)
 
-    # Plot losses
-    result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
-    plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
+    # # Evaluate margins on test set
+    # current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
+    #                                        best_dict['best_model'],
+    #                                        data_loaders['test_loader'],
+    #                                        args.device,
+    #                                        transform_fct=args.transform_fct,
+    #                                        current_epoch_test=current_epoch_test)
 
-    # Plot samples for best epoch
-    utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
+    # # Gather test losses and save statistics
+    # test_losses = {key: [np.mean(value)] for key, value in
+    #                current_epoch_test.items()}  # save test set metrics in dict format
+    # save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+    #                 # save test set metrics on disk in .csv format
+    #                 stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
-    # Plot Margins
-    plot_margins(args,
-                 best_dict['best_validation_epoch'],
-                 best_dict['best_model'],
-                 data_loaders['test_loader'])
+    # # Plot losses
+    # result_dict = collect_experiment_dicts(target_dir=args.experiment_logs)
+    # plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
 
-    # Plot pointwise difference
-    jsd_graph(args,
-              best_dict['best_validation_epoch'],
-              best_dict['best_model'])
+    # # Plot samples for best epoch
+    # utils.save_samples_plot(args, best_dict['best_validation_epoch'], best_dict['best_model'], dataset)
+
+    # # Plot Margins
+    # plot_margins(args,
+    #              best_dict['best_validation_epoch'],
+    #              best_dict['best_model'],
+    #              data_loaders['test_loader'])
+
+    # # Plot pointwise difference
+    # jsd_graph(args,
+    #           best_dict['best_validation_epoch'],
+    #           best_dict['best_model'])

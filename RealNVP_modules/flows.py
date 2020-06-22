@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import scipy
+from utils.various import sigmoid
 
 
 class FlowSequential(nn.Sequential):
@@ -44,12 +45,17 @@ class FlowSequential(nn.Sequential):
     def loss(self, inputs):
         return - self.log_probs(inputs)
 
-    def sample(self, num_samples=None, noise=None):
+    def sample(self, num_samples=None, noise=None, transform=None):
         if noise is None:
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
+        if transform == 'sigmoid':
+            samples = sigmoid(samples)
+        elif transform == 'gaussian':
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            samples = normal_distr.cdf(samples)
         return samples
 
     def sample_copula(self, num_samples=None, noise=None):
@@ -62,19 +68,17 @@ class FlowSequential(nn.Sequential):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, inputs, transform_fct, cm_flow=False):
-        if cm_flow:
+    def jsd(self, inputs, transform_fct, transform_inputs=False):
+        if transform_inputs:
             samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
         else:
-            samples = self.sample(num_samples=inputs.shape[0], noise=None)
+            samples = self.sample(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
             if transform_fct == 'sigmoid':
-                # samples = scipy.special.expit(samples.detach().cpu())
-                inputs = scipy.special.expit(inputs.detach().cpu())
+                inputs = sigmoid(inputs)
             elif transform_fct == 'gaussian':
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                # samples = norm.cdf(samples.cpu())
-                inputs = normal_distr.cdf(inputs.cpu())
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+                inputs = normal_distr.cdf(inputs)
+        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs.detach()))
         return divergence
 
     def t_metric_eval(self, inputs, transform_fct, intervals=25, cm_flow=False):
@@ -94,13 +98,13 @@ class FlowSequential(nn.Sequential):
         return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
-def t_m_metric_eval(margin_x1, intervals):
+def t_m_metric_eval(margin, intervals):
     sum_probs = 0
     highest_interval = 0
     for ii in range(intervals):
         A_k_lower = (ii - 1) / intervals
         A_k_upper = ii / intervals
-        points_within = np.where(np.logical_and(margin_x1 >= A_k_lower, margin_x1 <= A_k_upper))[0]
+        points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
         if len(points_within) != 0:
             log_prob = np.log(points_within.sum() / len(points_within))
         else:

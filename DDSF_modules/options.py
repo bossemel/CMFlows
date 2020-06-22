@@ -67,6 +67,8 @@ class TrainOptions():
             '--low', type=float, required=False)
         parser.add_argument(
             '--high', type=float, required=False)
+        parser.add_argument(
+            '--early_stopping', action='store_true', help='stops training if validation stops improving')
         self.initialized = True
         return parser
 

@@ -2,8 +2,9 @@ import torch.nn as nn
 import torch
 import math
 from torch.autograd import Variable
-from utils.various import sigmoid, logit
-import matplotlib.pyplot as plt
+import scipy
+import numpy as np
+from utils.various import t_m_metric_eval
 
 
 def flow_density(inputs, log_jacob):
@@ -37,47 +38,24 @@ class CMFlow(nn.Module):
             logdets: sum of the log of the determinant of the jacobian of the models
             context: context parameter for DDSF
         """
-        # @Todo: implement gaussian cdf transform
-        eps = 0.00001
         inputs, logdets, context = inputs
 
         # The inputs are split and fed to each of the DDSF models
         outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
         outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs[:, 1].reshape(-1, 1), logdets, context))
-        # with torch.no_grad():
-        #     plt.hist(outputs_DDSF_1.detach().numpy())
-        #     plt.title('before transform')
-        #     plt.show()
-        # normal_distr = torch.distributions.normal.Normal(0, 1)
-        # outputs_DDSF_1 = normal_distr.cdf(outputs_DDSF_1)
-        # outputs_DDSF_2 = normal_distr.cdf(outputs_DDSF_2)
-        # with torch.no_grad():
-        #     plt.hist(outputs_DDSF_1.detach().numpy())
-        #     plt.title('after transform')
-        #     plt.show()
 
         # The outputs of the DDSF are concatenated to form a bivariate distribution
         outputs_DDSFs = torch.cat((outputs_DDSF_1, outputs_DDSF_2), dim=1)
-        # outputs_DDSFs[outputs_DDSFs >= 1] = 1 - eps
-        # outputs_DDSFs[outputs_DDSFs <= 0] = 0 + eps
-        # outputs_DDSFs_clone = outputs_DDSFs.clone()
-
-        # if self.transform_fct == 'sigmoid':
-        #     outputs_DDSFs = logit(outputs_DDSFs)
-        # elif self.transform_fct == 'gaussian':
-        #     raise NotImplementedError
 
         # forward pass in RealNVP
         outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(outputs_DDSFs)
 
-        # if self.transform_fct == 'sigmoid':
-        #     outputs_RealNVP = sigmoid(outputs_RealNVP)
-        # elif self.transform_fct == 'gaussian':
-        #     raise NotImplementedError
-
         logdets = (logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1), logdets_RealNVP)
         outputs = (outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP)
         return outputs, logdets
+
+    def forward_copula(self, noise, mode):
+        return self.model_RealNVP.forward(inputs=noise, mode=mode)
 
     def log_density(self, inputs):
         """Returns log of target density of the Flow
@@ -106,7 +84,39 @@ class CMFlow(nn.Module):
         density_DDSF_1, density_DDSF_2, density_RealNVP = self.log_density(x)
         return (-density_DDSF_1, -density_DDSF_2, -density_RealNVP)
 
+    def sample(self, num_samples=None, noise=None):
+        if noise is None:
+            noise = torch.Tensor(num_samples, 1).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward_copula(noise, mode='inverse')[0]
+        return samples
+
+    def sample_copula(self, num_samples=None, noise=None):
+        if noise is None:
+            noise = torch.Tensor(num_samples, 1).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward_copula(noise, mode='inverse')[0]
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        samples = normal_distr.cdf(samples)
+        return samples
+
+    def jsd(self, inputs, transform_fct, cm_flow=False):
+        samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+        return divergence
+
+    def t_metric_eval(self, inputs, transform_fct, intervals=25, cm_flow=False):
+        samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        margin_x1 = samples[:, 0]
+        margin_x2 = samples[:, 1]
+        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+
     def clip_grad_norm(self):
         """Performs gradient clipping
         """
         nn.utils.clip_grad_norm_(self.parameters(), self.clip)
+

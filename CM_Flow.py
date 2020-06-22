@@ -11,7 +11,7 @@ import random
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
-from CM_modules.visualizer import visualize1D_CM, visualize_joint, save_samples_plot_copula
+from CM_modules.visualizer import visualize1D_CM, save_samples_plot_copula
 
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, jsd_graph, margin_uniformity, plot_margins
 from RealNVP import build_model as build_model_RealNVP
@@ -24,6 +24,7 @@ from DDSF import build_model as build_model_DDSF
 from utils.save_statistics import save_statistics, save_model, load_model, model_loader
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from utils.various import logit
+from utils.visualizer import visualize_joint
 
 from experiment_runner import train_val
 
@@ -116,9 +117,17 @@ if __name__ == '__main__':
     if args.pretrain_models:
         # Train
         args.optimizer = optim.Adam(model_DDSF_1.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_1, best_dict_DDSF_1, current_epoch_test_DDSF_1 = train_val(current_model=model_DDSF_1, model_name='DDSF_1', args=args, data_loaders=data_loaders, dataset=dataset)
+        model_DDSF_1, best_dict_DDSF_1, current_epoch_test_DDSF_1 = train_val(current_model=model_DDSF_1,
+                                                                              model_name='DDSF_1',
+                                                                              args=args,
+                                                                              data_loaders=data_loaders,
+                                                                              dataset=dataset)
         args.optimizer = optim.Adam(model_DDSF_2.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_2, best_dict_DDSF_2, current_epoch_test_DDSF_2 = train_val(current_model=model_DDSF_2, model_name='DDSF_2', args=args, data_loaders=data_loaders, dataset=dataset)
+        model_DDSF_2, best_dict_DDSF_2, current_epoch_test_DDSF_2 = train_val(current_model=model_DDSF_2,
+                                                                              model_name='DDSF_2',
+                                                                              args=args,
+                                                                              data_loaders=data_loaders,
+                                                                              dataset=dataset)
 
         # Visualize DDFS transformations
         vizdata = train_dataset
@@ -147,8 +156,18 @@ if __name__ == '__main__':
         visualize_joint(output_copula.detach().numpy(), args, name='output_copula')
 
     # # Train
-    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
-    # model = train_val(model, model_name=None)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+    model, best_dict, current_epoch_test = train_val(model,
+                                                     model_name='CM_Flow',
+                                                     args=args,
+                                                     data_loaders=data_loaders,
+                                                     dataset=dataset)
+
+    output_copula = model.sample_copula(num_samples=1000)
+    visualize_joint(output_copula.detach().numpy(), args, name='output_copula')
+
+    output_copula = model.sample(num_samples=1000)
+    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal')
 
     # for epoch in range(args.epochs):
     #     print('\nEpoch: {}'.format(epoch))

@@ -8,15 +8,16 @@ import RealNVP_modules.flows as fnn
 
 from utils.save_statistics import save_statistics, save_model, model_loader
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from CM_modules.visualizer import visualize1D_CM, visualize_joint, save_samples_plot_copula
+from CM_modules.visualizer import visualize1D_CM, save_samples_plot_copula
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, jsd_graph, margin_uniformity, plot_margins
 from DDSF_modules.utils import load_data as load_data_DDSF, jsd_eval as jsd_eval_marginal
+from utils.visualizer import visualize_joint
 
 eps = 0.0001
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
-          model_name=None, transform_model_1=None, transform_model_2=None):
+          model_name=None, transform_model_1=None, transform_model_2=None, transform_inputs=True):
     """Performs training.
 
     Params:
@@ -38,36 +39,29 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 data = data[:, 0].reshape(-1, 1)
             elif model_name == 'DDSF_2':
                 data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP':
+            elif model_name == 'RealNVP' and transform_inputs is True:
                 n = data.shape[0]
                 context = torch.FloatTensor(n, 1).zero_().to(device)
                 logdets = torch.FloatTensor(n).zero_().to(device)
                 data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
                 data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
                 data = torch.cat((data_1, data_2), dim=1)
-                # visualize_joint(data.detach().numpy(), args, name='current_RealNVP_inputs')
-            #     normal_distr = torch.distributions.normal.Normal(0, 1)
-            #     data = normal_distr.cdf(data)
-
-            #     data[data >= 1] = 1 - eps
-            #     data[data <= 0] = 0 + eps
-            #     data = logit(data)
-            #     # visualize_joint(vizdata.detach().numpy(), args, name='current_RealNVP_inputs')
 
         data = data.to(device)
         args.optimizer.zero_grad()
         losses = model.loss(data)
         loss = 0
-        if model_name is not None:
-            loss = losses.mean()
-        else:
+        if model_name == 'CM_Flow':
             for loss_element in losses:
                 loss += loss_element.mean()
+        else:
+            loss = losses.mean()
         current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
 
         loss.backward()
-        if args.clip_grad_norm:
-            model.clip_grad_norm()
+        if model_name in ['DDSF_1', 'DDSF_2', 'CM_Flow']:
+            if args.clip_grad_norm:
+                model.clip_grad_norm()
 
         args.optimizer.step()
 
@@ -81,15 +75,23 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             module.momentum = 0
 
     if model_name == 'RealNVP':
+        if transform_inputs is True:
+            with torch.no_grad():
+                n = train_loader.dataset.tensors[0].shape[0]
+                context = torch.FloatTensor(n, 1).zero_().to(device)
+                logdets = torch.FloatTensor(n).zero_().to(device)
+                data_1, __, __ = transform_model_1((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
+                data_2, __, __ = transform_model_2((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
+                train_loader_tensor = torch.cat((data_1, data_2), dim=1)
+                model(train_loader_tensor.to(data.device))
+        else:
+            model(train_loader.dataset.tensors[0].to(data.device))
+    elif model_name == 'CM_Flow':
         with torch.no_grad():
-            train_loader.dataset.tensors[0]
             n = train_loader.dataset.tensors[0].shape[0]
             context = torch.FloatTensor(n, 1).zero_().to(device)
             logdets = torch.FloatTensor(n).zero_().to(device)
-            data_1, __, __ = transform_model_1((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
-            data_2, __, __ = transform_model_2((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
-            train_loader_tensor = torch.cat((data_1, data_2), dim=1)
-            model(train_loader_tensor.to(data.device))
+            model((train_loader.dataset.tensors[0], logdets, context))
 
     for module in model.modules():
         if isinstance(module, fnn.BatchNormFlow):
@@ -100,7 +102,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
 
 def validate(epoch, model, loader, device,
              current_epoch_losses=None, best_dict=None, model_name=None,
-             transform_model_1=None, transform_model_2=None):
+             transform_model_1=None, transform_model_2=None, transform_inputs=True):
     """Return log probabilities on validation set.
 
     Params:
@@ -127,7 +129,7 @@ def validate(epoch, model, loader, device,
                 data = data[:, 0].reshape(-1, 1)
             elif model_name == 'DDSF_2':
                 data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP':
+            elif model_name == 'RealNVP' and transform_inputs is True:
                 n = data.shape[0]
                 context = torch.FloatTensor(n, 1).zero_().to(device)
                 logdets = torch.FloatTensor(n).zero_().to(device)
@@ -138,11 +140,11 @@ def validate(epoch, model, loader, device,
         with torch.no_grad():
             losses = model.loss(data)
             current_loss = 0
-            if model_name is not None:
-                current_loss = losses.mean()
-            else:
+            if model_name == 'CM_Flow':
                 for loss_element in losses:
                     current_loss += loss_element.mean()
+            else:
+                current_loss = losses.mean()
         if current_epoch_losses is not None:
             current_epoch_losses["val_loss"].append(current_loss)  # add current iter loss to val loss list.
             val_mean_loss = np.mean(current_epoch_losses['val_loss'])
@@ -160,7 +162,7 @@ def validate(epoch, model, loader, device,
 
 def test(epoch, model, loader, device,
          current_epoch_test, model_name,
-         transform_model_1=None, transform_model_2=None):
+         transform_model_1=None, transform_model_2=None, transform_inputs=True):
     """Return log probabilities on test set.
 
     Params:
@@ -184,7 +186,7 @@ def test(epoch, model, loader, device,
                 data = data[:, 0].reshape(-1, 1)
             elif model_name == 'DDSF_2':
                 data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP':
+            elif model_name == 'RealNVP' and transform_inputs is True:
                 n = data.shape[0]
                 context = torch.FloatTensor(n, 1).zero_().to(device)
                 logdets = torch.FloatTensor(n).zero_().to(device)
@@ -195,8 +197,11 @@ def test(epoch, model, loader, device,
         with torch.no_grad():
             losses = model.loss(data)
             current_loss = 0
-            for loss_element in losses:
-                current_loss += loss_element.mean()
+            if model_name == 'CM_Flow':
+                for loss_element in losses:
+                    current_loss += loss_element.mean()
+            else:
+                current_loss = losses.mean()
         current_epoch_test["test_loss"].append(current_loss)  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
@@ -208,7 +213,8 @@ def test(epoch, model, loader, device,
 
 
 def train_val(current_model, model_name, args, data_loaders, dataset,
-              transform_model_1=None, transform_model_2=None):
+              transform_model_1=None, transform_model_2=None, transform_inputs=True,
+              cm_flow=True):
     best_dict_current_model = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses_current_model = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
     current_epoch_test = {'test_loss': [],
@@ -234,7 +240,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                      device=args.device,
                                      model_name=model_name,
                                      transform_model_1=transform_model_1,
-                                     transform_model_2=transform_model_2)
+                                     transform_model_2=transform_model_2,
+                                     transform_inputs=transform_inputs)
 
         # Perform Validation
         current_epoch_losses, best_dict_current_model = validate(epoch=epoch,
@@ -245,7 +252,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                                                  best_dict=best_dict_current_model,
                                                                  model_name=model_name,
                                                                  transform_model_1=transform_model_1,
-                                                                 transform_model_2=transform_model_2)
+                                                                 transform_model_2=transform_model_2,
+                                                                 transform_inputs=transform_inputs)
 
         # Set model state to epoch
         current_model.state['model_epoch'] = epoch
@@ -294,7 +302,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                               current_epoch_test=current_epoch_test,
                               model_name=model_name,
                               transform_model_1=transform_model_1,
-                              transform_model_2=transform_model_2)
+                              transform_model_2=transform_model_2,
+                              transform_inputs=transform_inputs)
 
     # Calculate Jensen-Shannon Divergence of copula
     if model_name == 'RealNVP':
@@ -304,7 +313,10 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                              data_loaders['test_loader'],
                                              args.device,
                                              current_epoch_test=current_epoch_test,
-                                             cm_flow=True)
+                                             transform_model_1=transform_model_1,
+                                             transform_model_2=transform_model_2,
+                                             transform_inputs=transform_inputs,
+                                             cm_flow=cm_flow)
         # Evaluate copula margins on test set
         current_epoch_test = margin_uniformity(best_dict_current_model['best_validation_epoch'],
                                                current_model,
@@ -313,6 +325,15 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                                transform_fct=args.transform_fct,
                                                current_epoch_test=current_epoch_test,
                                                cm_flow=True)
+
+    if model_name == 'DDSF':
+        # Calculate Jensen-Shannon Divergence of marginal 1
+        args.marginal = args.marginal
+        current_epoch_test = jsd_eval_marginal(marginal=args.marginal,
+                                               args=args,
+                                               epoch=best_dict_current_model['best_validation_epoch'],
+                                               model=current_model,
+                                               current_epoch_test=current_epoch_test)
 
     if model_name == 'DDSF_1':
         # Calculate Jensen-Shannon Divergence of marginal 1
@@ -341,6 +362,11 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
 
     # Plot losses
     result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_name=model_name)
-    plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
+    if model_name == 'DDSF':
+        plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, current_model_name=model_name)
+    if model_name == 'RealNVP':
+        plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
+    else:
+        plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
 
     return current_model, best_dict_current_model, current_epoch_test

@@ -8,7 +8,9 @@ import os
 import seaborn as sns
 
 
-def jsd_eval(args, epoch, model, loader, device, current_epoch_test, cm_flow=False):
+def jsd_eval(args, epoch, model, loader, device, current_epoch_test,
+             transform_model_1=None, transform_model_2=None, transform_inputs=True,
+             cm_flow=True):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
@@ -26,16 +28,17 @@ def jsd_eval(args, epoch, model, loader, device, current_epoch_test, cm_flow=Fal
 
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            if len(data) > 1:
-                cond_data = data[1].float()
-                cond_data = cond_data.to(device)
-            else:
-                cond_data = None
-
             data = data[0]
+            if transform_inputs is True:
+                n = data.shape[0]
+                context = torch.FloatTensor(n, 1).zero_().to(device)
+                logdets = torch.FloatTensor(n).zero_().to(device)
+                data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
+                data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
+                data = torch.cat((data_1, data_2), dim=1)
         data = data.to(device)
         with torch.no_grad():
-            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, transform_inputs=transform_inputs).sum().item()
         current_epoch_test["jsd_test_copula"].append(current_jsd)
 
     print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["jsd_test_copula"])))
@@ -59,12 +62,6 @@ def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch
 
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
-            if len(data) > 1:
-                cond_data = data[1].float()
-                cond_data = cond_data.to(device)
-            else:
-                cond_data = None
-
             data = data[0]
         data = data.to(device)
         with torch.no_grad():

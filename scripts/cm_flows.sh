@@ -24,7 +24,7 @@ echo 'Begin CM_Flow_Clayton_Gamma'
 
 python CM_Flow.py \
 --exp_name CM_Flow_Clayton_Gamma \
---epochs 10 \
+--epochs 1 \
 --copula clayton \
 --marginal_1 gamma \
 --marginal_2 gamma \
@@ -39,8 +39,9 @@ python CM_Flow.py \
 --num_ds_dim 8 \
 --num_ds_layers 1 \
 --dimh_DDSF 64 \
---pretrain_models \
---early_stopping
+--early_stopping \
+--clip_grad_norm \
+--pretrain_models
 
 # echo 'Begin CM_Flow_Clayton_Gamma'
 
