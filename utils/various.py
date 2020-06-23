@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import math
 
 
 def sigmoid(xx):
@@ -18,12 +19,13 @@ def t_m_metric_eval(margin, intervals):
         A_k_upper = ii / intervals
         points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
         if len(points_within) > 0:
-            log_prob = np.log(points_within.sum() / len(points_within))
+            log_prob = np.log(len(points_within) / len(margin))
+            assert not math.isinf(log_prob), (len(points_within) / len(margin))
         else:
             log_prob = 0
         if log_prob > highest_interval:
             highest_interval = log_prob
         sum_probs += abs(log_prob + np.log(intervals))
         t_metric = sum_probs / intervals
-        m_metric = (highest_interval + np.log(intervals)) / intervals
+        m_metric = (highest_interval + np.log(intervals))
     return t_metric, m_metric

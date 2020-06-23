@@ -27,6 +27,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     """
 
     model.eval()
+
     if cm_flow is True:
         dataset = datasets.distributions.Copula_Distr(args, transform=False)
         data = dataset.tst.x
@@ -170,8 +171,3 @@ def jsd_graph(args, epoch, model, cm_flow=False):
     plot_3D(args.figures_path, args.copula, grid1, grid2, cop_pdf, 'cop_pdf.pdf')
     plot_3D(args.figures_path, args.copula, grid1, grid2, pred_grid, 'pred_samples.pdf')
     plot_3D(args.figures_path, args.copula, grid1, grid2, difference, 'difference.pdf')
-
-    # @Todo: implement 2d plots
-    # pred_grid = pred_grid.reshape(300, 300)
-    # cop_pdf = cop_pdf.reshape(300, 300)
-    # difference = abs(pred_grid - cop_pdf)

@@ -81,17 +81,42 @@ class FlowSequential(nn.Sequential):
         samples[samples < 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, cm_flow=False):
+    def jsd(self, inputs, transform_fct, obs=100, cm_flow=False):
+        x1 = np.linspace(0, 1, obs)
+        x2 = np.linspace(0, 1, obs)
+        grid1, grid2 = np.meshgrid(x1, x2)
+        grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
+        grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
+        grid2d = np.concatenate([grid1, grid2], axis=1)
         if cm_flow:
-            samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+            samples = self.sample_copula(num_samples=obs**2, noise=None)
         else:
-            samples = self.sample(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
+            samples = self.sample(num_samples=obs**2, noise=None, transform=transform_fct)
         if transform_fct == 'sigmoid':
             inputs = sigmoid(inputs)
         elif transform_fct == 'gaussian':
             normal_distr = torch.distributions.normal.Normal(0, 1)
             inputs = normal_distr.cdf(inputs)
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+        # print('samples', samples[:10])
+        # print('inputs', inputs[:10])
+        # print('samples.T', samples.T.shape)
+        pred_pdf = scipy.stats.gaussian_kde(samples.T)
+        pred_grid = pred_pdf(grid2d.T) # .reshape(obs, obs)
+        true_pdf = scipy.stats.gaussian_kde(inputs.T)
+        true_grid = true_pdf(grid2d.T) # .reshape(obs, obs)
+        # print(pred_grid[:10], true_grid[:10])
+        # print(pred_grid.shape, true_grid.shape)
+        # plt.plot(pred_grid[:, 0], grid1)
+        # plt.plot(true_grid[:, 0], grid1)
+        # plt.show()
+        assert np.min(pred_grid) >= 0
+        assert np.min(true_grid) >= 0
+        # assert np.max(pred_grid) <= 1, print(pred_grid[pred_grid>1])
+        # assert np.max(true_grid) <= 1
+        divergence = scipy.spatial.distance.jensenshannon(pred_grid, true_grid)
+        # print('1d method: ', divergence)
+        # divergence = js_divergence(pred_grid, true_grid)
+        # print('my method', divergence)
         return divergence
 
     def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):

@@ -51,6 +51,8 @@ class TrainOptions():
             '--plot_frequ', type=int, default=10, help='save plots every x epochs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--grid_search', action='store_true', help='grid search over hyperparameters')
         self.initialized = True
         return parser
 

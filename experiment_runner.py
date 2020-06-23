@@ -314,7 +314,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
 
         # Early stopping
         if args.early_stopping is True:
-            if epoch - best_dict_current_model['best_validation_epoch'] >= 5:
+            if epoch - best_dict_current_model['best_validation_epoch'] >= 10:
                 break
 
         print('Best validation at epoch {}: Average Log Likelihood: {:.4f}'.
