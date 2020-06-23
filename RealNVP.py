@@ -14,6 +14,7 @@ from RealNVP_modules.eval import jsd_graph
 
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
+from utils.various import HiddenPrints
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -53,30 +54,49 @@ def build_model(args):
     return model
 
 
-def grid_search(args, learning_rate, num_inv_blocks, num_hidden_units):
+def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, weight_decay_adam):
     results_dict = {}
     best_loss = 1000
-    for lr in learning_rate:
-        args.lr = lr
+    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
+    for transform_fct in transform_functions:
+        args.transform_fct = transform_fct
         for num_blocks in num_inv_blocks:
             args.num_blocks = num_blocks
             for num_hidden in num_hidden_units:
-                args.num_hidden = num_hidden_units
-                current_model, current_best_dict, current_test_dict = train_and_plot(args)
-                results_dict[(lr, num_blocks, num_hidden)] = (current_best_dict['best_validation_epoch'], current_best_dict['best_validation_loss'])
-                if current_best_dict['best_validation_loss'] < best_loss:
-                    best_loss = current_best_dict['best_validation_loss']
-                    best_hyperparams = (lr, num_blocks, num_hidden)
-                    model = current_model
-                    best_dict = current_best_dict
-                    test_dict = current_test_dict
-    print('Grid search complete.')
+                if num_hidden > num_blocks:
+                    args.num_hidden = num_hidden
+                    for weight_decay in weight_decay_adam:
+                        args.weight_decay = weight_decay
+                        print(' transform_fct:', transform_fct,
+                              ' num_blocks:', num_blocks,
+                              ' num_hidden:', num_hidden, ' weight decay:', weight_decay)
+                        with HiddenPrints():
+                            current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                                 disable=True,
+                                                                                                 grid_search=True)
+                        current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
+                        results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                            current_best_dict['best_validation_loss'])
+                        print(results_dict[current_hyperparams])
+                        with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                            f.write(str(results_dict))
+                        if current_best_dict['best_validation_loss'] < best_loss:
+                            best_loss = current_best_dict['best_validation_loss']
+                            best_hyperparams = current_hyperparams
+                            model = current_model
+                            best_dict = current_best_dict
+                            test_dict = current_test_dict
+    print('Grid search complete for ', args.copula)
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
+    print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
+    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
     return model, best_dict, test_dict
 
 
-def train_and_plot(args):
+def train_and_plot(args, disable=False, grid_search=False):
     # Set Seed
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
@@ -91,7 +111,7 @@ def train_and_plot(args):
     model = build_model(args)
     model.state = dict()
     model.to(args.device)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # Save losses and best epoch stats and model in dictionary
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
@@ -104,7 +124,9 @@ def train_and_plot(args):
                                             data_loaders=data_loaders,
                                             dataset=dataset,
                                             transform_inputs=False,
-                                            cm_flow=False)
+                                            cm_flow=False,
+                                            disable=disable,
+                                            grid_search=grid_search)
 
     return model, best_dict, test_dict
 
@@ -128,31 +150,37 @@ if __name__ == '__main__':
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
+    args.RealNVP_part_of_CM_Flow = False
+
     if args.grid_search:
         # Hyperparameter options:
-        transform_functions = ['sigmoid', 'gaussian']
-        learning_rate = [0.1, 0.01, 0.001, 0.0001, 0.00001]
-        num_inv_blocks = [2, 4, 8, 16, 32]
-        num_hidden_units = [16, 32, 64, 128]
-        model, best_dict, test_dict = grid_search(args, learning_rate, num_inv_blocks, num_hidden_units)
+        transform_functions = ['gaussian', 'sigmoid']
+        num_inv_blocks = [4, 8, 16]
+        num_hidden_units = [32, 64, 128]
+        weight_decay = [0, 0.000001]
+        model, best_dict, test_dict = grid_search(args,
+                                                  transform_functions,
+                                                  num_inv_blocks,
+                                                  num_hidden_units,
+                                                  weight_decay)
     else:
         model, best_dict, test_dict = train_and_plot(args)
 
-    output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
-    visualize_joint(output_copula.detach().numpy(), args, name='output_copula')
+        output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
+        visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
 
-    dataset = datasets.distributions.Copula_Distr(args, transform=False)
-    visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
 
-    # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
-                   test_dict.items()}  # save test set metrics in dict format
-    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
-    # Plot pointwise copula difference
-    jsd_graph(args,
-              best_dict['best_validation_epoch'],
-              model,
-              cm_flow=True)
+        # Plot pointwise copula difference
+        jsd_graph(args,
+                  best_dict['best_validation_epoch'],
+                  model,
+                  cm_flow=True)

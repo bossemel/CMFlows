@@ -140,9 +140,9 @@ def jsd_graph(args, epoch, model, cm_flow=False):
 
     with torch.no_grad():
         if cm_flow is True:
-            pred = model.sample_copula(9000).detach().to(args.device).numpy()
+            pred = model.sample_copula(9000).detach().cpu().numpy()
         else:
-            pred = model.sample(9000).detach().to(args.device).numpy()
+            pred = model.sample(9000).detach().cpu().numpy()
             if args.transform_fct == 'sigmoid':
                 pred = scipy.special.expit(pred)
             if args.transform_fct == 'gaussian':

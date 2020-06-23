@@ -16,8 +16,6 @@ class TrainOptions():
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training (default: 128)')
         parser.add_argument(
-            '--test-batch-size', type=int, default=100, help='input batch size for testing (default: 1000)')
-        parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
             '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal'])

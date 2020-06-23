@@ -4,7 +4,7 @@ import math
 from torch.autograd import Variable
 import scipy
 import numpy as np
-from utils.various import t_m_metric_eval
+from utils.various import t_m_metric_eval, sigmoid
 
 
 eps = 0.0001
@@ -27,6 +27,7 @@ class CMFlow(nn.Module):
         self.batch_size = batch_size
         self.args = args
         self.clip = self.args.clip
+        self.cuda = args.cuda
 
     def forward(self, inputs):
         """Forward pass of CM Flows model. The inputs are first passed
@@ -140,13 +141,34 @@ class CMFlow(nn.Module):
         samples[samples < 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, cm_flow=False):
-        samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+    def jsd(self, inputs, transform_fct, obs=100, cm_flow=False):
+        x1 = np.linspace(0, 1, obs)
+        x2 = np.linspace(0, 1, obs)
+        grid1, grid2 = np.meshgrid(x1, x2)
+        grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
+        grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
+        grid2d = np.concatenate([grid1, grid2], axis=1)
+        samples = self.sample_copula(num_samples=obs**2, noise=None)
+        if transform_fct == 'sigmoid':
+            inputs = sigmoid(inputs)
+        elif transform_fct == 'gaussian':
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            inputs = normal_distr.cdf(inputs)
+        if self.cuda:
+            samples.cpu().numpy()
+            inputs.cpu().numpy()
+        pred_pdf = scipy.stats.gaussian_kde(samples.T)
+        pred_grid = pred_pdf(grid2d.T)
+        true_pdf = scipy.stats.gaussian_kde(inputs.T)
+        true_grid = true_pdf(grid2d.T)
+        assert np.min(pred_grid) >= 0
+        assert np.min(true_grid) >= 0
+        divergence = scipy.spatial.distance.jensenshannon(pred_grid, true_grid)
         return divergence
 
     def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
-        samples = self.sample_copula(num_samples=num_samples, noise=None)
+        if cm_flow:
+            samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

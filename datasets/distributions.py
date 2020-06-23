@@ -8,14 +8,20 @@ import scipy
 
 def marginal_transform(inputs, marginal, args):
     if marginal == 'gaussian':
+        assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
+        assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
         norm = scipy.stats.norm(loc=args.mu, scale=args.var)
         inputs = norm.ppf(inputs)
     elif marginal == 'uniform':
         return inputs
     elif marginal == 'lognormal':
+        assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
+        assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
+
         lognorm = scipy.stats.lognorm(loc=args.mu, scale=args.var)
         inputs = lognorm.ppf(inputs)
     elif marginal == 'gamma':
+        assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
         gamma = scipy.stats.gamma(args.alpha)
         inputs = gamma.ppf(inputs)
     else:
@@ -44,9 +50,8 @@ class Joint_Distr():
     def sampler(self, args, obs=None):
 
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
-
-        marginal_1 = marginal_transform(copula_xx[:, 0], args.marginal_1, args)
-        marginal_2 = marginal_transform(copula_xx[:, 1], args.marginal_2, args)
+        marginal_1 = marginal_transform(inputs=copula_xx[:, 0], marginal=args.marginal_1, args=args)
+        marginal_2 = marginal_transform(inputs=copula_xx[:, 1], marginal=args.marginal_2, args=args)
 
         xx = np.concatenate([marginal_1.reshape(-1, 1), marginal_2.reshape(-1, 1)], axis=1)
         return xx

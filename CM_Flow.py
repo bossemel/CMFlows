@@ -17,6 +17,7 @@ from DDSF import build_model as build_model_DDSF
 
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
+from utils.various import HiddenPrints
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -50,6 +51,163 @@ def build_model(args):
                          args=args)
 
     return model, model_RealNVP, model_DDSF_1, model_DDSF_2
+
+
+def grid_search(args, model, gradient_clipping, num_inv_blocks,
+                num_hidden_units, num_flow_layers, num_hidden_layers,
+                num_ds_dims):
+    results_dict = {}
+    best_loss = 1000
+    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
+    for clip_grad_norm in gradient_clipping:
+        args.clip_grad_norm = clip_grad_norm
+        for num_blocks in num_inv_blocks:
+            args.num_blocks = num_blocks
+            for hidden_units in num_hidden_units:
+                if num_hidden_layers > num_blocks:
+                    args.hidden_units = hidden_units
+                    for num_flow_layers_DDSF in num_flow_layers:
+                        args.num_flow_layers_DDSF = num_flow_layers_DDSF
+                        for hidden_layers in num_hidden_layers:
+                            args.num_hid_layers_DDSF = hidden_layers
+                            for ds_dims in num_ds_dims:
+                                args.num_ds_dim = ds_dims
+                                print(' clip_grad_norm:', clip_grad_norm,
+                                      ' num_blocks:', num_blocks,
+                                      ' num_hidden:', hidden_units,
+                                      ' num_flow_layers_DDSF:', num_flow_layers_DDSF,
+                                      ' num_hid_layers_DDSF: ', hidden_layers,
+                                      ' num_ds_dim DDSF: ', ds_dims)
+                                with HiddenPrints():
+                                    current_model, current_best_dict, current_test_dict = train_and_plot(args=args,
+                                                                                                         model=model,
+                                                                                                         model_DDSF_1=model_DDSF_1,
+                                                                                                         model_DDSF_2=model_DDSF_2,
+                                                                                                         model_RealNVP=model_RealNVP,
+                                                                                                         dataset=dataset,
+                                                                                                         disable=True,
+                                                                                                         grid_search=True)
+                        current_hyperparams = (clip_grad_norm,
+                                               num_blocks,
+                                               hidden_units,
+                                               num_flow_layers_DDSF,
+                                               hidden_layers,
+                                               ds_dims)
+                        results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                             current_best_dict['best_validation_loss'])
+                        print(results_dict[current_hyperparams])
+                        with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                            f.write(str(results_dict))
+                        if current_best_dict['best_validation_loss'] < best_loss:
+                            best_loss = current_best_dict['best_validation_loss']
+                            best_hyperparams = current_hyperparams
+                            model = current_model
+                            best_dict = current_best_dict
+                            test_dict = current_test_dict
+    print('Grid search complete for ', args.copula)
+    print('Best hyperparams: ', best_hyperparams)
+    print('Lowest Val Loss: ', best_loss)
+    print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
+    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    return model, best_dict, test_dict
+
+
+def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, dataset, disable=False, grid_search=False):
+    if args.pretrain_models:
+        # Train
+        args.optimizer = optim.Adam(model_DDSF_1.parameters(), lr=args.lr, betas=args.betas)
+        model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
+                                                              model_name='DDSF_1',
+                                                              args=args,
+                                                              data_loaders=data_loaders,
+                                                              dataset=dataset)
+        args.optimizer = optim.Adam(model_DDSF_2.parameters(), lr=args.lr, betas=args.betas)
+        model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
+                                                              model_name='DDSF_2',
+                                                              args=args,
+                                                              data_loaders=data_loaders,
+                                                              dataset=dataset,
+                                                              test_dict=test_dict)
+
+        if not grid_search:
+            # Visualize DDFS transformations
+            vizdata = train_dataset
+
+            n = vizdata.shape[0]
+            context = torch.FloatTensor(n, 1).zero_().to(args.device)
+            logdets = torch.FloatTensor(n).zero_().to(args.device)
+            vizdata_1, __, __ = model_DDSF_1((vizdata[:, 0].reshape(-1, 1), logdets, context))
+            vizdata_2, __, __ = model_DDSF_2((vizdata[:, 1].reshape(-1, 1), logdets, context))
+            vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
+            visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+
+        args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=1e-6)
+
+        model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
+                                                                model_name='RealNVP',
+                                                                args=args,
+                                                                data_loaders=data_loaders,
+                                                                dataset=dataset,
+                                                                transform_model_1=model_DDSF_1,
+                                                                transform_model_2=model_DDSF_1,
+                                                                test_dict=test_dict)
+        best_dict = best_dict_RealNVP
+
+        if not grid_search:
+            output_copula = model_RealNVP.sample_copula(num_samples=100000)
+            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_RealNVP')
+
+            dataset = datasets.distributions.Copula_Distr(args, transform=False)
+            visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+
+            # Gather test losses and save statistics
+            test_losses = {key: [np.mean(value)] for key, value in
+                           test_dict.items()}  # save test set metrics in dict format
+            epochs = (best_dict_DDSF_1['best_validation_epoch'],
+                      best_dict_DDSF_2['best_validation_epoch'],
+                      best_dict_RealNVP['best_validation_epoch'])
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
+
+            # Plot pointwise copula difference
+            jsd_graph(args,
+                      best_dict['best_validation_epoch'],
+                      model_RealNVP)
+
+    # # Train
+    if args.train_cm_flow:
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6, betas=args.betas)
+        model, best_dict, test_dict = train_val(model,
+                                                model_name='CM_Flow',
+                                                args=args,
+                                                data_loaders=data_loaders,
+                                                dataset=dataset)
+
+        if not grid_search:
+            output_copula = model.sample_copula(num_samples=100000)
+            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
+
+            dataset = datasets.distributions.Copula_Distr(args, transform=False)
+            visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+
+            output_copula = model.sample(num_samples=100000)
+            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+
+            # Gather test losses and save statistics
+            test_losses = {key: [np.mean(value)] for key, value in
+                           test_dict.items()}  # save test set metrics in dict format
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+
+            # Plot pointwise copula difference
+            jsd_graph(args,
+                      best_dict['best_validation_epoch'],
+                      model,
+                      cm_flow=True)
 
 
 if __name__ == '__main__':
@@ -94,241 +252,31 @@ if __name__ == '__main__':
     # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
 
-    if args.pretrain_models:
-        # Train
-        args.optimizer = optim.Adam(model_DDSF_1.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
-                                                              model_name='DDSF_1',
-                                                              args=args,
-                                                              data_loaders=data_loaders,
-                                                              dataset=dataset)
-        args.optimizer = optim.Adam(model_DDSF_2.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
-                                                              model_name='DDSF_2',
-                                                              args=args,
-                                                              data_loaders=data_loaders,
-                                                              dataset=dataset,
-                                                              test_dict=test_dict)
+    args.RealNVP_part_of_CM_Flow = True
 
-        # Visualize DDFS transformations
-        vizdata = train_dataset
+    # Train
+    if args.grid_search:
+        # Hyperparamter options:
+        # General:
+        gradient_clipping = [True, False]
 
-        n = vizdata.shape[0]
-        context = torch.FloatTensor(n, 1).zero_().to(args.device)
-        logdets = torch.FloatTensor(n).zero_().to(args.device)
-        vizdata_1, __, __ = model_DDSF_1((vizdata[:, 0].reshape(-1, 1), logdets, context))
-        vizdata_2, __, __ = model_DDSF_2((vizdata[:, 1].reshape(-1, 1), logdets, context))
-        vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
-        visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+        # RealNVP:
+        num_inv_blocks = [4, 8, 16]
+        num_hidden_units = [32, 64, 128]
 
-        args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=1e-6)
+        # DDSF:
+        num_flow_layers = [5, 10]
+        num_hidden_layers = [1, 2]
+        num_ds_dims = [8, 16]
 
-        model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
-                                                                model_name='RealNVP',
-                                                                args=args,
-                                                                data_loaders=data_loaders,
-                                                                dataset=dataset,
-                                                                transform_model_1=model_DDSF_1,
-                                                                transform_model_2=model_DDSF_1,
-                                                                test_dict=test_dict)
-        best_dict = best_dict_RealNVP
+        model, best_dict, test_dict = grid_search(args=args,
+                                                  model=model,
+                                                  gradient_clipping=gradient_clipping,
+                                                  num_inv_blocks=num_inv_blocks,
+                                                  num_hidden_units=num_hidden_units,
+                                                  num_flow_layers=num_flow_layers,
+                                                  num_hidden_layers=num_hidden_layers,
+                                                  num_ds_dims=num_ds_dims)
 
-        output_copula = model_RealNVP.sample_copula(num_samples=100000)
-        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_RealNVP')
-
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
-
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
-        epochs = (best_dict_DDSF_1['best_validation_epoch'],
-                  best_dict_DDSF_2['best_validation_epoch'],
-                  best_dict_RealNVP['best_validation_epoch'])
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
-
-        # Plot pointwise copula difference
-        jsd_graph(args,
-                  best_dict['best_validation_epoch'],
-                  model_RealNVP)
-
-    # # Train
-    if args.train_cm_flow:
-        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6, betas=args.betas)
-        model, best_dict, test_dict = train_val(model,
-                                                model_name='CM_Flow',
-                                                args=args,
-                                                data_loaders=data_loaders,
-                                                dataset=dataset)
-
-        output_copula = model.sample_copula(num_samples=100000)
-        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
-
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
-
-        output_copula = model.sample(num_samples=100000)
-        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
-
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
-
-        # Plot pointwise copula difference
-        jsd_graph(args,
-                  best_dict['best_validation_epoch'],
-                  model,
-                  cm_flow=True)
-
-    # for epoch in range(args.epochs):
-    #     print('\nEpoch: {}'.format(epoch))
-
-    #     # Initialize dictionary for epoch losses
-    #     current_epoch_losses = {"train_loss": [], "val_loss": []}
-
-    #     # Train model
-    #     current_epoch_losses = train(epoch,
-    #                                  data_loaders['train_loader'],
-    #                                  current_epoch_losses,
-    #                                  args.device)
-
-    #     # Perform Validation
-    #     current_epoch_losses, best_dict = validate(epoch,
-    #                                                data_loaders['valid_loader'],
-    #                                                args.device,
-    #                                                current_epoch_losses=current_epoch_losses,
-    #                                                best_dict=best_dict)
-
-    #     # Set model state to epoch
-    #     model.state['model_epoch'] = epoch
-    #     model_RealNVP.state['model_epoch'] = epoch
-    #     model_DDSF_1.state['model_epoch'] = epoch
-    #     model_DDSF_2.state['model_epoch'] = epoch
-
-    #     # save model and best val idx and best val acc, using the model dir, model name and model idx
-    #     save_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
-    #                model_save_dir=args.experiment_saved_models,
-    #                model_save_name="train_model", model_idx=epoch,
-    #                best_validation_model_idx=best_dict['best_validation_epoch'],
-    #                best_validation_model_loss=best_dict['best_validation_loss'])
-
-    #     save_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
-    #                model_save_dir=args.experiment_saved_models,
-    #                model_save_name="train_model", model_idx=epoch,
-    #                best_validation_model_idx=best_dict['best_validation_epoch'],
-    #                best_validation_model_loss=best_dict['best_validation_loss'])
-
-    #     # Save mean of each epoch in total losses dictionary
-    #     for key, value in current_epoch_losses.items():
-    #         total_losses[key].append(np.mean(
-    #             value))  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
-
-    #     # Save current epoch statistics
-    #     save_statistics(experiment_log_dir=args.experiment_logs, filename='summary.csv',
-    #                     stats_dict=total_losses, current_epoch=epoch,
-    #                     continue_from_mode=epoch)  # save statistics to stats file.
-
-    #     # Early stopping
-    #     if args.early_stopping is True:
-    #         if epoch - best_dict['best_validation_epoch'] >= 30:
-    #             break
-
-    #     print('Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
-    #           format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
-
-    #     # Save sample plots every n epochs
-    #     if epoch % args.plot_frequ == 0:
-    #         save_samples_plot_copula(args=args,
-    #                                  epoch=epoch,
-    #                                  model=model_RealNVP,
-    #                                  dataset=dataset)
-
-    # # Calculate test statistics
-    # # Load best validation model
-    # load_model(model=model, model_RealNVP=model_RealNVP, model_DDSF_1=model_DDSF_1, model_DDSF_2=model_DDSF_2,
-    #            model_save_dir=args.experiment_saved_models, model_idx=best_dict['best_validation_epoch'],
-    #            model_save_name="train_model")
-
-    # # Perform test evaluation
-    # test_dict = test(best_dict['best_validation_epoch'],
-    #                           model,
-    #                           data_loaders['test_loader'],
-    #                           args.device,
-    #                           test_dict=test_dict)
-
-    # # Calculate Jensen-Shannon Divergence of copula
-    # test_dict = jsd_eval_copula(args,
-    #                                      best_dict['best_validation_epoch'],
-    #                                      model_RealNVP,
-    #                                      data_loaders['test_loader'],
-    #                                      args.device,
-    #                                      test_dict=test_dict,
-    #                                      cm_flow=True)
-
-    # # Calculate Jensen-Shannon Divergence of marginal 1
-    # args.marginal = args.marginal_1
-    # test_dict = jsd_eval_marginal(marginal=args.marginal_1,
-    #                                        args=args,
-    #                                        epoch=best_dict['best_validation_epoch'],
-    #                                        model=model_DDSF_1,
-    #                                        test_dict=test_dict)
-
-    # # Calculate Jensen-Shannon Divergence of marginal 1
-    # args.marginal = args.marginal_2
-    # test_dict = jsd_eval_marginal(marginal=args.marginal_2,
-    #                                        args=args,
-    #                                        epoch=best_dict['best_validation_epoch'],
-    #                                        model=model_DDSF_2,
-    #                                        test_dict=test_dict)
-
-    # # Evaluate copula margins on test set
-    # test_dict = margin_uniformity(best_dict['best_validation_epoch'],
-    #                                        model_RealNVP,
-    #                                        data_loaders['test_loader'],
-    #                                        args.device,
-    #                                        transform_fct=args.transform_fct,
-    #                                        test_dict=test_dict,
-    #                                        cm_flow=True)
-
-    # # Gather test losses and save statistics
-    # test_losses = {key: [np.mean(value)] for key, value in
-    #                test_dict.items()}  # save test set metrics in dict format
-    # save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-    #                 # save test set metrics on disk in .csv format
-    #                 stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
-
-    # # Plot losses
-    # result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_name='')
-    # # plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict)
-
-    # # Plot samples for best epoch
-    # save_samples_plot_copula(args, best_dict['best_validation_epoch'], model_RealNVP, dataset)
-
-    # # Plot Copula Margins
-    # plot_margins(args,
-    #              best_dict['best_validation_epoch'],
-    #              model_RealNVP,
-    #              data_loaders['test_loader'])
-
-    # # Plot Margins
-    # args.mu = 0
-    # args.var = 1
-
-    # args.marginal = args.marginal_1
-    # marginal_dataset_1, __, __ = load_data_DDSF(args)
-    # args.marginal = args.marginal_2
-    # marginal_dataset_2, __, __ = load_data_DDSF(args)
-
-    # visualize1D_CM(marginal_dataset_1, model_DDSF_1, best_dict['best_validation_epoch'], args, obs=1000)
-    # visualize1D_CM(marginal_dataset_2, model_DDSF_2, best_dict['best_validation_epoch'], args, obs=1000)
-
-    # # Plot pointwise copula difference
-    # jsd_graph(args,
-    #           best_dict['best_validation_epoch'],
-    #           model_RealNVP)
-
+    else:
+        train_and_plot(args)

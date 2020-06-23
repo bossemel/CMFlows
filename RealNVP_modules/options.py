@@ -14,19 +14,17 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--copula', default='clayton', help='gaussian | tdistr | clayton | frank | gumbel')
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training (default: 100)')
+            '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
-            '--test-batch-size', type=int, default=1000, help='input batch size for testing (default: 1000)')
+            '--epochs', type=int, default=100, help='number of epochs to train')
         parser.add_argument(
-            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
-        parser.add_argument(
-            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=0.0001, help='learning rate')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=5, help='number of invertible blocks')
         parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
@@ -53,6 +51,8 @@ class TrainOptions():
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
             '--grid_search', action='store_true', help='grid search over hyperparameters')
+        parser.add_argument(
+            '--weight_decay', type=int, default=1e-6, help='adam optimizer weight decay')
         self.initialized = True
         return parser
 

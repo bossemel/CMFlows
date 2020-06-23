@@ -20,8 +20,6 @@ class TrainOptions():
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
-            '--test-batch-size', type=int, default=100, help='input batch size for testing')
-        parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
             '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
@@ -55,6 +53,10 @@ class TrainOptions():
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
             '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
+        parser.add_argument(
+            '--grid_search', action='store_true', help='grid search over hyperparameters')
+        parser.add_argument(
+            '--weight_decay', type=int, default=1e-6, help='adam optimizer weight decay')
 
         # Options RealNVP
         parser.add_argument(
@@ -68,7 +70,7 @@ class TrainOptions():
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=2)
+            '--num_flow_layers_DDSF', type=int, default=5)
         parser.add_argument(
             '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(

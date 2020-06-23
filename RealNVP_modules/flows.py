@@ -97,38 +97,20 @@ class FlowSequential(nn.Sequential):
         elif transform_fct == 'gaussian':
             normal_distr = torch.distributions.normal.Normal(0, 1)
             inputs = normal_distr.cdf(inputs)
-        # print('samples', samples[:10])
-        # print('inputs', inputs[:10])
-        # print('samples.T', samples.T.shape)
-        pred_pdf = scipy.stats.gaussian_kde(samples.T)
-        pred_grid = pred_pdf(grid2d.T) # .reshape(obs, obs)
-        true_pdf = scipy.stats.gaussian_kde(inputs.T)
-        true_grid = true_pdf(grid2d.T) # .reshape(obs, obs)
-        # print(pred_grid[:10], true_grid[:10])
-        # print(pred_grid.shape, true_grid.shape)
-        # plt.plot(pred_grid[:, 0], grid1)
-        # plt.plot(true_grid[:, 0], grid1)
-        # plt.show()
+        pred_pdf = scipy.stats.gaussian_kde(samples.T.cpu().numpy())
+        pred_grid = pred_pdf(grid2d.T)
+        true_pdf = scipy.stats.gaussian_kde(inputs.T.cpu().numpy())
+        true_grid = true_pdf(grid2d.T)
         assert np.min(pred_grid) >= 0
         assert np.min(true_grid) >= 0
-        # assert np.max(pred_grid) <= 1, print(pred_grid[pred_grid>1])
-        # assert np.max(true_grid) <= 1
         divergence = scipy.spatial.distance.jensenshannon(pred_grid, true_grid)
-        # print('1d method: ', divergence)
-        # divergence = js_divergence(pred_grid, true_grid)
-        # print('my method', divergence)
         return divergence
 
-    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=True):
         if cm_flow:
-            samples = self.sample_copula(num_samples=num_samples, noise=None)
+            samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         else:
             samples = self.sample(num_samples=num_samples, noise=None)
-            if transform_fct == 'sigmoid':
-                samples = scipy.special.expit(samples.detach().cpu())
-            if transform_fct == 'gaussian':
-                norm = scipy.stats.norm()
-                samples = norm.cdf(samples.cpu())
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
