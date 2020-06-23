@@ -11,6 +11,11 @@ from DDSF_modules import nn_modules as nn_, utils
 import math
 
 
+def flow_density(inputs, log_jacob):
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
+    return log_prob + log_jacob
+
+
 class MAF(nn.Sequential):
     """ A sequential container for DDSFs.
     """
@@ -30,24 +35,11 @@ class MAF(nn.Sequential):
             log density of the model
         """
         self.n = inputs.shape[0]
-        self.clip = self.args.clip
-        self.context = Variable(torch.FloatTensor(self.n, 1).zero_())
-        self.logdets = Variable(torch.FloatTensor(self.n).zero_())
-        self.context.to(self.device)
-        self.logdets.to(self.device)
-        logdets = self.logdets if logdets is None else logdets
-        context = self.context if context is None else context
-        u, log_jacob, __ = self((inputs, logdets, context))
-
-        log_jacob = log_jacob.reshape(-1, 1)
-        # normal distr:
-        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
-        # uniform distr:
-        # log_probs = Variable(torch.zeros(u.shape)) + math.log(0.5)
-        # log_probs[u > 2] = -1 / 0.1
-        # log_probs[u < 0] = -1 / 0.1
-        # print(log_probs + log_jacob.reshape(-1, 1))
-        return log_probs.reshape(-1, 1) + log_jacob.reshape(-1, 1)
+        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
+        density = flow_density(outputs, log_jacob.reshape(-1, 1))
+        return density
 
     def loss(self, x):
         """Loss is negative log density

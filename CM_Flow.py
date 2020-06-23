@@ -2,7 +2,6 @@ import torch
 import torch.optim as optim
 import torch.utils.data
 
-from tqdm import tqdm
 import os
 import numpy as np
 from pathlib import Path
@@ -11,20 +10,14 @@ import random
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
-from CM_modules.visualizer import visualize1D_CM, save_samples_plot_copula
 
-from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, jsd_graph, margin_uniformity, plot_margins
 from RealNVP import build_model as build_model_RealNVP
-import RealNVP_modules.flows as fnn
-import RealNVP_modules.utils as RealNVP_utils
-
-from DDSF_modules.utils import load_data as load_data_DDSF, jsd_eval as jsd_eval_marginal
+from RealNVP_modules.eval import jsd_graph
 from DDSF import build_model as build_model_DDSF
 
-from utils.save_statistics import save_statistics, save_model, load_model, model_loader
-from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from utils.various import logit
 from utils.visualizer import visualize_joint
+from utils.save_statistics import save_statistics
+import datasets.distributions
 
 from experiment_runner import train_val
 
@@ -101,33 +94,21 @@ if __name__ == '__main__':
     # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
 
-    # Save losses and best epoch stats and model in dictionary
-    total_losses = {'train_loss': [],
-                    'val_loss': []}  # initialize a dict to keep the per-epoch metrics
-    best_dict = {'best_validation_loss': float('inf'),
-                 'best_validation_epoch': 0}
-    current_epoch_test = {'test_loss': [],
-                          'jsd_test_copula': [],
-                          'jsd_test_marginal': [],
-                          't_1': [],
-                          't_2': [],
-                          'm_1': [],
-                          'm_2': []}  # initialize a statistics dict
-
     if args.pretrain_models:
         # Train
         args.optimizer = optim.Adam(model_DDSF_1.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_1, best_dict_DDSF_1, current_epoch_test_DDSF_1 = train_val(current_model=model_DDSF_1,
-                                                                              model_name='DDSF_1',
-                                                                              args=args,
-                                                                              data_loaders=data_loaders,
-                                                                              dataset=dataset)
+        model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
+                                                              model_name='DDSF_1',
+                                                              args=args,
+                                                              data_loaders=data_loaders,
+                                                              dataset=dataset)
         args.optimizer = optim.Adam(model_DDSF_2.parameters(), lr=args.lr, betas=args.betas)
-        model_DDSF_2, best_dict_DDSF_2, current_epoch_test_DDSF_2 = train_val(current_model=model_DDSF_2,
-                                                                              model_name='DDSF_2',
-                                                                              args=args,
-                                                                              data_loaders=data_loaders,
-                                                                              dataset=dataset)
+        model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
+                                                              model_name='DDSF_2',
+                                                              args=args,
+                                                              data_loaders=data_loaders,
+                                                              dataset=dataset,
+                                                              test_dict=test_dict)
 
         # Visualize DDFS transformations
         vizdata = train_dataset
@@ -142,32 +123,67 @@ if __name__ == '__main__':
 
         args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=1e-6)
 
-        model_RealNVP, best_dict_RealNVP, current_epoch_test_RealNVP = train_val(model_RealNVP,
-                                                                                 model_name='RealNVP',
-                                                                                 args=args,
-                                                                                 data_loaders=data_loaders,
-                                                                                 dataset=dataset,
-                                                                                 transform_model_1=model_DDSF_1,
-                                                                                 transform_model_2=model_DDSF_1)
+        model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
+                                                                model_name='RealNVP',
+                                                                args=args,
+                                                                data_loaders=data_loaders,
+                                                                dataset=dataset,
+                                                                transform_model_1=model_DDSF_1,
+                                                                transform_model_2=model_DDSF_1,
+                                                                test_dict=test_dict)
         best_dict = best_dict_RealNVP
-        current_epoch_test = current_epoch_test_RealNVP
 
-        output_copula = model_RealNVP.sample_copula(num_samples=1000)
-        visualize_joint(output_copula.detach().numpy(), args, name='output_copula')
+        output_copula = model_RealNVP.sample_copula(num_samples=100000)
+        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_RealNVP')
+
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        epochs = (best_dict_DDSF_1['best_validation_epoch'],
+                  best_dict_DDSF_2['best_validation_epoch'],
+                  best_dict_RealNVP['best_validation_epoch'])
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
+
+        # Plot pointwise copula difference
+        jsd_graph(args,
+                  best_dict['best_validation_epoch'],
+                  model_RealNVP)
 
     # # Train
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
-    model, best_dict, current_epoch_test = train_val(model,
-                                                     model_name='CM_Flow',
-                                                     args=args,
-                                                     data_loaders=data_loaders,
-                                                     dataset=dataset)
+    if args.train_cm_flow:
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6, betas=args.betas)
+        model, best_dict, test_dict = train_val(model,
+                                                model_name='CM_Flow',
+                                                args=args,
+                                                data_loaders=data_loaders,
+                                                dataset=dataset)
 
-    output_copula = model.sample_copula(num_samples=1000)
-    visualize_joint(output_copula.detach().numpy(), args, name='output_copula')
+        output_copula = model.sample_copula(num_samples=100000)
+        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
 
-    output_copula = model.sample(num_samples=1000)
-    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal')
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+
+        output_copula = model.sample(num_samples=100000)
+        visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+
+        # Plot pointwise copula difference
+        jsd_graph(args,
+                  best_dict['best_validation_epoch'],
+                  model,
+                  cm_flow=True)
 
     # for epoch in range(args.epochs):
     #     print('\nEpoch: {}'.format(epoch))
@@ -239,49 +255,49 @@ if __name__ == '__main__':
     #            model_save_name="train_model")
 
     # # Perform test evaluation
-    # current_epoch_test = test(best_dict['best_validation_epoch'],
+    # test_dict = test(best_dict['best_validation_epoch'],
     #                           model,
     #                           data_loaders['test_loader'],
     #                           args.device,
-    #                           current_epoch_test=current_epoch_test)
+    #                           test_dict=test_dict)
 
     # # Calculate Jensen-Shannon Divergence of copula
-    # current_epoch_test = jsd_eval_copula(args,
+    # test_dict = jsd_eval_copula(args,
     #                                      best_dict['best_validation_epoch'],
     #                                      model_RealNVP,
     #                                      data_loaders['test_loader'],
     #                                      args.device,
-    #                                      current_epoch_test=current_epoch_test,
+    #                                      test_dict=test_dict,
     #                                      cm_flow=True)
 
     # # Calculate Jensen-Shannon Divergence of marginal 1
     # args.marginal = args.marginal_1
-    # current_epoch_test = jsd_eval_marginal(marginal=args.marginal_1,
+    # test_dict = jsd_eval_marginal(marginal=args.marginal_1,
     #                                        args=args,
     #                                        epoch=best_dict['best_validation_epoch'],
     #                                        model=model_DDSF_1,
-    #                                        current_epoch_test=current_epoch_test)
+    #                                        test_dict=test_dict)
 
     # # Calculate Jensen-Shannon Divergence of marginal 1
     # args.marginal = args.marginal_2
-    # current_epoch_test = jsd_eval_marginal(marginal=args.marginal_2,
+    # test_dict = jsd_eval_marginal(marginal=args.marginal_2,
     #                                        args=args,
     #                                        epoch=best_dict['best_validation_epoch'],
     #                                        model=model_DDSF_2,
-    #                                        current_epoch_test=current_epoch_test)
+    #                                        test_dict=test_dict)
 
     # # Evaluate copula margins on test set
-    # current_epoch_test = margin_uniformity(best_dict['best_validation_epoch'],
+    # test_dict = margin_uniformity(best_dict['best_validation_epoch'],
     #                                        model_RealNVP,
     #                                        data_loaders['test_loader'],
     #                                        args.device,
     #                                        transform_fct=args.transform_fct,
-    #                                        current_epoch_test=current_epoch_test,
+    #                                        test_dict=test_dict,
     #                                        cm_flow=True)
 
     # # Gather test losses and save statistics
     # test_losses = {key: [np.mean(value)] for key, value in
-    #                current_epoch_test.items()}  # save test set metrics in dict format
+    #                test_dict.items()}  # save test set metrics in dict format
     # save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
     #                 # save test set metrics on disk in .csv format
     #                 stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])

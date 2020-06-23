@@ -7,6 +7,9 @@ import numpy as np
 from utils.various import t_m_metric_eval
 
 
+eps = 0.0001
+
+
 def flow_density(inputs, log_jacob):
     log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
     return log_prob + log_jacob
@@ -38,11 +41,12 @@ class CMFlow(nn.Module):
             logdets: sum of the log of the determinant of the jacobian of the models
             context: context parameter for DDSF
         """
-        inputs, logdets, context = inputs
+        inputs_, logdets, context = inputs
 
         # The inputs are split and fed to each of the DDSF models
-        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs[:, 0].reshape(-1, 1), logdets, context))
-        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs[:, 1].reshape(-1, 1), logdets, context))
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
+        inputs, logdets, context = inputs
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
 
         # The outputs of the DDSF are concatenated to form a bivariate distribution
         outputs_DDSFs = torch.cat((outputs_DDSF_1, outputs_DDSF_2), dim=1)
@@ -54,8 +58,37 @@ class CMFlow(nn.Module):
         outputs = (outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP)
         return outputs, logdets
 
-    def forward_copula(self, noise, mode):
-        return self.model_RealNVP.forward(inputs=noise, mode=mode)
+    def forward_DDSF_1(self, inputs):
+        """Forward pass of CM Flows model. The inputs are first passed
+        through the two DDSF models, which project onto a uniform distributions.
+        The RealNVP then uses the CM Flows output to map onto a normal distribution.
+
+        Params:
+            inputs: joint distribution samples
+
+        Returns:z
+            inputs: inputs after forward pass
+            logdets: sum of the log of the determinant of the jacobian of the models
+            context: context parameter for DDSF
+        """
+        inputs_, logdets, context = inputs
+
+        # The inputs are split and fed to each of the DDSF models
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
+        return outputs_DDSF_1, logdets_DDSF_1
+
+    def forward_DDSF_2(self, inputs):
+        inputs_, logdets, context = inputs
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
+        return outputs_DDSF_2, logdets_DDSF_2
+
+    def forward_RealNVP(self, inputs, logdets=None, mode='direct'):
+        # forward pass in RealNVP
+        outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(inputs=inputs, logdets=logdets, mode=mode)
+        return outputs_RealNVP, logdets_RealNVP
+
+    # def forward_copula(self, noise, mode):
+    #     return self.model_RealNVP.forward(inputs=noise, mode=mode)
 
     def log_density(self, inputs):
         """Returns log of target density of the Flow
@@ -75,7 +108,6 @@ class CMFlow(nn.Module):
         density_DDSF_1 = flow_density(outputs_DDSF_1, logdets_DDSF_1)
         density_DDSF_2 = flow_density(outputs_DDSF_2, logdets_DDSF_2)
         density_RealNVP = flow_density(outputs_RealNVP, logdets_RealNVP)
-
         return (density_DDSF_1, density_DDSF_2, density_RealNVP)
 
     def loss(self, x):
@@ -89,7 +121,7 @@ class CMFlow(nn.Module):
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        samples = self.forward_copula(noise, mode='inverse')[0]
+        samples = self.forward_RealNVP(noise, mode='inverse')[0]
         return samples
 
     def sample_copula(self, num_samples=None, noise=None):
@@ -97,9 +129,15 @@ class CMFlow(nn.Module):
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        samples = self.forward_copula(noise, mode='inverse')[0]
+        samples = self.forward_RealNVP(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
+        # samples_1 = normal_distr.cdf(samples[:, 0])
+        # samples_2 = normal_distr.cdf(samples[:, 1])
+        # samples = torch.cat((samples_1.reshape(-1, 1), samples_2.reshape(-1, 1)), dim=1)
+
         samples = normal_distr.cdf(samples)
+        samples[samples > 1] = 1 - eps
+        samples[samples < 0] = 0 + eps
         return samples
 
     def jsd(self, inputs, transform_fct, cm_flow=False):
@@ -107,8 +145,8 @@ class CMFlow(nn.Module):
         divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
         return divergence
 
-    def t_metric_eval(self, inputs, transform_fct, intervals=25, cm_flow=False):
-        samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+        samples = self.sample_copula(num_samples=num_samples, noise=None)
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

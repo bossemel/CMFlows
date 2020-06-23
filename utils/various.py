@@ -17,7 +17,7 @@ def t_m_metric_eval(margin, intervals):
         A_k_lower = (ii - 1) / intervals
         A_k_upper = ii / intervals
         points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
-        if len(points_within) != 0:
+        if len(points_within) > 0:
             log_prob = np.log(points_within.sum() / len(points_within))
         else:
             log_prob = 0

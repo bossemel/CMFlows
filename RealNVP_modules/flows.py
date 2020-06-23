@@ -3,7 +3,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 import scipy
-from utils.various import sigmoid
+from utils.various import sigmoid, t_m_metric_eval
+
+eps = 0.0001
+
+
+def flow_density(inputs, log_jacob):
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
+    return log_prob + log_jacob
 
 
 class FlowSequential(nn.Sequential):
@@ -38,9 +45,13 @@ class FlowSequential(nn.Sequential):
         return inputs, logdets
 
     def log_probs(self, inputs):
-        u, log_jacob = self(inputs)
-        log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
-        return (log_probs + log_jacob)
+        outputs, log_jacob = self(inputs)
+        density = flow_density(outputs, log_jacob)
+        return density
+
+        # u, log_jacob = self(inputs)
+        # log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
+        # return (log_probs + log_jacob)
 
     def loss(self, inputs):
         return - self.log_probs(inputs)
@@ -66,26 +77,28 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
+        samples[samples > 1] = 1 - eps
+        samples[samples < 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, transform_inputs=False):
-        if transform_inputs:
-            samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
-        else:
-            samples = self.sample(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
-            if transform_fct == 'sigmoid':
-                inputs = sigmoid(inputs)
-            elif transform_fct == 'gaussian':
-                normal_distr = torch.distributions.normal.Normal(0, 1)
-                inputs = normal_distr.cdf(inputs)
-        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs.detach()))
-        return divergence
-
-    def t_metric_eval(self, inputs, transform_fct, intervals=25, cm_flow=False):
+    def jsd(self, inputs, transform_fct, cm_flow=False):
         if cm_flow:
             samples = self.sample_copula(num_samples=inputs.shape[0], noise=None)
         else:
-            samples = self.sample(num_samples=inputs.shape[0], noise=None)
+            samples = self.sample(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
+        if transform_fct == 'sigmoid':
+            inputs = sigmoid(inputs)
+        elif transform_fct == 'gaussian':
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            inputs = normal_distr.cdf(inputs)
+        divergence = scipy.spatial.distance.jensenshannon(np.array(samples), np.array(inputs))
+        return divergence
+
+    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+        if cm_flow:
+            samples = self.sample_copula(num_samples=num_samples, noise=None)
+        else:
+            samples = self.sample(num_samples=num_samples, noise=None)
             if transform_fct == 'sigmoid':
                 samples = scipy.special.expit(samples.detach().cpu())
             if transform_fct == 'gaussian':
@@ -96,25 +109,6 @@ class FlowSequential(nn.Sequential):
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
         t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
         return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
-
-
-def t_m_metric_eval(margin, intervals):
-    sum_probs = 0
-    highest_interval = 0
-    for ii in range(intervals):
-        A_k_lower = (ii - 1) / intervals
-        A_k_upper = ii / intervals
-        points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
-        if len(points_within) != 0:
-            log_prob = np.log(points_within.sum() / len(points_within))
-        else:
-            log_prob = 0
-        if log_prob > highest_interval:
-            highest_interval = log_prob
-        sum_probs += abs(log_prob + np.log(intervals))
-        t_metric = sum_probs / intervals
-        m_metric = (highest_interval + np.log(intervals)) / intervals
-    return t_metric, m_metric
 
 
 class CouplingLayer(nn.Module):

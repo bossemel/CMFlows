@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 import os
 import seaborn as sns
 
+eps = 0.0001
 
-def jsd_eval(args, epoch, model, loader, device, current_epoch_test,
+
+def jsd_eval(args, epoch, model, loader, device, test_dict,
              transform_model_1=None, transform_model_2=None, transform_inputs=True,
              cm_flow=True):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
@@ -18,34 +20,39 @@ def jsd_eval(args, epoch, model, loader, device, current_epoch_test,
         model: best validation model
         loader: whether to use train/val/test set loader
         device: used device
-        current_epoch_test: dictionary with the current epoch stats
+        test_dict: dictionary with the current epoch stats
 
     Returns:
-        current_epoch_test: updated current_epoch_test
+        test_dict: updated test_dict
     """
 
     model.eval()
-
-    for batch_idx, data in enumerate(loader):
-        if isinstance(data, list):
-            data = data[0]
-            if transform_inputs is True:
-                n = data.shape[0]
-                context = torch.FloatTensor(n, 1).zero_().to(device)
-                logdets = torch.FloatTensor(n).zero_().to(device)
-                data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
-                data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
-                data = torch.cat((data_1, data_2), dim=1)
-        data = data.to(device)
+    if cm_flow is True:
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        data = dataset.tst.x
         with torch.no_grad():
-            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, transform_inputs=transform_inputs).sum().item()
-        current_epoch_test["jsd_test_copula"].append(current_jsd)
+            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+        if 'jsd_test_copula' in test_dict:
+            test_dict["jsd_test_copula"].append(current_jsd)
+        else:
+            test_dict["jsd_test_copula"] = [current_jsd]
+    else:
+        for batch_idx, data in enumerate(loader):
+            if isinstance(data, list):
+                data = data[0]
+            data = data.to(device)
+            with torch.no_grad():
+                current_jsd = model.jsd(inputs=data.detach(), transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+            if 'jsd_test_copula' in test_dict:
+                test_dict["jsd_test_copula"].append(current_jsd)
+            else:
+                test_dict["jsd_test_copula"] = [current_jsd]
 
-    print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["jsd_test_copula"])))
-    return current_epoch_test
+    print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["jsd_test_copula"])))
+    return test_dict
 
 
-def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch_test, cm_flow):
+def margin_uniformity(epoch, model, loader, device, transform_fct, test_dict, num_samples, cm_flow):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -53,33 +60,35 @@ def margin_uniformity(epoch, model, loader, device, transform_fct, current_epoch
         model: best validation model
         loader: whether to use train/val/test set loader
         device: used device
-        current_epoch_test: dictionary with the current epoch stats
+        test_dict: dictionary with the current epoch stats
 
     Returns:
-        current_epoch_test: updated current_epoch_test
+        test_dict: updated test_dict
     """
     model.eval()
 
-    for batch_idx, data in enumerate(loader):
-        if isinstance(data, list):
-            data = data[0]
-        data = data.to(device)
-        with torch.no_grad():
-            current_t_metric_x1, \
-                current_m_metric_x1, \
-                current_t_metric_x2, \
-                current_m_metric_x2 = model.t_metric_eval(data, transform_fct, cm_flow=cm_flow)
-        current_epoch_test["t_1"].append(current_t_metric_x1 / len(data))
-        current_epoch_test["m_1"].append(current_m_metric_x1 / len(data))
-        current_epoch_test["t_2"].append(current_t_metric_x2 / len(data))
-        current_epoch_test["m_2"].append(current_m_metric_x2 / len(data))
+    with torch.no_grad():
+        current_t_metric_x1, \
+            current_m_metric_x1, \
+            current_t_metric_x2, \
+            current_m_metric_x2 = model.t_metric_eval(num_samples=num_samples, transform_fct=transform_fct, cm_flow=cm_flow)
+    if 't_1' in test_dict:
+        test_dict["t_1"].append(current_t_metric_x1 / num_samples)
+        test_dict["m_1"].append(current_m_metric_x1 / num_samples)
+        test_dict["t_2"].append(current_t_metric_x2 / num_samples)
+        test_dict["m_2"].append(current_m_metric_x2 / num_samples)
+    else:
+        test_dict["t_1"] = [current_t_metric_x1 / num_samples]
+        test_dict["m_1"] = [current_m_metric_x1 / num_samples]
+        test_dict["t_2"] = [current_t_metric_x2 / num_samples]
+        test_dict["m_2"] = [current_m_metric_x2 / num_samples]
 
-    print('T metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_1"])))
-    print('M metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["m_1"])))
-    print('T metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["t_2"])))
-    print('M metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(current_epoch_test["m_1"])))
+    print('T metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["t_1"])))
+    print('M metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["m_1"])))
+    print('T metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["t_2"])))
+    print('M metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["m_1"])))
 
-    return current_epoch_test
+    return test_dict
 
 
 def plot_margins(args, epoch, model, test_loader):
@@ -112,7 +121,7 @@ def plot_margins(args, epoch, model, test_loader):
     fig.savefig(os.path.join(args.figures_path, str(args.copula) + 'margins.pdf'), dpi=300)
 
 
-def jsd_graph(args, epoch, model):
+def jsd_graph(args, epoch, model, cm_flow=False):
     """Creates point-wise graph of true copula, generated samples, and difference
        between the two.
 
@@ -129,15 +138,15 @@ def jsd_graph(args, epoch, model):
     grid = torch.from_numpy(np.concatenate([grid1.reshape(-1, 1), grid2.reshape(-1, 1)], axis=1)).float()
 
     with torch.no_grad():
-        if args.cuda:
-            pred = model.sample(9000).detach().cpu().numpy()
+        if cm_flow is True:
+            pred = model.sample_copula(9000).detach().to(args.device).numpy()
         else:
-            pred = model.sample(9000).detach().numpy()
-    if args.transform_fct == 'sigmoid':
-        pred = scipy.special.expit(pred)
-    if args.transform_fct == 'gaussian':
-        norm = scipy.stats.norm()
-        pred = norm.cdf(pred)
+            pred = model.sample(9000).detach().to(args.device).numpy()
+            if args.transform_fct == 'sigmoid':
+                pred = scipy.special.expit(pred)
+            if args.transform_fct == 'gaussian':
+                norm = scipy.stats.norm()
+                pred = norm.cdf(pred)
     pred_pdf = scipy.stats.gaussian_kde(pred.T)
     pred_grid = pred_pdf(grid.T)
 

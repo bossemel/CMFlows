@@ -64,7 +64,7 @@ class TrainOptions():
         parser.add_argument(
             '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
         parser.add_argument(
-            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+            '--transform_fct', type=str, required=False, help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 
         # Options DDSF
         parser.add_argument(
@@ -91,6 +91,10 @@ class TrainOptions():
             '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
         parser.add_argument(
             '--var', type=float, required=False, help='var for marginal gaussian distribution')
+
+        # Options CM Flow
+        parser.add_argument(
+            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
         self.initialized = True
         return parser
 
