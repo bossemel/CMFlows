@@ -1,16 +1,10 @@
-import math
 import torch
 import torch.nn as nn
-import numpy as np
 import scipy
-from utils.various import sigmoid, t_m_metric_eval
+from utils.various import sigmoid, t_m_metric_eval, flow_density, js_divergence
+import datasets
 
 eps = 0.0001
-
-
-def flow_density(inputs, log_jacob):
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
-    return log_prob + log_jacob
 
 
 class FlowSequential(nn.Sequential):
@@ -37,6 +31,7 @@ class FlowSequential(nn.Sequential):
             for module in self._modules.values():
                 inputs, logdet = module(inputs, mode)
                 logdets += logdet
+
         else:
             for module in reversed(self._modules.values()):
                 inputs, logdet = module(inputs, mode)
@@ -44,17 +39,13 @@ class FlowSequential(nn.Sequential):
 
         return inputs, logdets
 
-    def log_probs(self, inputs):
-        outputs, log_jacob = self(inputs)
+    def log_density(self, inputs):
+        outputs, log_jacob = self(inputs=inputs)
         density = flow_density(outputs, log_jacob)
         return density
 
-        # u, log_jacob = self(inputs)
-        # log_probs = (-0.5 * u.pow(2) - 0.5 * math.log(2 * math.pi))
-        # return (log_probs + log_jacob)
-
     def loss(self, inputs):
-        return - self.log_probs(inputs)
+        return - self.log_density(inputs)
 
     def sample(self, num_samples=None, noise=None, transform=None):
         if noise is None:
@@ -77,33 +68,46 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
-        samples[samples > 1] = 1 - eps
-        samples[samples < 0] = 0 + eps
+        # samples[samples >= 1] = 1 - eps
+        # samples[samples <= 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, obs=100, cm_flow=False):
-        x1 = np.linspace(0, 1, obs)
-        x2 = np.linspace(0, 1, obs)
-        grid1, grid2 = np.meshgrid(x1, x2)
-        grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
-        grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
-        grid2d = np.concatenate([grid1, grid2], axis=1)
-        if cm_flow:
-            samples = self.sample_copula(num_samples=obs**2, noise=None)
-        else:
-            samples = self.sample(num_samples=obs**2, noise=None, transform=transform_fct)
+    def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
+        # Define distributions
+        normal_distr = scipy.stats.norm(0, 1)
+        true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
+
+        # Samples from both distributinos
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
         if transform_fct == 'sigmoid':
-            inputs = sigmoid(inputs)
+            samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
-            normal_distr = torch.distributions.normal.Normal(0, 1)
-            inputs = normal_distr.cdf(inputs)
-        pred_pdf = scipy.stats.gaussian_kde(samples.T.cpu().numpy())
-        pred_grid = pred_pdf(grid2d.T)
-        true_pdf = scipy.stats.gaussian_kde(inputs.T.cpu().numpy())
-        true_grid = true_pdf(grid2d.T)
-        assert np.min(pred_grid) >= 0
-        assert np.min(true_grid) >= 0
-        divergence = scipy.spatial.distance.jensenshannon(pred_grid, true_grid)
+            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
+        else:
+            samples_target = torch.tensor(inputs)
+
+        # Estimate Copula distr
+        pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+
+        # Prob X in both distributions
+        prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+        prob_X_in_q = true_cop_distr.pdf(samples_pred.numpy())
+
+        # Prob Y in both distributions
+        prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+        prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+
+        assert samples_pred.numpy().all() > 0
+        assert samples_target.numpy().all() > 0
+        assert prob_X_in_p.all() > 0
+        assert prob_X_in_q.all() > 0
+        assert prob_Y_in_p.all() > 0
+        assert prob_Y_in_q.all() > 0
+
+        divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                   prob_X_in_q=prob_X_in_q,
+                                   prob_Y_in_p=prob_Y_in_p,
+                                   prob_Y_in_q=prob_Y_in_q)
         return divergence
 
     def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=True):

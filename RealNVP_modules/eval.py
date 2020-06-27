@@ -32,7 +32,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
         dataset = datasets.distributions.Copula_Distr(args, transform=False)
         data = dataset.tst.x
         with torch.no_grad():
-            current_jsd = model.jsd(inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+            current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
         if 'jsd_test_copula' in test_dict:
             test_dict["jsd_test_copula"].append(current_jsd)
         else:
@@ -43,7 +43,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
                 data = data[0]
             data = data.to(device)
             with torch.no_grad():
-                current_jsd = model.jsd(inputs=data.detach(), transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+                current_jsd = model.jsd(args=args, inputs=data.detach(), transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
             if 'jsd_test_copula' in test_dict:
                 test_dict["jsd_test_copula"].append(current_jsd)
             else:

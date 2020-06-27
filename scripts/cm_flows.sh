@@ -1,14 +1,13 @@
 set -e
-echo 'Begin Copula: Clayton Marginal: Gamma Pretrain only'
+# echo 'Begin Copula: Clayton Marginal: bimodal_gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_Gamma_pretr_only \
---epochs 100 \
+--exp_name CM_Flow_Clayton_bimodal_gaussian_pretr_only \
+--epochs 1 \
 --copula clayton \
---marginal_1 gamma \
---marginal_2 gamma \
+--marginal_1 bimodal_gaussian \
+--marginal_2 bimodal_gaussian \
 --batch-size 100 \
---test-batch-size 100 \
 --random_seed 58093 \
 --theta 2 \
 --alpha 5 \
@@ -22,16 +21,15 @@ python CM_Flow.py \
 --clip_grad_norm \
 --pretrain_models
 
-echo 'Begin Copula: Clayton, Margina: Gamma, CM Flow only'
+echo 'Begin Copula: Clayton, Margina: bimodal_gaussian, CM Flow only'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_Gamma_cm_flow_only \
---epochs 100 \
+--exp_name CM_Flow_Clayton_bimodal_gaussian_cm_flow_only \
+--epochs 1 \
 --copula clayton \
---marginal_1 gamma \
---marginal_2 gamma \
+--marginal_1 bimodal_gaussian \
+--marginal_2 bimodal_gaussian \
 --batch-size 100 \
---test-batch-size 100 \
 --random_seed 58093 \
 --theta 2 \
 --alpha 5 \
@@ -45,16 +43,15 @@ python CM_Flow.py \
 --clip_grad_norm \
 --train_cm_flow
 
-echo 'Begin Copula: Clayton, Margina: Gamma, Pretrain and CM Flow'
+echo 'Begin Copula: Clayton, Margina: bimodal_gaussian, Pretrain and CM Flow'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_Gamma_pretr_cm \
---epochs 100 \
+--exp_name CM_Flow_Clayton_bimodal_gaussian_pretr_cm \
+--epochs 1 \
 --copula clayton \
---marginal_1 gamma \
---marginal_2 gamma \
+--marginal_1 bimodal_gaussian \
+--marginal_2 bimodal_gaussian \
 --batch-size 100 \
---test-batch-size 100 \
 --random_seed 58093 \
 --theta 2 \
 --alpha 5 \

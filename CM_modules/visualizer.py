@@ -5,8 +5,6 @@ import os
 import seaborn as sns
 import scipy.special
 from datasets.distributions import Copula_Distr
-# plt.style.use('seaborn-paper')
-sns.set_palette("tab10")
 
 
 def visualize1D_CM(marginal, model, epoch, args, rng=(-10, 100),

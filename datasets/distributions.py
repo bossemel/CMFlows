@@ -24,6 +24,15 @@ def marginal_transform(inputs, marginal, args):
         assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
         gamma = scipy.stats.gamma(args.alpha)
         inputs = gamma.ppf(inputs)
+    elif marginal == 'bimodal_gaussian':
+        inputs_split = np.split(inputs, 2)
+        inputs_1 = inputs_split[0]
+        inputs_2 = inputs_split[1]
+
+        samples_1 = scipy.stats.norm.ppf(q=inputs_1, loc=2, scale=2)
+        samples_2 = scipy.stats.norm.ppf(q=inputs_2, loc=12, scale=2)
+
+        inputs = np.concatenate([samples_1, samples_2])
     else:
         raise NotImplementedError
     return inputs
@@ -102,6 +111,11 @@ class Marginals():
 
             dataset = scipy.stats.lognorm.rvs(shape=args.alpha, size=[args.obs if obs is None else obs])
 
+        elif args.marginal == 'bimodal_gaussian':
+            samples_1 = scipy.stats.norm.rvs(loc=2, scale=2, size=[int(args.obs / 2) if obs is None else int(obs / 2)])
+            samples_2 = scipy.stats.norm.rvs(loc=12, scale=2, size=[int(args.obs / 2) if obs is None else int(obs / 2)])
+
+            dataset = np.concatenate([samples_1, samples_2])
         return dataset.reshape(-1, 1)
 
 
@@ -357,6 +371,17 @@ def gumbel_cdf(theta, uu, vv):
         h = -np.power(h, 1.0 / theta)
         cdfs = np.exp(h)
         return cdfs
+
+
+class copula_distr():
+    def __init__(self, copula, theta):
+        self.copula = copula
+        self.theta = theta
+
+    def pdf(self, xx):
+        uu = xx[:, 0]
+        vv = xx[:, 1]
+        return copula_pdf(self.copula, self.theta, uu, vv)
 
 
 def copula_pdf(copula, theta, uu, vv):

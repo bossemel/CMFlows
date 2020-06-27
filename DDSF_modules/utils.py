@@ -5,8 +5,6 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import os
-from datasets.distributions import Marginals
-from sklearn.preprocessing import normalize
 
 
 def load_data(args):
@@ -135,13 +133,26 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
         true_pdf = scipy.stats.lognorm.pdf(xx,
                                            shape=args.alpha)
 
+    elif args.marginal == 'bimodal_gaussian':
+        inputs_split = np.split(xx, 2)
+        inputs_1 = inputs_split[0]
+        inputs_2 = inputs_split[1]
+
+        samples_1 = scipy.stats.norm.pdf(inputs_1)
+        samples_2 = scipy.stats.norm.pdf(inputs_2)
+
+        true_pdf = np.concatenate([samples_1, samples_2])
+
     if cm_flow is not None:
         Z = np.exp(model.log_density(grid_vector)[cm_flow].detach().numpy()) # [:, cm_flow].reshape(-1, 1)
         Z = Z.reshape(obs, obs, 1).sum(axis=(1 - cm_flow))
         Z = Z / sum(Z)
         true_pdf = true_pdf / sum(true_pdf)
     else:
-        Z = np.exp(model.log_density(xx).data.numpy())
+        if args.cuda:
+            Z = np.exp(model.log_density(xx).data.detach().cpu().numpy())
+        else:
+            Z = np.exp(model.log_density(xx).data.numpy())
 
     divergence = scipy.spatial.distance.jensenshannon(true_pdf, np.array(Z))
     if cm_flow is not None:

@@ -1,18 +1,11 @@
 import torch.nn as nn
 import torch
-import math
 from torch.autograd import Variable
 import scipy
-import numpy as np
-from utils.various import t_m_metric_eval, sigmoid
-
+from utils.various import t_m_metric_eval, sigmoid, flow_density, js_divergence
+import datasets
 
 eps = 0.0001
-
-
-def flow_density(inputs, log_jacob):
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
-    return log_prob + log_jacob
 
 
 class CMFlow(nn.Module):
@@ -28,6 +21,8 @@ class CMFlow(nn.Module):
         self.args = args
         self.clip = self.args.clip
         self.cuda = args.cuda
+        self.copula = args.copula
+        self.theta = args.theta
 
     def forward(self, inputs):
         """Forward pass of CM Flows model. The inputs are first passed
@@ -132,38 +127,40 @@ class CMFlow(nn.Module):
         noise = noise.to(device)
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
-        # samples_1 = normal_distr.cdf(samples[:, 0])
-        # samples_2 = normal_distr.cdf(samples[:, 1])
-        # samples = torch.cat((samples_1.reshape(-1, 1), samples_2.reshape(-1, 1)), dim=1)
-
         samples = normal_distr.cdf(samples)
         samples[samples > 1] = 1 - eps
         samples[samples < 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, obs=100, cm_flow=False):
-        x1 = np.linspace(0, 1, obs)
-        x2 = np.linspace(0, 1, obs)
-        grid1, grid2 = np.meshgrid(x1, x2)
-        grid1 = grid1.reshape(x1.shape[0] * x2.shape[0], 1)
-        grid2 = grid2.reshape(x1.shape[0] * x2.shape[0], 1)
-        grid2d = np.concatenate([grid1, grid2], axis=1)
-        samples = self.sample_copula(num_samples=obs**2, noise=None)
+    def jsd(self, inputs, transform_fct, obs=1000, cm_flow=False):
+        # Define distributions
+        normal_distr = scipy.stats.norm(0, 1)
+        true_cop_distr = datasets.distributions.copula_distr(self.copula, self.theta)
+
+        # Samples from both distributinos
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
         if transform_fct == 'sigmoid':
-            inputs = sigmoid(inputs)
+            samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
-            normal_distr = torch.distributions.normal.Normal(0, 1)
-            inputs = normal_distr.cdf(inputs)
-        if self.cuda:
-            samples.cpu().numpy()
-            inputs.cpu().numpy()
-        pred_pdf = scipy.stats.gaussian_kde(samples.T)
-        pred_grid = pred_pdf(grid2d.T)
-        true_pdf = scipy.stats.gaussian_kde(inputs.T)
-        true_grid = true_pdf(grid2d.T)
-        assert np.min(pred_grid) >= 0
-        assert np.min(true_grid) >= 0
-        divergence = scipy.spatial.distance.jensenshannon(pred_grid, true_grid)
+            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
+        else:
+            samples_target = torch.tensor(inputs)
+
+        # Estimate Copula distr
+        pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+
+        # Prob X in both distributions
+        prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+        prob_X_in_q = true_cop_distr.pdf(samples_pred.numpy())
+
+        # Prob Y in both distributions
+        prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+        prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+
+        divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                   prob_X_in_q=prob_X_in_q,
+                                   prob_Y_in_p=prob_Y_in_p,
+                                   prob_Y_in_q=prob_Y_in_q)
         return divergence
 
     def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):

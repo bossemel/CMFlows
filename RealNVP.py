@@ -76,7 +76,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
                                                                                                  grid_search=True)
                         current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
                         results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                            current_best_dict['best_validation_loss'])
+                                                             current_best_dict['best_validation_loss'])
                         print(results_dict[current_hyperparams])
                         with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
                             f.write(str(results_dict))
@@ -90,7 +90,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
     print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
-    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'a') as f:
         f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
                 'Best Epoch: ' + str(best_dict['best_validation_epoch']))
     return model, best_dict, test_dict

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import math
 import sys
+import os
 
 
 def sigmoid(xx):
@@ -40,3 +41,20 @@ class HiddenPrints:
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout.close()
         sys.stdout = self._original_stdout
+
+
+def flow_density(inputs, log_jacob):
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
+    return (log_prob + log_jacob).sum(-1, keepdim=True)
+
+
+def js_divergence(prob_X_in_p, prob_X_in_q,
+                  prob_Y_in_p, prob_Y_in_q):
+    mix_X = np.logaddexp(prob_X_in_p, prob_X_in_q)
+    mix_Y = np.logaddexp(prob_Y_in_p, prob_Y_in_q)
+
+    KL_PM = np.log2(2) + np.log2(prob_X_in_p).mean() - np.log2(mix_X).mean()
+    KL_QM = np.log2(2) + np.log2(prob_Y_in_q).mean() - np.log2(mix_Y).mean()
+
+    divergence = (KL_PM + KL_QM) / 2
+    return divergence

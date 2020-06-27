@@ -3,11 +3,10 @@ echo 'Begin Clayton Copula Grid Search'
 
 python RealNVP.py \
 --exp_name clayton_grid_search \
---epochs 200 \
+--epochs 100 \
 --copula clayton \
 --theta 2 \
 --batch-size 1000 \
---test-batch-size 1000 \
 --obs 10000 \
 --random_seed 58093 \
 --grid_search \
@@ -19,11 +18,10 @@ echo 'Begin Frank Copula Grid Search'
 
 python RealNVP.py \
 --exp_name frank_grid_search \
---epochs 200 \
+--epochs 100 \
 --copula frank \
 --theta 2 \
 --batch-size 1000 \
---test-batch-size 1000 \
 --obs 10000 \
 --random_seed 58093 \
 --grid_search \
@@ -33,11 +31,10 @@ echo 'Begin Gumbel Copula Grid Search'
 
 python RealNVP.py \
 --exp_name gumbel_grid_search \
---epochs 200 \
+--epochs 100 \
 --copula gumbel \
 --theta 2 \
 --batch-size 1000 \
---test-batch-size 1000 \
 --obs 10000 \
 --random_seed 58093 \
 --grid_search \
@@ -49,12 +46,11 @@ python RealNVP.py \
 
 # python RealNVP.py \
 # --exp_name frank_10000_100_sigmoid \
-# --epochs 200 \
+# --epochs 100 \
 # --copula frank \
 # --theta 5 \
 # --batch-size 1000 \
-# --test-batch-size 1000 \
-# --num-blocks 5 \
+# # --num-blocks 5 \
 # --obs 10000 \
 # --num_hidden 64 \
 # --random_seed 58093 \
@@ -68,8 +64,7 @@ python RealNVP.py \
 # --copula gumbel \
 # --theta 5 \
 # --batch-size 1000 \
-# --test-batch-size 1000 \
-# --num-blocks 5 \
+# # --num-blocks 5 \
 # --obs 10000 \
 # --num_hidden 64 \
 # --random_seed 58093 \
@@ -83,8 +78,7 @@ python RealNVP.py \
 # --copula clayton \
 # --theta 2 \
 # --batch-size 1000 \
-# --test-batch-size 1000 \
-# --num-blocks 5 \
+# # --num-blocks 5 \
 # --obs 10000 \
 # --num_hidden 64 \
 # --random_seed 58093 \
@@ -98,8 +92,7 @@ python RealNVP.py \
 # --copula frank \
 # --theta 5 \
 # --batch-size 1000 \
-# --test-batch-size 1000 \
-# --num-blocks 5 \
+# # --num-blocks 5 \
 # --obs 10000 \
 # --num_hidden 64 \
 # --random_seed 58093 \
@@ -113,8 +106,7 @@ python RealNVP.py \
 # --copula gumbel \
 # --theta 5 \
 # --batch-size 1000 \
-# --test-batch-size 1000 \
-# --num-blocks 5 \
+# # --num-blocks 5 \
 # --obs 10000 \
 # --num_hidden 64 \
 # --random_seed 58093 \

@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import torch
 import datasets
 import scipy
-# plt.style.use('ggplot')
 
 
 def plot_3D(figures_path, cop_type, grid1, grid2, value, name):

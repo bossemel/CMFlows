@@ -172,10 +172,10 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
                             # save test set metrics on disk in .csv format
                             stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
 
-            # Plot pointwise copula difference
-            jsd_graph(args,
-                      best_dict['best_validation_epoch'],
-                      model_RealNVP)
+            # # Plot pointwise copula difference
+            # jsd_graph(args,
+            #           best_dict['best_validation_epoch'],
+            #           model_RealNVP)
 
     # # Train
     if args.train_cm_flow:
@@ -188,13 +188,19 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
 
         if not grid_search:
             output_copula = model.sample_copula(num_samples=100000)
-            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
+            if args.cuda:
+                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
+            else:
+                visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
 
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
 
             output_copula = model.sample(num_samples=100000)
-            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+            if args.cuda:
+                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
+            else:
+                visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
 
             # Gather test losses and save statistics
             test_losses = {key: [np.mean(value)] for key, value in
@@ -203,11 +209,11 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
                             # save test set metrics on disk in .csv format
                             stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
-            # Plot pointwise copula difference
-            jsd_graph(args,
-                      best_dict['best_validation_epoch'],
-                      model,
-                      cm_flow=True)
+            # # Plot pointwise copula difference
+            # jsd_graph(args,
+            #           best_dict['best_validation_epoch'],
+            #           model,
+            #           cm_flow=True)
 
 
 if __name__ == '__main__':
@@ -279,4 +285,11 @@ if __name__ == '__main__':
                                                   num_ds_dims=num_ds_dims)
 
     else:
-        train_and_plot(args)
+        train_and_plot(args=args,
+                       model=model,
+                       model_DDSF_1=model_DDSF_1,
+                       model_DDSF_2=model_DDSF_2,
+                       model_RealNVP=model_RealNVP,
+                       dataset=dataset,
+                       disable=False,
+                       grid_search=False)

@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import os
-# plt.style.use('ggplot')
 
 
 def visualize1D(marginal, model, epoch, args,

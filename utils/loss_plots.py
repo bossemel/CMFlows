@@ -1,8 +1,6 @@
-# functions taken from https://github.com/CSTR-Edinburgh/mlpractical/blob/mlp2019-20/coursework_2
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-plt.style.use('ggplot')
 
 
 def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
