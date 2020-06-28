@@ -24,7 +24,7 @@ class TrainOptions():
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks', type=int, default=5, help='number of invertible blocks')
+            '--num-blocks', type=int, default=8, help='number of invertible blocks')
         parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
@@ -32,7 +32,7 @@ class TrainOptions():
         parser.add_argument(
             '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=64, help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
         parser.add_argument(
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
@@ -40,19 +40,17 @@ class TrainOptions():
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--transform_fct', type=str, default='sigmoid', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
             '--exp_name', type=str, default='default_name_RNVP', help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
-        parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
             '--grid_search', action='store_true', help='grid search over hyperparameters')
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-6, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
         self.initialized = True
         return parser
 

@@ -106,6 +106,7 @@ def train_and_plot(args, disable=False, grid_search=False):
 
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)
+    visualize_joint(dataset.trn.x, args, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)
@@ -169,8 +170,11 @@ if __name__ == '__main__':
         output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
         visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
 
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        obs = args.obs
+        args.obs = 100000
+        dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
         visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+        args.obs = obs
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -179,8 +183,8 @@ if __name__ == '__main__':
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
-        # Plot pointwise copula difference
-        jsd_graph(args,
-                  best_dict['best_validation_epoch'],
-                  model,
-                  cm_flow=True)
+        # # Plot pointwise copula difference
+        # jsd_graph(args,
+        #           best_dict['best_validation_epoch'],
+        #           model,
+        #           cm_flow=True)

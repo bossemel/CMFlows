@@ -66,11 +66,11 @@ class TrainOptions():
         parser.add_argument(
             '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
         parser.add_argument(
-            '--transform_fct', type=str, required=False, help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=5)
+            '--num_flow_layers_DDSF', type=int, default=10)
         parser.add_argument(
             '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
@@ -78,7 +78,7 @@ class TrainOptions():
         parser.add_argument(
             '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=64)
+            '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
             '--amsgrad', type=int, default=0)
         parser.add_argument(

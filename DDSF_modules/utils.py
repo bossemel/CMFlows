@@ -5,6 +5,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import os
+from utils.various import js_divergence
 
 
 def load_data(args):
@@ -88,73 +89,40 @@ def log_normal(inputs, mean, log_var, device, eps=0.00001):
 
 
 def jsd_eval(marginal, args, epoch, model, test_dict,
-             obs=100, cm_flow=None, plotname='jsd_test_marginal'):
-    """Calculate Jensen-Shannon Divergence of best validation model samples.
+             obs=10000, cm_flow=None, plotname='jsd_test_marginal'):
+    # Get distributions
+    marginal_distr = datasets.distributions.Marginals(args)
+    # Samples from both distributinos
+    samples_target = marginal_distr.sampler(args=args, obs=obs)
+    samples_target = torch.tensor(samples_target.reshape(-1, 1)).float()
 
-    Params:
-        epoch: best validation epoch
-        model: best validation model
-        loader: whether to use train/val/test set loader
-        device: used device
-        test_dict: dictionary with the current epoch stats
+    # @Todo: find something for samples_pred
+    # Temporary solution: samples from uniform distr
+    samples_pred = scipy.stats.uniform.rvs(loc=0, scale=1, size=obs)
+    samples_pred = torch.tensor(samples_pred.reshape(-1, 1)).float()
 
-    Returns:
-        test_dict: updated test_dict
-    """
-    # data = Marginals.sampler(args, obs=obs)
-    data = datasets.distributions.Marginals(args).xx
+    # Prob X in both distributions
+    prob_X_in_p = np.exp(model.log_density(samples_pred).detach().cpu().numpy())
+    prob_X_in_q = marginal_distr.pdf(args=args, inputs=samples_pred)
 
-    xx = torch.linspace(np.min(data), np.max(data), obs).reshape(-1, 1)
-    if cm_flow is not None:
-        xv, yv = torch.meshgrid((torch.linspace(np.min(data), np.max(data), obs), torch.linspace(np.min(data), np.max(data), obs)))
-        # yy = torch.linspace(np.min(data), np.max(data), obs).reshape(-1, 1)
-        grid_vector = torch.cat((xv.reshape(-1, 1), yv.reshape(-1, 1)), dim=1)
+    # Prob Y in both distributions
+    prob_Y_in_q = marginal_distr.pdf(args=args, inputs=samples_target)
+    prob_Y_in_p = np.exp(model.log_density(samples_target).detach().cpu().numpy())
 
-    if args.marginal == 'gaussian':
-        true_pdf = scipy.stats.norm.pdf(xx,
-                                        loc=args.mu,
-                                        scale=args.var)
-    elif args.marginal == 'uniform':
-        assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (args.marginal)
-        assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (args.marginal)
+    # assert samples_target.cpu().numpy().all() > 0
+    # assert samples_target.cpu().numpy().all() > 0
+    # assert prob_X_in_p.all() > 0
+    # assert prob_X_in_q.all() > 0
+    # assert prob_Y_in_p.all() > 0
+    # assert prob_Y_in_q.all() > 0
 
-        true_pdf = scipy.stats.uniform.pdf(xx,
-                                           low=args.low,
-                                           high=args.high)
-    elif args.marginal == 'gamma':
-        assert args.alpha is not None, 'Please specify %r for %r distribution' % (args.marginal)
+    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                               prob_X_in_q=prob_X_in_q,
+                               prob_Y_in_p=prob_Y_in_p,
+                               prob_Y_in_q=prob_Y_in_q)
 
-        true_pdf = scipy.stats.gamma.pdf(xx,
-                                         a=args.alpha)
+    # assert divergence >= 0
 
-    elif args.marginal == 'lognormal':
-        assert args.loc is not None, 'Please specify shape %r distribution' % (args.marginal)
-
-        true_pdf = scipy.stats.lognorm.pdf(xx,
-                                           shape=args.alpha)
-
-    elif args.marginal == 'bimodal_gaussian':
-        inputs_split = np.split(xx, 2)
-        inputs_1 = inputs_split[0]
-        inputs_2 = inputs_split[1]
-
-        samples_1 = scipy.stats.norm.pdf(inputs_1)
-        samples_2 = scipy.stats.norm.pdf(inputs_2)
-
-        true_pdf = np.concatenate([samples_1, samples_2])
-
-    if cm_flow is not None:
-        Z = np.exp(model.log_density(grid_vector)[cm_flow].detach().numpy()) # [:, cm_flow].reshape(-1, 1)
-        Z = Z.reshape(obs, obs, 1).sum(axis=(1 - cm_flow))
-        Z = Z / sum(Z)
-        true_pdf = true_pdf / sum(true_pdf)
-    else:
-        if args.cuda:
-            Z = np.exp(model.log_density(xx).data.detach().cpu().numpy())
-        else:
-            Z = np.exp(model.log_density(xx).data.numpy())
-
-    divergence = scipy.spatial.distance.jensenshannon(true_pdf, np.array(Z))
     if cm_flow is not None:
         jsd_name = plotname + '_' + str(cm_flow)
         if jsd_name in test_dict:
@@ -166,17 +134,4 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
             test_dict[plotname].append(divergence)
         else:
             test_dict[plotname] = [divergence]
-
-    fig = plt.figure(figsize=(8, 6))
-    plt.plot(xx.numpy(), true_pdf, label='True PDF')
-    plt.plot(xx.numpy(), Z, label='Marginal Flow PDF')
-    plt.xlabel('x', fontsize=16)
-    plt.ylabel('Probability', fontsize=16)
-    fig.legend()
-    fig.tight_layout()
-    if cm_flow is not None:
-        fig.savefig(os.path.join(args.figures_path, 'cmflow_marginal_{}_dim_{}.pdf'.format(epoch, cm_flow)), dpi=300)
-    else:
-        fig.savefig(os.path.join(args.figures_path, 'ddsf_marginal_compare_{}.pdf'.format(epoch)), dpi=300)
-    plt.close()
     return test_dict

@@ -13,6 +13,7 @@ from DDSF_modules.flows import MAF
 
 from experiment_runner import train_val
 from utils.save_statistics import save_statistics
+from utils.various import HiddenPrints
 
 
 def build_model(args):
@@ -46,6 +47,64 @@ def build_model(args):
     return model
 
 
+def grid_search(args, flow_layers, hidden_layers, hidden_units, weight_decay_adam):
+    results_dict = {}
+    best_loss = 1000
+    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
+    for num_flows_layers_DDSF in flow_layers:
+        args.num_flows_layers_DDSF = num_flows_layers_DDSF
+        for num_hid_layers_DDSF in hidden_layers:
+            args.num_hid_layers_DDSF = num_hid_layers_DDSF
+            for dimh_DDSF in hidden_units:
+                args.dimh_DDSF = dimh_DDSF
+                for weight_decay in weight_decay_adam:
+                    args.weight_decay = weight_decay
+                    print(' num_flows_layers_DDSF:', num_flows_layers_DDSF,
+                          ' num_hid_layers_DDSF:', num_hid_layers_DDSF,
+                          ' dimh_DDSF:', dimh_DDSF, 'weight_decay:', weight_decay)
+                    with HiddenPrints():
+                        current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                             disable=True,
+                                                                                             grid_search=True)
+                    current_hyperparams = (num_flows_layers_DDSF, num_hid_layers_DDSF, dimh_DDSF, weight_decay)
+                    results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                         current_best_dict['best_validation_loss'])
+                    print(results_dict[current_hyperparams])
+                    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                        f.write(str(results_dict))
+                    if current_best_dict['best_validation_loss'] < best_loss:
+                        best_loss = current_best_dict['best_validation_loss']
+                        best_hyperparams = current_hyperparams
+                        model = current_model
+                        best_dict = current_best_dict
+                        test_dict = current_test_dict
+    print('Grid search complete for ', args.marginal)
+    print('Best hyperparams: ', best_hyperparams)
+    print('Lowest Val Loss: ', best_loss)
+    print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
+    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'a') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    return model, best_dict, test_dict
+
+
+def train_and_plot(args, disable=False, grid_search=False):
+    # Build model and send to device
+    model = build_model(args)
+    model.state = dict()
+    model.to(args.device)
+
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+
+    # Train
+    model, best_dict, test_dict = train_val(current_model=model,
+                                            model_name='DDSF',
+                                            args=args,
+                                            data_loaders=data_loaders,
+                                            dataset=dataset)
+    return model, best_dict, test_dict
+
+
 if __name__ == '__main__':
 
     # Training settings
@@ -75,13 +134,8 @@ if __name__ == '__main__':
     # Set up data loader
     dataset, num_inputs, data_loaders = load_data(args)
 
-    # Build model and send to device
-    model = build_model(args)
-    model.state = dict()
-    model.to(args.device)
-
     # optimizer in MAF:
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=1e-6)
+    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=1e-6)
     # optimizer in train model:
     # optimizer = optim.Adam(model.parameters(),
     # lr=args.lr,
@@ -89,21 +143,23 @@ if __name__ == '__main__':
     # amsgrad=bool(args.amsgrad),
     # polyak=args.polyak)
 
-    # Save losses and best epoch stats and model in dictionary
-    total_losses = {"train_loss": [], "val_loss": []}  # initialize a dict to keep the per-epoch metrics
-    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
-    test_dict = {"test_loss": [], 'jsd_test_marginal': []}  # initialize a statistics dict
-
-    # Train
-    model, best_dict, test_dict = train_val(current_model=model,
-                                            model_name='DDSF',
-                                            args=args,
-                                            data_loaders=data_loaders,
-                                            dataset=dataset)
-
-    # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
-                   test_dict.items()}  # save test set metrics in dict format
-    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+    if args.grid_search:
+        # Hyperparameter options:
+        flow_layers = [5, 10]
+        hidden_layers = [1, 2]
+        hidden_units = [64, 128, 512]
+        weight_decay = [0, 0.000001]
+        model, best_dict, test_dict = grid_search(args,
+                                                  flow_layers,
+                                                  hidden_layers,
+                                                  hidden_units,
+                                                  weight_decay)
+    else:
+        model, best_dict, test_dict = train_and_plot(args)
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False,
+                        test_epoch=best_dict['best_validation_epoch'])

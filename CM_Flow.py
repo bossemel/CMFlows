@@ -56,6 +56,13 @@ def build_model(args):
 def grid_search(args, model, gradient_clipping, num_inv_blocks,
                 num_hidden_units, num_flow_layers, num_hidden_layers,
                 num_ds_dims):
+    """Performs a grid search over the power set of the specified values.
+    Saved the evaluation metrics in a text file.
+
+    Params:
+        args: passed option arguments
+        model: ...
+    """
     results_dict = {}
     best_loss = 1000
     print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
@@ -141,9 +148,12 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
             vizdata_1, __, __ = model_DDSF_1((vizdata[:, 0].reshape(-1, 1), logdets, context))
             vizdata_2, __, __ = model_DDSF_2((vizdata[:, 1].reshape(-1, 1), logdets, context))
             vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
-            visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+            if args.cuda:
+                visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
+            else:
+                visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
 
-        args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=1e-6)
+        args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
                                                                 model_name='RealNVP',
@@ -157,10 +167,13 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
 
         if not grid_search:
             output_copula = model_RealNVP.sample_copula(num_samples=100000)
-            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_RealNVP')
+            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
+            obs = args.obs
+            args.obs = 100000
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+            args.obs = obs
 
             # Gather test losses and save statistics
             test_losses = {key: [np.mean(value)] for key, value in
@@ -179,7 +192,7 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
 
     # # Train
     if args.train_cm_flow:
-        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6, betas=args.betas)
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=args.betas)
         model, best_dict, test_dict = train_val(model,
                                                 model_name='CM_Flow',
                                                 args=args,
@@ -275,6 +288,7 @@ if __name__ == '__main__':
         num_hidden_layers = [1, 2]
         num_ds_dims = [8, 16]
 
+        # Perform Grid search over defined values
         model, best_dict, test_dict = grid_search(args=args,
                                                   model=model,
                                                   gradient_clipping=gradient_clipping,
@@ -285,6 +299,7 @@ if __name__ == '__main__':
                                                   num_ds_dims=num_ds_dims)
 
     else:
+        # Train model with specified options
         train_and_plot(args=args,
                        model=model,
                        model_DDSF_1=model_DDSF_1,

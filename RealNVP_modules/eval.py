@@ -92,34 +92,34 @@ def margin_uniformity(epoch, model, loader, device, transform_fct, test_dict, nu
     return test_dict
 
 
-def plot_margins(args, epoch, model, test_loader):
-    with torch.no_grad():
-        if args.cuda:
-            samples = model.sample(args.obs).detach().cpu().numpy()
-        else:
-            samples = model.sample(args.obs).detach().numpy()
-    margin_x1 = samples[:, 0]
-    margin_x2 = samples[:, 1]
-    if args.transform_fct == 'sigmoid':
-        margin_x1 = scipy.special.expit(margin_x1)
-        margin_x2 = scipy.special.expit(margin_x2)
-    if args.transform_fct == 'gaussian':
-        norm = scipy.stats.norm()
-        margin_x1 = norm.cdf(margin_x1)
-        margin_x2 = norm.cdf(margin_x2)
+# def plot_margins(args, epoch, model, test_loader):
+#     with torch.no_grad():
+#         if args.cuda:
+#             samples = model.sample(args.obs).detach().cpu().numpy()
+#         else:
+#             samples = model.sample(args.obs).detach().numpy()
+#     margin_x1 = samples[:, 0]
+#     margin_x2 = samples[:, 1]
+#     if args.transform_fct == 'sigmoid':
+#         margin_x1 = scipy.special.expit(margin_x1)
+#         margin_x2 = scipy.special.expit(margin_x2)
+#     if args.transform_fct == 'gaussian':
+#         norm = scipy.stats.norm()
+#         margin_x1 = norm.cdf(margin_x1)
+#         margin_x2 = norm.cdf(margin_x2)
 
-    fig, ax = plt.subplots(nrows=2, ncols=1)
+#     fig, ax = plt.subplots(nrows=2, ncols=1)
 
-    sns.distplot(margin_x1, color='blue', kde=False, rug=False, ax=ax[0])
-    ax[1].set_xlabel('margin 1', fontsize=16)
-    ax[0].set_ylabel('frequency', fontsize=16)
+#     sns.distplot(margin_x1, color='blue', kde=False, rug=False, ax=ax[0])
+#     ax[1].set_xlabel('margin 1', fontsize=16)
+#     ax[0].set_ylabel('frequency', fontsize=16)
 
-    sns.distplot(margin_x2, color='blue', kde=False, rug=False, ax=ax[1])
-    ax[1].set_xlabel('margin 2', fontsize=16)
-    ax[1].set_ylabel('frequency', fontsize=16)
+#     sns.distplot(margin_x2, color='blue', kde=False, rug=False, ax=ax[1])
+#     ax[1].set_xlabel('margin 2', fontsize=16)
+#     ax[1].set_ylabel('frequency', fontsize=16)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(args.figures_path, str(args.copula) + 'margins.pdf'), dpi=300)
+#     fig.tight_layout()
+#     fig.savefig(os.path.join(args.figures_path, str(args.copula) + 'margins.pdf'), dpi=300)
 
 
 def jsd_graph(args, epoch, model, cm_flow=False):

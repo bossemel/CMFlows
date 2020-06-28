@@ -8,12 +8,7 @@ from torch.autograd import Variable
 import DDSF_modules.iaf_modules as iaf_modules
 import numpy as np
 from DDSF_modules import nn_modules as nn_, utils
-import math
-
-
-def flow_density(inputs, log_jacob):
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
-    return log_prob + log_jacob
+from utils.various import flow_density
 
 
 class MAF(nn.Sequential):

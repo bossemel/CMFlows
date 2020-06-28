@@ -7,6 +7,16 @@ import scipy
 
 
 def marginal_transform(inputs, marginal, args):
+    """Transforms the uniform copula marginals into a different distribution.
+
+    Params:
+        inputs: copula samples vector
+        marginal: desired marginal distributions
+        args: passed input arguments
+
+    Returns:
+        inputs: transformed samples vector
+    """
     if marginal == 'gaussian':
         assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
         assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
@@ -18,7 +28,7 @@ def marginal_transform(inputs, marginal, args):
         assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
         assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
 
-        lognorm = scipy.stats.lognorm(loc=args.mu, scale=args.var)
+        lognorm = scipy.stats.lognorm(s=0.5, loc=args.mu, scale=args.var)
         inputs = lognorm.ppf(inputs)
     elif marginal == 'gamma':
         assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
@@ -57,7 +67,8 @@ class Joint_Distr():
         self.n_dims = self.trn.x.shape[1]
 
     def sampler(self, args, obs=None):
-
+        """Returns copula samples.
+        """
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
         marginal_1 = marginal_transform(inputs=copula_xx[:, 0], marginal=args.marginal_1, args=args)
         marginal_2 = marginal_transform(inputs=copula_xx[:, 1], marginal=args.marginal_2, args=args)
@@ -87,7 +98,8 @@ class Marginals():
         self.n_dims = args.obs
 
     def sampler(self, args, obs=None):
-
+        """Returns marginal samples.
+        """
         if args.marginal == 'gaussian':
             assert args.mu is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
             assert args.var is not None, 'Please specify variance var for %r distribution' % (args.marginal)
@@ -98,8 +110,8 @@ class Marginals():
             assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (args.marginal)
             assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (args.marginal)
 
-            dataset = scipy.stats.uniform.rvs(low=args.low,
-                                              high=args.high,
+            dataset = scipy.stats.uniform.rvs(loc=args.low,
+                                              scale=args.high,
                                               size=[args.obs if obs is None else obs])
         elif args.marginal == 'gamma':
             assert args.alpha is not None, 'Please specify %r for %r distribution' % (args.marginal)
@@ -107,9 +119,13 @@ class Marginals():
             dataset = scipy.stats.gamma.rvs(a=args.alpha, size=[args.obs if obs is None else obs])
 
         elif args.marginal == 'lognormal':
-            assert args.loc is not None, 'Please specify shape %r distribution' % (args.marginal)
+            assert hasattr(args, 'mu'), 'Please specify mu for %r distribution' % (args.marginal)
+            assert hasattr(args, 'var'), 'Please specify var %r distribution' % (args.marginal)
 
-            dataset = scipy.stats.lognorm.rvs(shape=args.alpha, size=[args.obs if obs is None else obs])
+            dataset = scipy.stats.lognorm.rvs(s=0.5,
+                                              loc=args.mu,
+                                              scale=args.var,
+                                              size=[args.obs if obs is None else obs])
 
         elif args.marginal == 'bimodal_gaussian':
             samples_1 = scipy.stats.norm.rvs(loc=2, scale=2, size=[int(args.obs / 2) if obs is None else int(obs / 2)])
@@ -117,6 +133,45 @@ class Marginals():
 
             dataset = np.concatenate([samples_1, samples_2])
         return dataset.reshape(-1, 1)
+
+    def pdf(self, args, inputs):
+        if args.marginal == 'gaussian':
+            pdf_samples = scipy.stats.norm.pdf(inputs,
+                                               loc=args.mu,
+                                               scale=args.var)
+        elif args.marginal == 'uniform':
+            assert hasattr(args, 'low'), 'Please specify lower bound a for %r distribution' % (args.marginal)
+            assert hasattr(args, 'high'), 'Please specify upper bound b for %r distribution' % (args.marginal)
+
+            pdf_samples = scipy.stats.uniform.pdf(inputs,
+                                                  loc=args.low,
+                                                  scale=args.high)
+        elif args.marginal == 'gamma':
+            assert args.alpha is not None, 'Please specify %r for %r distribution' % (args.marginal)
+
+            pdf_samples = scipy.stats.gamma.pdf(inputs,
+                                                a=args.alpha)
+
+        elif args.marginal == 'lognormal':
+            pdf_samples = scipy.stats.lognorm.pdf(inputs,
+                                                  s=0.5,
+                                                  loc=args.mu,
+                                                  scale=args.var)
+
+        elif args.marginal == 'bimodal_gaussian':
+            inputs_split = np.split(inputs, 2)
+            inputs_1 = inputs_split[0]
+            inputs_2 = inputs_split[1]
+
+            samples_1 = scipy.stats.norm.pdf(inputs_1,
+                                             loc=2,
+                                             scale=2)
+            samples_2 = scipy.stats.norm.pdf(inputs_2,
+                                             loc=12,
+                                             scale=2)
+
+            pdf_samples = np.concatenate([samples_1, samples_2])
+        return pdf_samples
 
 
 class Copula_Distr:

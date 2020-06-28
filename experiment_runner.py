@@ -8,9 +8,9 @@ import RealNVP_modules.flows as fnn
 
 from utils.save_statistics import save_statistics, save_model, model_loader
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity, plot_margins
+from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
-
+from DDSF_modules.visualizer import visualize1D
 from CM_modules.flows import flow_density
 
 eps = 0.0001
@@ -382,6 +382,16 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           epoch=best_dict_current_model['best_validation_epoch'],
                                           model=current_model,
                                           test_dict=test_dict)
+            # marginal_plots(marginal=args.marginal,
+            #                args=args,
+            #                epoch=best_dict_current_model['best_validation_epoch'],
+            #                model=current_model,
+            #                test_dict=test_dict)
+
+            visualize1D(model=current_model,
+                        epoch=best_dict_current_model['best_validation_epoch'],
+                        args=args,
+                        best_val=True)
 
         if model_name == 'DDSF_1':
             # Calculate Jensen-Shannon Divergence of marginal 1

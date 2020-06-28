@@ -4,6 +4,16 @@ import numpy as np
 
 
 def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
+    """Collects evaluation metrics from saved files.
+
+    Params:
+        target_dir: directory where files live
+        test_flag: evaluation on test set
+        model_name: model name
+
+    Returns:
+        experiment_dicts: experiment dictionaries
+    """
     experiment_dicts = dict()
     for subdir, dir, files in os.walk(target_dir):
         for file in files:
@@ -34,6 +44,8 @@ def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
 
 
 def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True, current_model_name=''):
+    """Plots training and validation set loss.
+    """
     fig_1 = plt.figure(figsize=(8, 4))
     ax_1 = fig_1.add_subplot(111)
     for k in ['train_loss', 'val_loss']:

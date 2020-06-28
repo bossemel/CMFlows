@@ -18,13 +18,13 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal'])
+            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--obs', type=int, default=3000, help='How many data samples to generate')
+            '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=2)
+            '--num_flow_layers_DDSF', type=int, default=10)
         parser.add_argument(
             '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
@@ -32,7 +32,7 @@ class TrainOptions():
         parser.add_argument(
             '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=64)
+            '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
             '--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
         parser.add_argument(
@@ -67,6 +67,11 @@ class TrainOptions():
             '--high', type=float, required=False)
         parser.add_argument(
             '--early_stopping', action='store_true', help='stops training if validation stops improving')
+        parser.add_argument(
+            '--grid_search', action='store_true', help='grid search over hyperparameters')
+        parser.add_argument(
+            '--weight_decay', type=int, default=1e-6, help='adam optimizer weight decay')
+
         self.initialized = True
         return parser
 

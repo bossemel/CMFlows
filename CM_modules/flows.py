@@ -4,7 +4,7 @@ from torch.autograd import Variable
 import scipy
 from utils.various import t_m_metric_eval, sigmoid, flow_density, js_divergence
 import datasets
-
+import numpy as np
 eps = 0.0001
 
 
@@ -83,9 +83,6 @@ class CMFlow(nn.Module):
         outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(inputs=inputs, logdets=logdets, mode=mode)
         return outputs_RealNVP, logdets_RealNVP
 
-    # def forward_copula(self, noise, mode):
-    #     return self.model_RealNVP.forward(inputs=noise, mode=mode)
-
     def log_density(self, inputs):
         """Returns log of target density of the Flow
 
@@ -113,6 +110,8 @@ class CMFlow(nn.Module):
         return (-density_DDSF_1, -density_DDSF_2, -density_RealNVP)
 
     def sample(self, num_samples=None, noise=None):
+        """Samples from the copula without transforming the marginals.
+        """
         if noise is None:
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
@@ -121,6 +120,8 @@ class CMFlow(nn.Module):
         return samples
 
     def sample_copula(self, num_samples=None, noise=None):
+        """Sampels from the copula and transforms the marginals to uniform
+        """
         if noise is None:
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
@@ -128,14 +129,14 @@ class CMFlow(nn.Module):
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
-        samples[samples > 1] = 1 - eps
-        samples[samples < 0] = 0 + eps
         return samples
 
-    def jsd(self, inputs, transform_fct, obs=1000, cm_flow=False):
+    def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
+        """Evaluated the JS-Divergence using Monte Carlo.
+        """
         # Define distributions
         normal_distr = scipy.stats.norm(0, 1)
-        true_cop_distr = datasets.distributions.copula_distr(self.copula, self.theta)
+        true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
 
         # Samples from both distributinos
         samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
@@ -157,6 +158,17 @@ class CMFlow(nn.Module):
         prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
         prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
+        if np.isnan(np.sum(prob_X_in_q)):
+            prob_X_in_p = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            prob_Y_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            prob_Y_in_p = prob_X_in_q[~np.isnan(prob_X_in_q)]
+
+        assert not np.isnan(np.sum(prob_X_in_p))
+        assert not np.isnan(np.sum(prob_X_in_q))
+        assert not np.isnan(np.sum(prob_Y_in_p))
+        assert not np.isnan(np.sum(prob_Y_in_q))
+
         divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                    prob_X_in_q=prob_X_in_q,
                                    prob_Y_in_p=prob_Y_in_p,
@@ -164,6 +176,8 @@ class CMFlow(nn.Module):
         return divergence
 
     def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+        """Evaluates the uniformity of the predicted marginals.
+        """
         if cm_flow:
             samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
@@ -176,4 +190,3 @@ class CMFlow(nn.Module):
         """Performs gradient clipping
         """
         nn.utils.clip_grad_norm_(self.parameters(), self.clip)
-

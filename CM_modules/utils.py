@@ -49,4 +49,3 @@ def load_data(args):
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
     return dataset, data_loaders, train_tensor
-

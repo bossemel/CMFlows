@@ -82,23 +82,23 @@ class FlowSequential(nn.Sequential):
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
+            samples_target = torch.tensor(normal_distr.cdf(inputs.cpu().numpy())).float()
         else:
             samples_target = torch.tensor(inputs)
 
         # Estimate Copula distr
-        pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+        pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu().numpy())
 
         # Prob X in both distributions
-        prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-        prob_X_in_q = true_cop_distr.pdf(samples_pred.numpy())
+        prob_X_in_p = pred_distr.pdf(samples_pred.T.cpu().numpy()).T
+        prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
 
         # Prob Y in both distributions
         prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
         prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
-        assert samples_pred.numpy().all() > 0
-        assert samples_target.numpy().all() > 0
+        assert samples_pred.cpu().numpy().all() > 0
+        assert samples_target.cpu().numpy().all() > 0
         assert prob_X_in_p.all() > 0
         assert prob_X_in_q.all() > 0
         assert prob_Y_in_p.all() > 0
@@ -115,6 +115,7 @@ class FlowSequential(nn.Sequential):
             samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         else:
             samples = self.sample(num_samples=num_samples, noise=None)
+        samples = samples.cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
