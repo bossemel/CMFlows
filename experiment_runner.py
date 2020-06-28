@@ -425,21 +425,21 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         transform_model_2=transform_model_2,
                                         transform_inputs=transform_inputs,
                                         cm_flow=cm_flow)
-            test_dict = jsd_eval_marginal(marginal=args.marginal_1,
-                                          args=args,
-                                          epoch=best_dict_current_model['best_validation_epoch'],
-                                          model=current_model,
-                                          test_dict=test_dict,
-                                          cm_flow=0,
-                                          plotname='jsd_cm_flow_marginal')
-            args.marginal = args.marginal_2
-            test_dict = jsd_eval_marginal(marginal=args.marginal_2,
-                                          args=args,
-                                          epoch=best_dict_current_model['best_validation_epoch'],
-                                          model=current_model,
-                                          test_dict=test_dict,
-                                          cm_flow=1,
-                                          plotname='jsd_cm_flow_marginal')
+            # test_dict = jsd_eval_marginal(marginal=args.marginal_1,
+            #                               args=args,
+            #                               epoch=best_dict_current_model['best_validation_epoch'],
+            #                               model=current_model,
+            #                               test_dict=test_dict,
+            #                               cm_flow=0,
+            #                               plotname='jsd_cm_flow_marginal')
+            # args.marginal = args.marginal_2
+            # test_dict = jsd_eval_marginal(marginal=args.marginal_2,
+            #                               args=args,
+            #                               epoch=best_dict_current_model['best_validation_epoch'],
+            #                               model=current_model,
+            #                               test_dict=test_dict,
+            #                               cm_flow=1,
+            #                               plotname='jsd_cm_flow_marginal')
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(best_dict_current_model['best_validation_epoch'],
                                           current_model,

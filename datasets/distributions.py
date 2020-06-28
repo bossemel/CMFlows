@@ -6,6 +6,13 @@ import sys
 import scipy
 
 
+def normalize(dataset):
+    mean, std = np.mean(dataset), np.std(dataset)
+    dataset = dataset - mean
+    dataset = dataset / std
+    return dataset
+
+
 def marginal_transform(inputs, marginal, args):
     """Transforms the uniform copula marginals into a different distribution.
 
@@ -70,11 +77,15 @@ class Joint_Distr():
         """Returns copula samples.
         """
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
+        assert not np.isnan(np.sum(copula_xx))
         marginal_1 = marginal_transform(inputs=copula_xx[:, 0], marginal=args.marginal_1, args=args)
         marginal_2 = marginal_transform(inputs=copula_xx[:, 1], marginal=args.marginal_2, args=args)
 
         xx = np.concatenate([marginal_1.reshape(-1, 1), marginal_2.reshape(-1, 1)], axis=1)
-        return xx
+        assert not np.isnan(np.sum(xx))
+        assert not np.isnan(np.sum(normalize(xx)))
+
+        return normalize(xx)
 
 
 class Marginals():
@@ -132,7 +143,7 @@ class Marginals():
             samples_2 = scipy.stats.norm.rvs(loc=12, scale=2, size=[int(args.obs / 2) if obs is None else int(obs / 2)])
 
             dataset = np.concatenate([samples_1, samples_2])
-        return dataset.reshape(-1, 1)
+        return normalize(dataset.reshape(-1, 1))
 
     def pdf(self, args, inputs):
         if args.marginal == 'gaussian':
@@ -331,6 +342,10 @@ def sample_gumbel(obs, theta, uu=None, ww=None):
         s2 = (-np.log(w2))**(1 / theta) / gamma
         uu = np.array(np.exp(-s1))
         vv = np.array(np.exp(-s2))
+    assert not np.isnan(np.sum(uu))
+    assert not np.isnan(np.sum(vv))
+    assert uu.all() >= 0
+    assert vv.all() >= 0
     return uu, vv
 
 

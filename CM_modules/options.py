@@ -56,15 +56,15 @@ class TrainOptions():
         parser.add_argument(
             '--grid_search', action='store_true', help='grid search over hyperparameters')
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-6, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
 
         # Options RealNVP
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=64, help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--num-blocks', type=int, default=5, help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 

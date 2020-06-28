@@ -32,8 +32,11 @@ class MAF(nn.Sequential):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
+        assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
+        assert not torch.isnan(torch.sum(density))
         return density
 
     def loss(self, x):
@@ -283,10 +286,14 @@ class IAF_DDSF(BaseFlow):
             end = start + u_dim + w_dim + a_dim + b_dim
 
             params = dsparams[:, :, start:end]
-            h, lgd = getattr(self,'sf{}'.format(i))(h, lgd, params)
+            h, lgd = getattr(self, 'sf{}'.format(i))(h, lgd, params)
             start = end
 
         assert out_dim == 1, 'last dsf out dim should be 1'
+        assert not torch.isnan(torch.sum(h[:, :, 0]))
+        assert not torch.isnan(torch.sum(lgd))
+        assert not torch.isnan(torch.sum(context.to(self.device)))
+
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet.to(self.device), context.to(self.device)
 
 

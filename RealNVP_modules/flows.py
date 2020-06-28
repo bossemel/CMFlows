@@ -82,7 +82,7 @@ class FlowSequential(nn.Sequential):
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs.cpu().numpy())).float()
+            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
         else:
             samples_target = torch.tensor(inputs)
 
@@ -115,7 +115,6 @@ class FlowSequential(nn.Sequential):
             samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         else:
             samples = self.sample(num_samples=num_samples, noise=None)
-        samples = samples.cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

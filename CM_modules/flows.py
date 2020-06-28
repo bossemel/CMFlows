@@ -147,15 +147,16 @@ class CMFlow(nn.Module):
         else:
             samples_target = torch.tensor(inputs)
 
+        samples_pred = samples_pred.detach().cpu().numpy()
         # Estimate Copula distr
         pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
         # Prob X in both distributions
         prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-        prob_X_in_q = true_cop_distr.pdf(samples_pred.numpy())
+        prob_X_in_q = true_cop_distr.pdf(samples_pred)
 
         # Prob Y in both distributions
-        prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+        prob_Y_in_q = true_cop_distr.pdf(samples_target.detach().cpu().numpy())
         prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
         if np.isnan(np.sum(prob_X_in_q)):
