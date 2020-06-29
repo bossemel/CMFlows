@@ -204,6 +204,9 @@ class Copula_Distr:
 
         self.n_dims = self.trn.x.shape[1]
 
+        self.copula = args.copula
+        self.theta = args.theta
+
     def sampler(args, transform, obs=None):
         """Produce obs samples of 2-dimensional Copula density distribution
         """
@@ -252,6 +255,12 @@ class Copula_Distr:
                 xx = norm.ppf(xx)
 
         return xx
+
+    def pdf(self, xx):
+        uu = xx[:, 0]
+        vv = xx[:, 1]
+        copula_pdf_samples = copula_pdf(self.copula, self.theta, uu, vv)
+        return copula_pdf_samples
 
 
 def sample_clayton(obs, theta, uu=None, ww=None):
@@ -443,15 +452,19 @@ def gumbel_cdf(theta, uu, vv):
         return cdfs
 
 
-class copula_distr():
-    def __init__(self, copula, theta):
-        self.copula = copula
-        self.theta = theta
+# class copula_distr():
+#     def __init__(self, copula, theta):
+#         self.copula = copula
+#         self.theta = theta
 
-    def pdf(self, xx):
-        uu = xx[:, 0]
-        vv = xx[:, 1]
-        return copula_pdf(self.copula, self.theta, uu, vv)
+#     def pdf(self, xx):
+#         uu = xx[:, 0]
+#         vv = xx[:, 1]
+#         copula_pdf_samples = copula_pdf(self.copula, self.theta, uu, vv)
+#         assert not np.isnan(np.sum(copula_pdf_samples))
+#         print(copula_pdf_samples[:10])
+#         copula_pdf_samples = copula_pdf_samples[~np.isnan(copula_pdf_samples)]
+#         return copula_pdf_samples
 
 
 def copula_pdf(copula, theta, uu, vv):

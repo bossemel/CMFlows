@@ -115,7 +115,6 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                             data_loaders=data_loaders,
                                             dataset=dataset,
                                             transform_inputs=False,
-                                            cm_flow=False,
                                             disable_tqdm=disable_tqdm,
                                             grid_search=grid_search)
 

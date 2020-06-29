@@ -4,6 +4,7 @@ import math
 import sys
 import os
 from sklearn import model_selection
+eps = 0.0001
 
 
 def sigmoid(xx):
@@ -90,8 +91,14 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     mix_X = np.logaddexp(prob_X_in_p, prob_X_in_q)
     mix_Y = np.logaddexp(prob_Y_in_p, prob_Y_in_q)
 
-    KL_PM = np.log2(2) + np.log2(prob_X_in_p).mean() - np.log2(mix_X).mean()
-    KL_QM = np.log2(2) + np.log2(prob_Y_in_q).mean() - np.log2(mix_Y).mean()
+    mix_X[mix_X == 0] = 0 + eps
+    mix_Y[mix_Y == 0] = 0 + eps
+
+    assert np.min(mix_X) > 0
+    assert np.min(mix_Y) > 0
+
+    KL_PM = np.log(2) + np.log(prob_X_in_p).mean() - np.log(mix_X).mean()
+    KL_QM = np.log(2) + np.log(prob_Y_in_q).mean() - np.log(mix_Y).mean()
 
     divergence = (KL_PM + KL_QM) / 2
     return divergence

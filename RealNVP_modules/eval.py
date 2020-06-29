@@ -1,13 +1,6 @@
 import datasets.distributions
 import numpy as np
 import torch
-import scipy
-from RealNVP_modules.utils import plot_3D
-import matplotlib.pyplot as plt
-import os
-import seaborn as sns
-
-eps = 0.0001
 
 
 def jsd_eval(args, epoch, model, loader, device, test_dict,

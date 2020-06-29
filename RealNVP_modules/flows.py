@@ -4,8 +4,6 @@ import scipy
 from utils.various import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import datasets
 
-eps = 0.0001
-
 
 class FlowSequential(nn.Sequential):
     """ A sequential container for flows.
@@ -61,10 +59,9 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(noise, mode='inverse')[0]
         return samples
 
-    def sample_copula(self, num_samples=None, noise=None, transform=None):
+    def sample_copula(self, num_samples=None, noise=None, transform='gaussian'):
         """Returns the predicted copula (output sample with transformation)
         """
-        assert transform in ['sigmoid', 'gaussian'], 'Please specify transform function'
         if noise is None:
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
@@ -82,7 +79,7 @@ class FlowSequential(nn.Sequential):
         """
         # Define distributions
         normal_distr = scipy.stats.norm(0, 1)
-        true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
+        true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
         # Samples from both distributinos
         samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)

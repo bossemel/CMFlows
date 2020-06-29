@@ -1,8 +1,5 @@
-import os
-import matplotlib.pyplot as plt
 import torch
 import datasets
-import scipy
 
 
 def load_data(args):

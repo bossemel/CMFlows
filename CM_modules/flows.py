@@ -1,8 +1,7 @@
 import torch.nn as nn
 import torch
-from torch.autograd import Variable
 import scipy
-from utils.various import t_m_metric_eval, sigmoid, flow_density, js_divergence
+from utils.various import t_m_metric_eval, js_divergence
 import datasets
 import numpy as np
 eps = 0.0001
@@ -40,12 +39,12 @@ class CMFlow(nn.Module):
         inputs_, logdets, context = inputs
 
         # The inputs are split and fed to each of the DDSF models
-        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_.reshape(-1, 1), logdets, context))
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
         return outputs_DDSF_1, logdets_DDSF_1
 
     def forward_DDSF_2(self, inputs):
         inputs_, logdets, context = inputs
-        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_.reshape(-1, 1), logdets, context))
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
         return outputs_DDSF_2, logdets_DDSF_2
 
     def forward_RealNVP(self, inputs, logdets=None, mode='direct'):
@@ -63,39 +62,43 @@ class CMFlow(nn.Module):
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
         return samples
 
-    def sample_copula(self, num_samples=None, noise=None, transform=None):
+    def sample_copula(self, num_samples=None, noise=None):
         """Sampels from the copula and transforms the marginals to uniform
         """
-        assert transform in ['sigmoid', 'gaussian'], 'Please specify transform function'
         if noise is None:
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
-        if transform == 'sigmoid':
-            samples = sigmoid(samples)
-        elif transform == 'gaussian':
-            normal_distr = torch.distributions.normal.Normal(0, 1)
-            samples = normal_distr.cdf(samples)
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        samples = normal_distr.cdf(samples)
         return samples
 
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
-        # Define distributions
-        normal_distr = scipy.stats.norm(0, 1)
-        true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
-
         # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
-        if transform_fct == 'sigmoid':
-            samples_target = torch.tensor(sigmoid(inputs))
-        elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
-        else:
-            samples_target = torch.tensor(inputs)
-
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
         samples_pred = samples_pred.detach().cpu().numpy()
+
+        assert np.min(samples_pred) >= 0
+        assert np.max(samples_pred) <= 1
+
+        samples_target = inputs
+        samples_target[samples_target == 1] = 1 - eps
+        samples_target[samples_target == 0] = 0 + eps
+        samples_pred[samples_pred == 0] = 0 + eps
+        samples_pred[samples_pred == 1] = 1 - eps
+
+        assert np.min(samples_target) > 0
+        assert np.max(samples_target) < 1
+        assert np.min(samples_pred) > 0
+        assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
+
+        samples_target = torch.tensor(inputs)
+
+        # Define distributions
+        true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
         # Estimate Copula distr
         pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
@@ -108,15 +111,31 @@ class CMFlow(nn.Module):
         prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
         if np.isnan(np.sum(prob_X_in_q)):
-            prob_X_in_p = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
             prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-            prob_Y_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-            prob_Y_in_p = prob_X_in_q[~np.isnan(prob_X_in_q)]
+
+        if np.isnan(np.sum(prob_Y_in_q)):
+            prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+            prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+
+        prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
+        prob_X_in_p[prob_X_in_q == 0] = 0 + eps
+        prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
+        prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
 
         assert not np.isnan(np.sum(prob_X_in_p))
-        assert not np.isnan(np.sum(prob_X_in_q))
+        assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
         assert not np.isnan(np.sum(prob_Y_in_p))
-        assert not np.isnan(np.sum(prob_Y_in_q))
+        assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+
+        assert np.min(prob_X_in_p) > 0
+        assert np.min(prob_X_in_q) > 0, '%r' % np.min(prob_X_in_q)
+        assert np.min(prob_Y_in_p) > 0
+        assert np.min(prob_Y_in_q) > 0
 
         divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                    prob_X_in_q=prob_X_in_q,

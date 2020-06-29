@@ -42,7 +42,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 2 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --train_cm_flow \
@@ -59,7 +59,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --pretrain_models
@@ -75,7 +75,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --train_cm_flow
@@ -91,7 +91,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --train_cm_flow \
@@ -108,7 +108,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --pretrain_models
@@ -124,7 +124,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --train_cm_flow
@@ -140,7 +140,7 @@ python CM_Flow.py \
 --batch-size 100 \
 --random_seed 58093 \
 --theta 5 \
---obs 10000 \
+--obs 1000 \
 --early_stopping \
 --clip_grad_norm \
 --train_cm_flow \

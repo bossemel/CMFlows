@@ -65,21 +65,20 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
 
     model.to(args.device)
 
-    # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
         # Train DDSFs
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
                                                               model_name='DDSF_1',
                                                               args=args,
                                                               data_loaders=data_loaders,
                                                               dataset=dataset,
                                                               transform_inputs=True,
-                                                              cm_flow=True,
                                                               disable_tqdm=disable_tqdm,
                                                               grid_search=False)
+
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
                                                               model_name='DDSF_2',
                                                               args=args,
@@ -87,7 +86,6 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                               dataset=dataset,
                                                               test_dict=test_dict,
                                                               transform_inputs=True,
-                                                              cm_flow=True,
                                                               disable_tqdm=disable_tqdm,
                                                               grid_search=False)
 
@@ -106,6 +104,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                 visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
 
         # Train RealNVP
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
                                                                 model_name='RealNVP',
                                                                 args=args,
@@ -115,13 +114,12 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                                 transform_model_2=model_DDSF_1,
                                                                 test_dict=test_dict,
                                                                 transform_inputs=True,
-                                                                cm_flow=True,
                                                                 disable_tqdm=disable_tqdm,
                                                                 grid_search=False)
 
         with torch.no_grad():
             # Visualize RealNVP outputs
-            output_copula = model_RealNVP.sample_copula(num_samples=100000, transform=args.transform_fct)
+            output_copula = model_RealNVP.sample_copula(num_samples=100000)
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
             # Visualize true copula
@@ -153,14 +151,12 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                 args=args,
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
-                                                transform_inputs=True,
-                                                cm_flow=True,
                                                 disable_tqdm=disable_tqdm,
                                                 grid_search=False)
 
         with torch.no_grad():
             # Sample from the predicted copula
-            output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
+            output_copula = model.sample_copula(num_samples=100000)
             # Visualize the predicted copula
             if args.cuda:
                 visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
