@@ -10,7 +10,6 @@ import random
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
 from RealNVP_modules.options import TrainOptions
-from RealNVP_modules.eval import jsd_graph
 
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
@@ -72,7 +71,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
                               ' num_hidden:', num_hidden, ' weight decay:', weight_decay)
                         with HiddenPrints():
                             current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                                 disable=True,
+                                                                                                 disable_tqdm=True,
                                                                                                  grid_search=True)
                         current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
                         results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
@@ -96,14 +95,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, disable=False, grid_search=False):
-    # Set Seed
-    np.random.seed(args.random_seed)
-    torch.manual_seed(args.random_seed)
-    random.seed(args.random_seed)
-    if args.cuda:
-        torch.cuda.manual_seed(args.random_seed)
-
+def train_and_plot(args, disable_tqdm=False, grid_search=False):
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)
     visualize_joint(dataset.trn.x, args, name='input_dataset')
@@ -112,11 +104,9 @@ def train_and_plot(args, disable=False, grid_search=False):
     model = build_model(args)
     model.state = dict()
     model.to(args.device)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    # Save losses and best epoch stats and model in dictionary
-    best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0, 'best_model': model}
-    test_dict = {"test_loss": [], 'jsd_test_copula': [], 't_1': [], 't_2': [], 'm_1': [], 'm_2': []}  # initialize a statistics dict
+    # Set optimizer
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
 
     # Train
     model, best_dict, test_dict = train_val(current_model=model,
@@ -126,7 +116,7 @@ def train_and_plot(args, disable=False, grid_search=False):
                                             dataset=dataset,
                                             transform_inputs=False,
                                             cm_flow=False,
-                                            disable=disable,
+                                            disable_tqdm=disable_tqdm,
                                             grid_search=grid_search)
 
     return model, best_dict, test_dict
@@ -151,6 +141,14 @@ if __name__ == '__main__':
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
+    # Set Seed
+    np.random.seed(args.random_seed)
+    torch.manual_seed(args.random_seed)
+    random.seed(args.random_seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.random_seed)
+
+    # Specify, that this RealNVP is not part of a CM_Flow
     args.RealNVP_part_of_CM_Flow = False
 
     if args.grid_search:
@@ -159,17 +157,22 @@ if __name__ == '__main__':
         num_inv_blocks = [4, 8, 16]
         num_hidden_units = [32, 64, 128]
         weight_decay = [0, 0.000001]
-        model, best_dict, test_dict = grid_search(args,
-                                                  transform_functions,
-                                                  num_inv_blocks,
-                                                  num_hidden_units,
-                                                  weight_decay)
+        model, best_dict, test_dict = grid_search(args=args,
+                                                  transform_functions=transform_functions,
+                                                  num_inv_blocks=num_inv_blocks,
+                                                  num_hidden_units=num_hidden_units,
+                                                  weight_decay=weight_decay)
     else:
-        model, best_dict, test_dict = train_and_plot(args)
+        # Train model
+        model, best_dict, test_dict = train_and_plot(args=args,
+                                                     disable_tqdm=False,
+                                                     grid_search=False)
 
-        output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
+        # Sample from predicted copual and visualize it
+        output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
         visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
 
+        # Sample from true copula and visualize it
         obs = args.obs
         args.obs = 100000
         dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
@@ -182,9 +185,3 @@ if __name__ == '__main__':
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
-
-        # # Plot pointwise copula difference
-        # jsd_graph(args,
-        #           best_dict['best_validation_epoch'],
-        #           model,
-        #           cm_flow=True)

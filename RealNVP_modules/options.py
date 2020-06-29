@@ -51,6 +51,11 @@ class TrainOptions():
             '--grid_search', action='store_true', help='grid search over hyperparameters')
         parser.add_argument(
             '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--beta1', type=float, default=0.9)
+        parser.add_argument(
+            '--beta2', type=float, default=0.999)
+
         self.initialized = True
         return parser
 

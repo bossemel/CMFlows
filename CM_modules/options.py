@@ -54,8 +54,6 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
         parser.add_argument(
-            '--grid_search', action='store_true', help='grid search over hyperparameters')
-        parser.add_argument(
             '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
 
         # Options RealNVP

@@ -89,11 +89,15 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units, weight_decay_ada
 
 
 def train_and_plot(args, disable=False, grid_search=False):
+    # Set up data loader
+    dataset, num_inputs, data_loaders = load_data(args)
+
     # Build model and send to device
     model = build_model(args)
     model.state = dict()
     model.to(args.device)
 
+    # Set optimizer
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
 
     # Train
@@ -131,31 +135,23 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Set up data loader
-    dataset, num_inputs, data_loaders = load_data(args)
-
-    # optimizer in MAF:
-    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=1e-6)
-    # optimizer in train model:
-    # optimizer = optim.Adam(model.parameters(),
-    # lr=args.lr,
-    # betas=(args.beta1, args.beta2),
-    # amsgrad=bool(args.amsgrad),
-    # polyak=args.polyak)
-
     if args.grid_search:
         # Hyperparameter options:
         flow_layers = [5, 10]
         hidden_layers = [1, 2]
         hidden_units = [64, 128, 512]
         weight_decay = [0, 0.000001]
+
+        # Perform Grid Search
         model, best_dict, test_dict = grid_search(args,
                                                   flow_layers,
                                                   hidden_layers,
                                                   hidden_units,
                                                   weight_decay)
     else:
+        # Train model
         model, best_dict, test_dict = train_and_plot(args)
+
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
                        test_dict.items()}  # save test set metrics in dict format

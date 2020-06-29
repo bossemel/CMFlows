@@ -12,12 +12,10 @@ import CM_modules.utils as utils
 import CM_modules.flows as flows
 
 from RealNVP import build_model as build_model_RealNVP
-from RealNVP_modules.eval import jsd_graph
 from DDSF import build_model as build_model_DDSF
 
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
-from utils.various import HiddenPrints
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -53,95 +51,49 @@ def build_model(args):
     return model, model_RealNVP, model_DDSF_1, model_DDSF_2
 
 
-def grid_search(args, model, gradient_clipping, num_inv_blocks,
-                num_hidden_units, num_flow_layers, num_hidden_layers,
-                num_ds_dims):
-    """Performs a grid search over the power set of the specified values.
-    Saved the evaluation metrics in a text file.
+def train_and_plot(args, disable_tqdm=False, grid_search=False):
+    # Set up data loader
+    dataset, data_loaders, train_dataset = utils.load_data(args)
+    visualize_joint(dataset.trn.x, args, name='input_dataset')
 
-    Params:
-        args: passed option arguments
-        model: ...
-    """
-    results_dict = {}
-    best_loss = 1000
-    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
-    for clip_grad_norm in gradient_clipping:
-        args.clip_grad_norm = clip_grad_norm
-        for num_blocks in num_inv_blocks:
-            args.num_blocks = num_blocks
-            for hidden_units in num_hidden_units:
-                if num_hidden_layers > num_blocks:
-                    args.hidden_units = hidden_units
-                    for num_flow_layers_DDSF in num_flow_layers:
-                        args.num_flow_layers_DDSF = num_flow_layers_DDSF
-                        for hidden_layers in num_hidden_layers:
-                            args.num_hid_layers_DDSF = hidden_layers
-                            for ds_dims in num_ds_dims:
-                                args.num_ds_dim = ds_dims
-                                print(' clip_grad_norm:', clip_grad_norm,
-                                      ' num_blocks:', num_blocks,
-                                      ' num_hidden:', hidden_units,
-                                      ' num_flow_layers_DDSF:', num_flow_layers_DDSF,
-                                      ' num_hid_layers_DDSF: ', hidden_layers,
-                                      ' num_ds_dim DDSF: ', ds_dims)
-                                with HiddenPrints():
-                                    current_model, current_best_dict, current_test_dict = train_and_plot(args=args,
-                                                                                                         model=model,
-                                                                                                         model_DDSF_1=model_DDSF_1,
-                                                                                                         model_DDSF_2=model_DDSF_2,
-                                                                                                         model_RealNVP=model_RealNVP,
-                                                                                                         dataset=dataset,
-                                                                                                         disable=True,
-                                                                                                         grid_search=True)
-                        current_hyperparams = (clip_grad_norm,
-                                               num_blocks,
-                                               hidden_units,
-                                               num_flow_layers_DDSF,
-                                               hidden_layers,
-                                               ds_dims)
-                        results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                             current_best_dict['best_validation_loss'])
-                        print(results_dict[current_hyperparams])
-                        with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-                            f.write(str(results_dict))
-                        if current_best_dict['best_validation_loss'] < best_loss:
-                            best_loss = current_best_dict['best_validation_loss']
-                            best_hyperparams = current_hyperparams
-                            model = current_model
-                            best_dict = current_best_dict
-                            test_dict = current_test_dict
-    print('Grid search complete for ', args.copula)
-    print('Best hyperparams: ', best_hyperparams)
-    print('Lowest Val Loss: ', best_loss)
-    print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
-    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
-    return model, best_dict, test_dict
+    # Build model and send to device
+    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
+    model.state = dict()
+    model_RealNVP.state = dict()
+    model_DDSF_1.state = dict()
+    model_DDSF_2.state = dict()
 
+    model.to(args.device)
 
-def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, dataset, disable=False, grid_search=False):
+    # Set optimizer
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+
+    # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
-        # Train
-        args.optimizer = optim.Adam(model_DDSF_1.parameters(), lr=args.lr, betas=args.betas)
+        # Train DDSFs
         model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
                                                               model_name='DDSF_1',
                                                               args=args,
                                                               data_loaders=data_loaders,
-                                                              dataset=dataset)
-        args.optimizer = optim.Adam(model_DDSF_2.parameters(), lr=args.lr, betas=args.betas)
+                                                              dataset=dataset,
+                                                              transform_inputs=True,
+                                                              cm_flow=True,
+                                                              disable_tqdm=disable_tqdm,
+                                                              grid_search=False)
         model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
                                                               model_name='DDSF_2',
                                                               args=args,
                                                               data_loaders=data_loaders,
                                                               dataset=dataset,
-                                                              test_dict=test_dict)
+                                                              test_dict=test_dict,
+                                                              transform_inputs=True,
+                                                              cm_flow=True,
+                                                              disable_tqdm=disable_tqdm,
+                                                              grid_search=False)
 
-        if not grid_search:
-            # Visualize DDFS transformations
+        # Visualize DDFS transformations
+        with torch.no_grad():
             vizdata = train_dataset
-
             n = vizdata.shape[0]
             context = torch.FloatTensor(n, 1).zero_().to(args.device)
             logdets = torch.FloatTensor(n).zero_().to(args.device)
@@ -153,8 +105,7 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
             else:
                 visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
 
-        args.optimizer = optim.Adam(model_RealNVP.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-
+        # Train RealNVP
         model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
                                                                 model_name='RealNVP',
                                                                 args=args,
@@ -162,71 +113,77 @@ def train_and_plot(args, model, model_DDSF_1, model_DDSF_2, model_RealNVP, datas
                                                                 dataset=dataset,
                                                                 transform_model_1=model_DDSF_1,
                                                                 transform_model_2=model_DDSF_1,
-                                                                test_dict=test_dict)
-        best_dict = best_dict_RealNVP
+                                                                test_dict=test_dict,
+                                                                transform_inputs=True,
+                                                                cm_flow=True,
+                                                                disable_tqdm=disable_tqdm,
+                                                                grid_search=False)
 
-        if not grid_search:
-            output_copula = model_RealNVP.sample_copula(num_samples=100000)
+        with torch.no_grad():
+            # Visualize RealNVP outputs
+            output_copula = model_RealNVP.sample_copula(num_samples=100000, transform=args.transform_fct)
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
+            # Visualize true copula
             obs = args.obs
             args.obs = 100000
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
             args.obs = obs
 
-            # Gather test losses and save statistics
-            test_losses = {key: [np.mean(value)] for key, value in
-                           test_dict.items()}  # save test set metrics in dict format
-            epochs = (best_dict_DDSF_1['best_validation_epoch'],
-                      best_dict_DDSF_2['best_validation_epoch'],
-                      best_dict_RealNVP['best_validation_epoch'])
-            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                            # save test set metrics on disk in .csv format
-                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        epochs = (best_dict_DDSF_1['best_validation_epoch'],
+                  best_dict_DDSF_2['best_validation_epoch'],
+                  best_dict_RealNVP['best_validation_epoch'])
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
 
-            # # Plot pointwise copula difference
-            # jsd_graph(args,
-            #           best_dict['best_validation_epoch'],
-            #           model_RealNVP)
-
-    # # Train
+    # Train the CM Flow
     if args.train_cm_flow:
+
+        # Set optimizer
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=args.betas)
+
+        # Train model, and perform validation and test
         model, best_dict, test_dict = train_val(model,
                                                 model_name='CM_Flow',
                                                 args=args,
                                                 data_loaders=data_loaders,
-                                                dataset=dataset)
+                                                dataset=dataset,
+                                                transform_inputs=True,
+                                                cm_flow=True,
+                                                disable_tqdm=disable_tqdm,
+                                                grid_search=False)
 
-        if not grid_search:
-            output_copula = model.sample_copula(num_samples=100000)
+        with torch.no_grad():
+            # Sample from the predicted copula
+            output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
+            # Visualize the predicted copula
             if args.cuda:
                 visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
             else:
                 visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
 
+            # Sample from the true copula and visualize it
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
 
+            # Sample from the non-transformed copula (normal margins)
             output_copula = model.sample(num_samples=100000)
             if args.cuda:
                 visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
             else:
                 visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
 
-            # Gather test losses and save statistics
-            test_losses = {key: [np.mean(value)] for key, value in
-                           test_dict.items()}  # save test set metrics in dict format
-            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                            # save test set metrics on disk in .csv format
-                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
-
-            # # Plot pointwise copula difference
-            # jsd_graph(args,
-            #           best_dict['best_validation_epoch'],
-            #           model,
-            #           cm_flow=True)
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 
 
 if __name__ == '__main__':
@@ -255,56 +212,10 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Set up data loader
-    dataset, data_loaders, train_dataset = utils.load_data(args)
-    visualize_joint(dataset.trn.x, args, name='input_dataset')
-
-    # Build model and send to device
-    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
-    model.state = dict()
-    model_RealNVP.state = dict()
-    model_DDSF_1.state = dict()
-    model_DDSF_2.state = dict()
-
-    model.to(args.device)
-
-    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-6)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas)
-
+    # Specify, that this RealNVP is part of a CM_Flow
     args.RealNVP_part_of_CM_Flow = True
 
-    # Train
-    if args.grid_search:
-        # Hyperparamter options:
-        # General:
-        gradient_clipping = [True, False]
-
-        # RealNVP:
-        num_inv_blocks = [4, 8, 16]
-        num_hidden_units = [32, 64, 128]
-
-        # DDSF:
-        num_flow_layers = [5, 10]
-        num_hidden_layers = [1, 2]
-        num_ds_dims = [8, 16]
-
-        # Perform Grid search over defined values
-        model, best_dict, test_dict = grid_search(args=args,
-                                                  model=model,
-                                                  gradient_clipping=gradient_clipping,
-                                                  num_inv_blocks=num_inv_blocks,
-                                                  num_hidden_units=num_hidden_units,
-                                                  num_flow_layers=num_flow_layers,
-                                                  num_hidden_layers=num_hidden_layers,
-                                                  num_ds_dims=num_ds_dims)
-
-    else:
-        # Train model with specified options
-        train_and_plot(args=args,
-                       model=model,
-                       model_DDSF_1=model_DDSF_1,
-                       model_DDSF_2=model_DDSF_2,
-                       model_RealNVP=model_RealNVP,
-                       dataset=dataset,
-                       disable=False,
-                       grid_search=False)
+    # Train model with specified options
+    train_and_plot(args=args,
+                   disable_tqdm=False,
+                   grid_search=False)

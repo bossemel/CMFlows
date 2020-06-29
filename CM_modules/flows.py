@@ -24,36 +24,6 @@ class CMFlow(nn.Module):
         self.copula = args.copula
         self.theta = args.theta
 
-    def forward(self, inputs):
-        """Forward pass of CM Flows model. The inputs are first passed
-        through the two DDSF models, which project onto a uniform distributions.
-        The RealNVP then uses the CM Flows output to map onto a normal distribution.
-
-        Params:
-            inputs: joint distribution samples
-
-        Returns:z
-            inputs: inputs after forward pass
-            logdets: sum of the log of the determinant of the jacobian of the models
-            context: context parameter for DDSF
-        """
-        inputs_, logdets, context = inputs
-
-        # The inputs are split and fed to each of the DDSF models
-        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
-        inputs, logdets, context = inputs
-        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
-
-        # The outputs of the DDSF are concatenated to form a bivariate distribution
-        outputs_DDSFs = torch.cat((outputs_DDSF_1, outputs_DDSF_2), dim=1)
-
-        # forward pass in RealNVP
-        outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(outputs_DDSFs)
-
-        logdets = (logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1), logdets_RealNVP)
-        outputs = (outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP)
-        return outputs, logdets
-
     def forward_DDSF_1(self, inputs):
         """Forward pass of CM Flows model. The inputs are first passed
         through the two DDSF models, which project onto a uniform distributions.
@@ -70,44 +40,18 @@ class CMFlow(nn.Module):
         inputs_, logdets, context = inputs
 
         # The inputs are split and fed to each of the DDSF models
-        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_.reshape(-1, 1), logdets, context))
         return outputs_DDSF_1, logdets_DDSF_1
 
     def forward_DDSF_2(self, inputs):
         inputs_, logdets, context = inputs
-        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_.reshape(-1, 1), logdets, context))
         return outputs_DDSF_2, logdets_DDSF_2
 
     def forward_RealNVP(self, inputs, logdets=None, mode='direct'):
         # forward pass in RealNVP
         outputs_RealNVP, logdets_RealNVP = self.model_RealNVP(inputs=inputs, logdets=logdets, mode=mode)
         return outputs_RealNVP, logdets_RealNVP
-
-    def log_density(self, inputs):
-        """Returns log of target density of the Flow
-
-        Params:
-            inputs: target distribution samples
-
-        Returns:
-            log density of the model
-        """
-        self.n = inputs.shape[0]
-        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        outputs, log_jacob = self((inputs, self.logdets, self.context))
-        logdets_DDSF_1, logdets_DDSF_2, logdets_RealNVP = log_jacob
-        outputs_DDSF_1, outputs_DDSF_2, outputs_RealNVP = outputs
-        density_DDSF_1 = flow_density(outputs_DDSF_1, logdets_DDSF_1)
-        density_DDSF_2 = flow_density(outputs_DDSF_2, logdets_DDSF_2)
-        density_RealNVP = flow_density(outputs_RealNVP, logdets_RealNVP)
-        return (density_DDSF_1, density_DDSF_2, density_RealNVP)
-
-    def loss(self, x):
-        """Loss is negative log density
-        """
-        density_DDSF_1, density_DDSF_2, density_RealNVP = self.log_density(x)
-        return (-density_DDSF_1, -density_DDSF_2, -density_RealNVP)
 
     def sample(self, num_samples=None, noise=None):
         """Samples from the copula without transforming the marginals.
@@ -119,16 +63,20 @@ class CMFlow(nn.Module):
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
         return samples
 
-    def sample_copula(self, num_samples=None, noise=None):
+    def sample_copula(self, num_samples=None, noise=None, transform=None):
         """Sampels from the copula and transforms the marginals to uniform
         """
+        assert transform in ['sigmoid', 'gaussian'], 'Please specify transform function'
         if noise is None:
             noise = torch.Tensor(num_samples, 1).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward_RealNVP(noise, mode='inverse')[0]
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        samples = normal_distr.cdf(samples)
+        if transform == 'sigmoid':
+            samples = sigmoid(samples)
+        elif transform == 'gaussian':
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            samples = normal_distr.cdf(samples)
         return samples
 
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
@@ -139,7 +87,7 @@ class CMFlow(nn.Module):
         true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
 
         # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':

@@ -47,7 +47,16 @@ class FlowSequential(nn.Sequential):
     def loss(self, inputs):
         return - self.log_density(inputs)
 
-    def sample(self, num_samples=None, noise=None, transform=None):
+    def sample(self, num_samples=None, noise=None):
+        if noise is None:
+            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
+        return samples
+
+    def sample_copula(self, num_samples=None, noise=None, transform=None):
+        assert transform in ['sigmoid', 'gaussian'], 'Please specify transform function'
         if noise is None:
             noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
@@ -60,25 +69,13 @@ class FlowSequential(nn.Sequential):
             samples = normal_distr.cdf(samples)
         return samples
 
-    def sample_copula(self, num_samples=None, noise=None):
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        samples = normal_distr.cdf(samples)
-        # samples[samples >= 1] = 1 - eps
-        # samples[samples <= 0] = 0 + eps
-        return samples
-
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
         # Define distributions
         normal_distr = scipy.stats.norm(0, 1)
         true_cop_distr = datasets.distributions.copula_distr(args.copula, args.theta)
 
         # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
