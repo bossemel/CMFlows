@@ -2,9 +2,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
-#@Todo: comments
 
 def visualize_joint(data, args, name):
+    """Visualize 2D distribution as a seaborn jointplot.
+    """
     fig = plt.figure()
     fig = sns.jointplot(data[:, 0], data[:, 1], kind='hex', stat_func=None)
     fig.set_axis_labels('X1', 'X2', fontsize=16)

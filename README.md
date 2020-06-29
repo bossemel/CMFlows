@@ -13,13 +13,14 @@ pip install -r requirements.txt
 
 To train the [RealNVP](https://arxiv.org/abs/1605.08803) run:
 ```
-python3 RealNVP.py --dataset CLAYTON --epochs 100
+python3 RealNVP.py
 ```
 
-Available datasets are copula samples from the Clayton, Frank, Gumbel, Gaussian and t-copulas.
+Available datasets are copula samples from the Clayton, Frank or Gumbel copula. Available option can be
+found in ```RealNVP_modules/options```.
 
 
-## To run DDSF.py:
+## To run DDSF:
 
 To train the [Deep Dense Sigmoidal Flow (DDSF)](https://arxiv.org/pdf/1804.00779.pdf) run:
 
@@ -27,7 +28,20 @@ To train the [Deep Dense Sigmoidal Flow (DDSF)](https://arxiv.org/pdf/1804.00779
 python3 DDSF.py
 ```
 
-Available datasets are @TODO: add datasets
+Available datasets are samples from Gaussian, Uniform, Gamma, Lognormal and bimodal Gaussian distribution.
+Available option can be found in ```DDSF_modules/options```.
+
+## To run CM_Flow:
+
+To train the [CM Flow](https://arxiv.org/abs/1907.03361) run:
+
+```
+python3 CM_Flow.py
+```
+
+Available datasets are joint samples with Clayton, Frank or Gumbel copula and Gaussian, Uniform, Gamma,
+Lognormal and bimodal Gaussian marginals. Available option can be found in ```CM_modules/options```.
+
 
 ### References:
 

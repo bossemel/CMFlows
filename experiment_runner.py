@@ -17,6 +17,8 @@ eps = 0.0001
 
 
 def empty_logdets_context(inputs, device):
+    """Create empty arrays as inputs for DDSF.
+    """
     n = inputs.shape[0]
     context = torch.FloatTensor(n, 1).zero_().to(device)
     logdets = torch.FloatTensor(n).zero_().to(device)

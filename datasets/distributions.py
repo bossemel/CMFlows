@@ -1,5 +1,5 @@
 import datasets.distributions
-from utils.split_train_test import split_train_val_test
+from utils.various import split_train_val_test
 import numpy as np
 import scipy.stats
 import sys

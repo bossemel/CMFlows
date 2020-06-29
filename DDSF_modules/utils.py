@@ -109,19 +109,10 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
     prob_Y_in_q = marginal_distr.pdf(args=args, inputs=samples_target)
     prob_Y_in_p = np.exp(model.log_density(samples_target).detach().cpu().numpy())
 
-    # assert samples_target.cpu().numpy().all() > 0
-    # assert samples_target.cpu().numpy().all() > 0
-    # assert prob_X_in_p.all() > 0
-    # assert prob_X_in_q.all() > 0
-    # assert prob_Y_in_p.all() > 0
-    # assert prob_Y_in_q.all() > 0
-
     divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                prob_X_in_q=prob_X_in_q,
                                prob_Y_in_p=prob_Y_in_p,
                                prob_Y_in_q=prob_Y_in_q)
-
-    # assert divergence >= 0
 
     if cm_flow is not None:
         jsd_name = plotname + '_' + str(cm_flow)
