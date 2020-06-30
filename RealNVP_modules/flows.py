@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import scipy
-from utils.various import sigmoid, t_m_metric_eval, flow_density, js_divergence
+from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import datasets
 
 
@@ -91,6 +91,8 @@ class FlowSequential(nn.Sequential):
             samples_target = torch.tensor(inputs)
 
         # Estimate Copula distr
+        # RealNVP outputs the density directly, but not the transformation to
+        # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
         pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu().numpy())
 
         # Prob X in both distributions

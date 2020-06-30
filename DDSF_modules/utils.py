@@ -3,9 +3,7 @@ import datasets.distributions
 import math
 import numpy as np
 import scipy
-import matplotlib.pyplot as plt
-import os
-from utils.various import js_divergence
+from utils import js_divergence
 
 
 def load_data(args):

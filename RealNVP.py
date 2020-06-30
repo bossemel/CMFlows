@@ -13,7 +13,7 @@ from RealNVP_modules.options import TrainOptions
 
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
-from utils.various import HiddenPrints
+from utils import HiddenPrints
 import datasets.distributions
 
 from experiment_runner import train_val

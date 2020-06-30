@@ -31,7 +31,7 @@ def t_m_metric_eval(margin, intervals=25):
         m_metric: int metric for marginal
     """
     sum_probs = 0
-    highest_interval = 0
+    highest_interval = -math.inf
     for ii in range(intervals):
         A_k_lower = (ii - 1) / intervals
         A_k_upper = ii / intervals

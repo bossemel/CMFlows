@@ -13,7 +13,7 @@ from DDSF_modules.flows import MAF
 
 from experiment_runner import train_val
 from utils.save_statistics import save_statistics
-from utils.various import HiddenPrints
+from utils import HiddenPrints
 
 
 def build_model(args):

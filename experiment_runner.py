@@ -11,7 +11,7 @@ from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
 from DDSF_modules.visualizer import visualize1D
-from utils.various import flow_density
+from utils import flow_density
 
 eps = 0.0001
 
@@ -71,7 +71,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
             logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-            output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs, logdets_DDSFs, mode='direct')
+            output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs)
 
             # Calculate losses using Change of Variable Theorem and a normal prior
             loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1).mean()

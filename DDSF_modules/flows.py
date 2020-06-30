@@ -8,7 +8,7 @@ from torch.autograd import Variable
 import DDSF_modules.iaf_modules as iaf_modules
 import numpy as np
 from DDSF_modules import nn_modules as nn_, utils
-from utils.various import flow_density
+from utils import flow_density
 
 
 class MAF(nn.Sequential):

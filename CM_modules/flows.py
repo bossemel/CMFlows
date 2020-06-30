@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import scipy
-from utils.various import t_m_metric_eval, js_divergence
+from utils import t_m_metric_eval, js_divergence
 import datasets
 import numpy as np
 eps = 0.0001
