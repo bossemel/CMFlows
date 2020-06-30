@@ -119,7 +119,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
 
         with torch.no_grad():
             # Visualize RealNVP outputs
-            output_copula = model_RealNVP.sample_copula(num_samples=100000)
+            output_copula = model_RealNVP.sample_copula(num_samples=100000, transform='gaussian')
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
             # Visualize true copula

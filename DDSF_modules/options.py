@@ -47,10 +47,10 @@ class TrainOptions():
             '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
-        parser.add_argument(
-            '--amsgrad', type=int, default=0)
-        parser.add_argument(
-            '--polyak', type=float, default=0.0)
+        # parser.add_argument(
+        #     '--amsgrad', type=int, default=0)
+        # parser.add_argument(
+        #     '--polyak', type=float, default=0.0)
         parser.add_argument(
             '--lr', type=float, default=0.0001)
         parser.add_argument(

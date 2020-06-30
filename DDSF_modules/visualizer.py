@@ -22,7 +22,7 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000):
     fig = plt.figure(figsize=(8, 6))
 
     data = marginal_distr.sampler(args=args, obs=obs)
-    sns.distplot(data, bins=100, kde=False, label='Input Samples', norm_hist=True, color='orange')
+    sns.distplot(data, bins=100, kde=False, label='Test Set Samples', norm_hist=True, color='orange')
 
     res = obs
     xx = torch.linspace(np.min(data), np.max(data), res).reshape(-1, 1)

@@ -120,7 +120,7 @@ class FlowSequential(nn.Sequential):
         if cm_flow:
             samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         else:
-            samples = self.sample(num_samples=num_samples, noise=None)
+            samples = self.sample(num_samples=num_samples, noise=None).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
