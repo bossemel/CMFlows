@@ -60,7 +60,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                     data = torch.cat((data_1, data_2), dim=1)
 
         data = data.to(device)
-        args.optimizer.zero_grad()
+        # args.optimizer.zero_grad()
 
         if model_name == 'CM_Flow':
             # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the RealNVP
@@ -71,7 +71,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
             logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-            output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs)
+            output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs, mode='direct')
 
             # Calculate losses using Change of Variable Theorem and a normal prior
             loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1).mean()
@@ -365,7 +365,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                          transform_inputs=transform_inputs,
                          disable_tqdm=disable_tqdm)
 
-        num_samples = int(0.2 * args.obs)
+        num_samples = int(args.obs)
 
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'RealNVP':

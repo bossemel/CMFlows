@@ -44,8 +44,8 @@ def t_m_metric_eval(margin, intervals=25):
         if log_prob > highest_interval:
             highest_interval = log_prob
         sum_probs += abs(log_prob + np.log(intervals))
-        t_metric = sum_probs / intervals
-        m_metric = (highest_interval + np.log(intervals))
+    t_metric = sum_probs / intervals
+    m_metric = abs(highest_interval + np.log(intervals))
     return t_metric, m_metric
 
 
@@ -71,7 +71,8 @@ def flow_density(inputs, log_jacob):
     Returns:
         log density array
     """
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi))
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
+            -1, keepdim=True)
     return (log_prob + log_jacob).sum(-1, keepdim=True)
 
 

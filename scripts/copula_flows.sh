@@ -3,34 +3,25 @@ echo 'Begin Clayton Copula with best Hyperparameters'
 
 python RealNVP.py \
 --exp_name clayton_besthyp  \
---epochs 100 \
+--epochs 50 \
 --copula clayton \
 --theta 2 \
---batch-size 100 \
---obs 10000 \
---random_seed 58093 \
---early_stopping
+--obs 50000
 
 echo 'Begin Frank Copula with best Hyperparameters'
 
 python RealNVP.py \
 --exp_name frank_besthyp  \
---epochs 100 \
+--epochs 50 \
 --copula frank \
 --theta 5 \
---batch-size 100 \
---obs 10000 \
---random_seed 58093 \
---early_stopping
+--obs 500000
 
 echo 'Begin Gumbel Copula with best Hyperparameters'
 
 python RealNVP.py \
 --exp_name gumbel_besthyp  \
---epochs 1000 \
+--epochs 50 \
 --copula gumbel \
 --theta 5 \
---batch-size 100 \
---obs 10000 \
---random_seed 58093 \
---early_stopping
+--obs 500000
