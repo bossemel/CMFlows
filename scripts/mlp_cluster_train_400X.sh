@@ -37,5 +37,8 @@ export DATASET_DIR=${TMP}/datasets
 #tar -xzf "${DATASET_DIR}/BreaKHis_v1.tar.gz" -C "${DATASET_DIR}"
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate mlp
+python3 -m venv .env
+source .env/bin/activate
+pip install -r requirements.txt
 
 bash scripts/cm_flows.sh
