@@ -119,3 +119,13 @@ def split_train_val_test(xx):
     train, testval = model_selection.train_test_split(xx, test_size=0.2)
     val, test = model_selection.train_test_split(testval, test_size=0.5)
     return train, val, test
+
+
+def empty_logdets_context(inputs, device):
+    """Create empty arrays as inputs for DDSF.
+    """
+    n = inputs.shape[0]
+    context = torch.FloatTensor(n, 1).zero_().to(device)
+    logdets = torch.FloatTensor(n).zero_().to(device)
+    return logdets, context
+

@@ -11,18 +11,10 @@ from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
 from DDSF_modules.visualizer import visualize1D
-from utils import flow_density
+from CM_modules.utils import jsd_eval_marginal_cm
+from utils import flow_density, empty_logdets_context
 
 eps = 0.0001
-
-
-def empty_logdets_context(inputs, device):
-    """Create empty arrays as inputs for DDSF.
-    """
-    n = inputs.shape[0]
-    context = torch.FloatTensor(n, 1).zero_().to(device)
-    logdets = torch.FloatTensor(n).zero_().to(device)
-    return logdets, context
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
@@ -443,21 +435,15 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
             #                args=args,
             #                best_val=True)
 
-            # test_dict = jsd_eval_marginal(marginal=args.marginal_1,
-            #                               args=args,
-            #                               epoch=best_dict_current_model['best_validation_epoch'],
-            #                               model=current_model,
-            #                               test_dict=test_dict,
-            #                               cm_flow=0,
-            #                               plotname='jsd_cm_flow_marginal')
-            # args.marginal = args.marginal_2
-            # test_dict = jsd_eval_marginal(marginal=args.marginal_2,
-            #                               args=args,
-            #                               epoch=best_dict_current_model['best_validation_epoch'],
-            #                               model=current_model,
-            #                               test_dict=test_dict,
-            #                               cm_flow=1,
-            #                               plotname='jsd_cm_flow_marginal')
+            test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
+                                             marginal_2=args.marginal_2,
+                                             args=args,
+                                             epoch=best_dict_current_model['best_validation_epoch'],
+                                             model=current_model,
+                                             test_dict=test_dict,
+                                             plotname='jsd_cm_flow_marginal')
+            args.marginal = args.marginal_2
+
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(best_dict_current_model['best_validation_epoch'],
                                           current_model,

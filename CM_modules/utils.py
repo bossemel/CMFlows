@@ -1,5 +1,8 @@
 import torch
 import datasets
+import numpy as np
+import scipy.spatial
+from utils import flow_density, empty_logdets_context
 
 
 def load_data(args):
@@ -49,3 +52,41 @@ def load_data(args):
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
     return dataset, data_loaders, train_tensor
+
+
+def jsd_eval_marginal_cm(marginal_1, marginal_2, args, epoch, model, test_dict,
+                         obs=10000, plotname='jsd_test_marginal'):
+    # Get distributions
+    args.marginal = marginal_1
+    marginal_distr_1 = datasets.distributions.Marginals(args)
+    samples = marginal_distr_1.sampler(args=args, obs=obs)
+
+    # Get Grid
+    grid = np.linspace(np.min(samples), np.max(samples), 100).reshape(-1, 1)
+
+    # Prob vector pred
+    logdets, context = empty_logdets_context(grid, args.device)
+    output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((grid, logdets, context))
+    output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((grid, logdets, context))
+    prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).detach().cpu().numpy())
+    prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).detach().cpu().numpy())
+
+    # Prob vector target
+    prob_vector_Y = marginal_distr_1.pdf(args=args, inputs=grid)
+
+    divergence_1 = scipy.spatial.distance.jensenshannon(prob_vector_X_1, prob_vector_Y)
+    divergence_2 = scipy.spatial.distance.jensenshannon(prob_vector_X_2, prob_vector_Y)
+
+    jsd_name = plotname + '_' + str(0)
+    if jsd_name in test_dict:
+        test_dict[jsd_name].append(divergence_1)
+    else:
+        test_dict[jsd_name] = [divergence_1]
+
+    jsd_name = plotname + '_' + str(1)
+    if jsd_name in test_dict:
+        test_dict[jsd_name].append(divergence_2)
+    else:
+        test_dict[jsd_name] = [divergence_2]
+
+    return test_dict
