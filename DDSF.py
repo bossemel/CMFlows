@@ -69,7 +69,7 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
                               ' num_ds_layers: ', num_ds_layers)
                         with HiddenPrints():
                             current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                                 disable=True,
+                                                                                                 disable_tqdm=True,
                                                                                                  grid_search=True)
                         current_hyperparams = (num_flows_layers_DDSF,
                                                num_hid_layers_DDSF,
@@ -97,7 +97,7 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, disable=False, grid_search=False):
+def train_and_plot(args, disable_tqdm=False, grid_search=False):
     # Set up data loader
     dataset, num_inputs, data_loaders = load_data(args)
 
@@ -114,7 +114,8 @@ def train_and_plot(args, disable=False, grid_search=False):
                                             model_name='DDSF',
                                             args=args,
                                             data_loaders=data_loaders,
-                                            dataset=dataset)
+                                            dataset=dataset,
+                                            disable_tqdm=disable_tqdm)
     return model, best_dict, test_dict
 
 
