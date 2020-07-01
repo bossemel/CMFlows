@@ -152,7 +152,6 @@ if __name__ == '__main__':
         flow_layers = [5, 10]
         hidden_layers = [1, 2]
         hidden_units = [64, 128, 512]
-        weight_decay = [0, 0.000001]
         deep_sigm_dim = [8, 16]
         deep_sigm_layers = [1, 2]
 
