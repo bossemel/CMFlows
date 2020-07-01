@@ -149,7 +149,7 @@ if __name__ == '__main__':
         # Hyperparameter options:
         flow_layers = [5, 10]
         hidden_layers = [1, 2]
-        hidden_units = [64, 128, 512]
+        hidden_units = [64, 128]
         deep_sigm_dim = [8, 16]
         deep_sigm_layers = [1, 2]
 
