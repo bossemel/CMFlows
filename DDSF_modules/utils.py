@@ -90,27 +90,17 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
              obs=10000, cm_flow=None, plotname='jsd_test_marginal'):
     # Get distributions
     marginal_distr = datasets.distributions.Marginals(args)
-    # Samples from both distributinos
-    samples_target = marginal_distr.sampler(args=args, obs=obs)
-    samples_target = torch.tensor(samples_target.reshape(-1, 1)).float()
 
-    # @Todo: find something for samples_pred
-    # Temporary solution: samples from uniform distr
-    samples_pred = scipy.stats.uniform.rvs(loc=0, scale=1, size=obs)
-    samples_pred = torch.tensor(samples_pred.reshape(-1, 1)).float()
+    # Get Grid
+    grid = np.arange(0.01, 1, 0.01)
 
-    # Prob X in both distributions
-    prob_X_in_p = np.exp(model.log_density(samples_pred).detach().cpu().numpy())
-    prob_X_in_q = marginal_distr.pdf(args=args, inputs=samples_pred)
+    # Prob vector pred
+    prob_vector_X = np.exp(model.log_density(torch.tensor(grid)).detach().cpu().numpy())
 
-    # Prob Y in both distributions
-    prob_Y_in_q = marginal_distr.pdf(args=args, inputs=samples_target)
-    prob_Y_in_p = np.exp(model.log_density(samples_target).detach().cpu().numpy())
+    # Prob vector target
+    prob_vector_Y = marginal_distr.pdf(args=args, inputs=grid)
 
-    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                               prob_X_in_q=prob_X_in_q,
-                               prob_Y_in_p=prob_Y_in_p,
-                               prob_Y_in_q=prob_Y_in_q)
+    divergence = scipy.distance.jensenshannon(prob_vector_X, prob_vector_Y)
 
     if cm_flow is not None:
         jsd_name = plotname + '_' + str(cm_flow)

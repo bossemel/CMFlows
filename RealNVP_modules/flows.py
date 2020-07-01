@@ -94,7 +94,7 @@ class FlowSequential(nn.Sequential):
         # Estimate Copula distr
         # RealNVP outputs the density directly, but not the transformation to
         # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-        pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu().numpy())
+        pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
 
         # Prob X in both distributions
         prob_X_in_p = pred_distr.pdf(samples_pred.T.cpu().numpy()).T

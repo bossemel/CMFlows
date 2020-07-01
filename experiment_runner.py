@@ -392,11 +392,11 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
         if model_name == 'DDSF':
             # Calculate Jensen-Shannon Divergence of marginal 1
             args.marginal = args.marginal
-            # test_dict = jsd_eval_marginal(marginal=args.marginal,
-            #                               args=args,
-            #                               epoch=best_dict_current_model['best_validation_epoch'],
-            #                               model=current_model,
-            #                               test_dict=test_dict)
+            test_dict = jsd_eval_marginal(marginal=args.marginal,
+                                          args=args,
+                                          epoch=best_dict_current_model['best_validation_epoch'],
+                                          model=current_model,
+                                          test_dict=test_dict)
 
             # Visualize the marginals
             visualize1D(model=current_model,
