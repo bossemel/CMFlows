@@ -160,7 +160,7 @@ if __name__ == '__main__':
                                                   transform_functions=transform_functions,
                                                   num_inv_blocks=num_inv_blocks,
                                                   num_hidden_units=num_hidden_units,
-                                                  weight_decay=weight_decay)
+                                                  weight_decay_adam=weight_decay)
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args=args,

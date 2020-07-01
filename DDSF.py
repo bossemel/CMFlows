@@ -47,7 +47,8 @@ def build_model(args):
     return model
 
 
-def grid_search(args, flow_layers, hidden_layers, hidden_units, weight_decay_adam):
+def grid_search(args, flow_layers, hidden_layers, hidden_units,
+                weight_decay_adam, deep_sigm_dim, deep_sigm_layers):
     results_dict = {}
     best_loss = 1000
     print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
@@ -59,25 +60,36 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units, weight_decay_ada
                 args.dimh_DDSF = dimh_DDSF
                 for weight_decay in weight_decay_adam:
                     args.weight_decay = weight_decay
-                    print(' num_flows_layers_DDSF:', num_flows_layers_DDSF,
-                          ' num_hid_layers_DDSF:', num_hid_layers_DDSF,
-                          ' dimh_DDSF:', dimh_DDSF, 'weight_decay:', weight_decay)
-                    with HiddenPrints():
-                        current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                             disable=True,
-                                                                                             grid_search=True)
-                    current_hyperparams = (num_flows_layers_DDSF, num_hid_layers_DDSF, dimh_DDSF, weight_decay)
-                    results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                         current_best_dict['best_validation_loss'])
-                    print(results_dict[current_hyperparams])
-                    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-                        f.write(str(results_dict))
-                    if current_best_dict['best_validation_loss'] < best_loss:
-                        best_loss = current_best_dict['best_validation_loss']
-                        best_hyperparams = current_hyperparams
-                        model = current_model
-                        best_dict = current_best_dict
-                        test_dict = current_test_dict
+                    for num_ds_dim in deep_sigm_dim:
+                        args.num_ds_dim = num_ds_dim
+                        for num_ds_layers in deep_sigm_layers:
+                            args.num_ds_layers = num_ds_layers
+                            print(' num_flows_layers_DDSF:', num_flows_layers_DDSF,
+                                  ' num_hid_layers_DDSF:', num_hid_layers_DDSF,
+                                  ' dimh_DDSF:', dimh_DDSF, 'weight_decay:', weight_decay,
+                                  ' num_ds_dim', num_ds_dim,
+                                  ' num_ds_layers: ', num_ds_layers)
+                            with HiddenPrints():
+                                current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                                     disable=True,
+                                                                                                     grid_search=True)
+                            current_hyperparams = (num_flows_layers_DDSF,
+                                                   num_hid_layers_DDSF,
+                                                   dimh_DDSF,
+                                                   weight_decay,
+                                                   num_ds_dim,
+                                                   num_ds_layers)
+                            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                                 current_best_dict['best_validation_loss'])
+                            print(results_dict[current_hyperparams])
+                            with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                                f.write(str(results_dict))
+                            if current_best_dict['best_validation_loss'] < best_loss:
+                                best_loss = current_best_dict['best_validation_loss']
+                                best_hyperparams = current_hyperparams
+                                model = current_model
+                                best_dict = current_best_dict
+                                test_dict = current_test_dict
     print('Grid search complete for ', args.marginal)
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
@@ -141,13 +153,17 @@ if __name__ == '__main__':
         hidden_layers = [1, 2]
         hidden_units = [64, 128, 512]
         weight_decay = [0, 0.000001]
+        deep_sigm_dim = [8, 16]
+        deep_sigm_layers = [1, 2]
 
         # Perform Grid Search
         model, best_dict, test_dict = grid_search(args,
                                                   flow_layers,
                                                   hidden_layers,
                                                   hidden_units,
-                                                  weight_decay)
+                                                  weight_decay,
+                                                  deep_sigm_dim,
+                                                  deep_sigm_layers)
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args)

@@ -6,7 +6,7 @@ python DDSF.py \
 --epochs 50 \
 --marginal bimodal_gaussian \
 --batch-size 1000 \
---obs 50000 \
+--obs 10000 \
 --grid_search
 
 echo 'Gaussian - Grid Search'
@@ -18,7 +18,7 @@ python DDSF.py \
 --mu -2 \
 --var 3 \
 --batch-size 1000 \
---obs 50000 \
+--obs 10000 \
 --grid_search
 
 echo 'Uniform - Grid Search'
@@ -30,7 +30,7 @@ python DDSF.py \
 --low -1 \
 --high 3 \
 --batch-size 1000 \
---obs 50000 \
+--obs 10000 \
 --grid_search
 
 echo 'Gamma - Grid Search'
@@ -41,7 +41,7 @@ python DDSF.py \
 --marginal gamma \
 --alpha 5 \
 --batch-size 1000 \
---obs 50000 \
+--obs 10000 \
 --grid_search
 
 echo 'Lognormal - Grid Search'
@@ -53,5 +53,5 @@ python DDSF.py \
 --mu 0 \
 --var 1 \
 --batch-size 1000 \
---obs 50000 \
+--obs 10000 \
 --grid_search

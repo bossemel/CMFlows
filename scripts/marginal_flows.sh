@@ -6,7 +6,7 @@ python DDSF.py \
 --epochs 50 \
 --marginal bimodal_gaussian \
 --batch-size 1000 \
---obs 50000
+--obs 10000
 
 echo 'Gaussian'
 
@@ -17,7 +17,7 @@ python DDSF.py \
 --mu -2 \
 --var 3 \
 --batch-size 1000 \
---obs 50000
+--obs 10000
 
 echo 'Uniform'
 
@@ -28,7 +28,7 @@ python DDSF.py \
 --low -1 \
 --high 3 \
 --batch-size 1000 \
---obs 50000
+--obs 10000
 
 echo 'Gamma'
 
@@ -38,7 +38,7 @@ python DDSF.py \
 --marginal gamma \
 --alpha 5 \
 --batch-size 1000 \
---obs 50000
+--obs 10000
 
 echo 'Lognormal'
 
@@ -49,4 +49,4 @@ python DDSF.py \
 --mu 0 \
 --var 1 \
 --batch-size 1000 \
---obs 50000
+--obs 10000
