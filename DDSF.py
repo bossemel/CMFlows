@@ -67,26 +67,29 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
                               ' dimh_DDSF:', dimh_DDSF,
                               ' num_ds_dim', num_ds_dim,
                               ' num_ds_layers: ', num_ds_layers)
-                        with HiddenPrints():
-                            current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                                 disable_tqdm=True,
-                                                                                                 grid_search=True)
-                        current_hyperparams = (num_flows_layers_DDSF,
-                                               num_hid_layers_DDSF,
-                                               dimh_DDSF,
-                                               num_ds_dim,
-                                               num_ds_layers)
-                        results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                             current_best_dict['best_validation_loss'])
-                        print(results_dict[current_hyperparams])
-                        with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-                            f.write(str(results_dict))
-                        if current_best_dict['best_validation_loss'] < best_loss:
-                            best_loss = current_best_dict['best_validation_loss']
-                            best_hyperparams = current_hyperparams
-                            model = current_model
-                            best_dict = current_best_dict
-                            test_dict = current_test_dict
+                        try:
+                            with HiddenPrints():
+                                current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                                     disable_tqdm=True,
+                                                                                                     grid_search=True)
+                            current_hyperparams = (num_flows_layers_DDSF,
+                                                   num_hid_layers_DDSF,
+                                                   dimh_DDSF,
+                                                   num_ds_dim,
+                                                   num_ds_layers)
+                            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                                 current_best_dict['best_validation_loss'])
+                            print(results_dict[current_hyperparams])
+                            with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                                f.write(str(results_dict))
+                            if current_best_dict['best_validation_loss'] < best_loss:
+                                best_loss = current_best_dict['best_validation_loss']
+                                best_hyperparams = current_hyperparams
+                                model = current_model
+                                best_dict = current_best_dict
+                                test_dict = current_test_dict
+                        except:
+                            pass
     print('Grid search complete for ', args.marginal)
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
