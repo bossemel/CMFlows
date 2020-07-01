@@ -1,5 +1,4 @@
 import scipy.stats
-import matplotlib.pyplot as plt
 import numpy as np
 
 if __name__ == '__main__':
@@ -11,4 +10,3 @@ if __name__ == '__main__':
     samples_2 = gaussian_2.rvs(int(obs / 2)).reshape(-1, 1)
 
     bimodal_gaussian = np.concatenate([samples_1, samples_2], axis=1)
-

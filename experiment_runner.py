@@ -365,7 +365,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                          transform_inputs=transform_inputs,
                          disable_tqdm=disable_tqdm)
 
-        num_samples = int(args.obs)
+        num_samples = int(0.2 * args.obs)
 
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'RealNVP':
