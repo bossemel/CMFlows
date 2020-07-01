@@ -123,11 +123,11 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
             # Visualize true copula
-            obs = args.obs
-            args.obs = 100000
+            # obs = args.obs
+            # args.obs = 100000
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
-            args.obs = obs
+#            args.obs = obs
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in

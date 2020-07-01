@@ -23,7 +23,7 @@ echo 'Begin Gumbel Copula with best Hyperparameters'
 
 python RealNVP.py \
 --exp_name gumbel_besthyp  \
---epochs 1 \
+--epochs 50 \
 --batch-size 1000 \
 --copula gumbel \
 --theta 5 \

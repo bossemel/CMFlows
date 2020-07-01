@@ -3,6 +3,7 @@ import torch.nn as nn
 import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import datasets
+import numpy as np
 
 
 class FlowSequential(nn.Sequential):
@@ -103,12 +104,24 @@ class FlowSequential(nn.Sequential):
         prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
         prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
+        if np.isnan(np.sum(prob_X_in_q)):
+            prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+            prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+
+        if np.isnan(np.sum(prob_Y_in_q)):
+            prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+            prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+
         assert samples_pred.cpu().numpy().all() > 0
         assert samples_target.cpu().numpy().all() > 0
-        assert prob_X_in_p.all() > 0
-        assert prob_X_in_q.all() > 0
-        assert prob_Y_in_p.all() > 0
-        assert prob_Y_in_q.all() > 0
+        assert np.min(prob_X_in_p) >= 0
+        assert np.min(prob_X_in_q) >= 0
+        assert np.min(prob_Y_in_p) >= 0
+        assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
 
         divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                    prob_X_in_q=prob_X_in_q,

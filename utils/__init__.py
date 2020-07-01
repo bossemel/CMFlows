@@ -41,7 +41,9 @@ def t_m_metric_eval(margin, intervals=25):
             assert not math.isinf(log_prob), (len(points_within) / len(margin))
         else:
             log_prob = 0
-        if log_prob > highest_interval:
+        if highest_interval == -math.inf:
+            highest_interval = log_prob
+        if abs(log_prob + np.log(intervals)) > abs(highest_interval + np.log(intervals)):
             highest_interval = log_prob
         sum_probs += abs(log_prob + np.log(intervals))
     t_metric = sum_probs / intervals
