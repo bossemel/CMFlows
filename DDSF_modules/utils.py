@@ -90,12 +90,13 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
              obs=10000, cm_flow=None, plotname='jsd_test_marginal'):
     # Get distributions
     marginal_distr = datasets.distributions.Marginals(args)
+    samples = marginal_distr.sampler(args=args, obs=obs)
 
     # Get Grid
-    grid = np.arange(0.01, 1, 0.01)
+    grid = np.linspace(np.min(samples), np.max(samples), 1000)
 
     # Prob vector pred
-    prob_vector_X = np.exp(model.log_density(torch.tensor(grid)).detach().cpu().numpy())
+    prob_vector_X = np.exp(model.log_density(torch.tensor(grid).float()).detach().cpu().numpy())
 
     # Prob vector target
     prob_vector_Y = marginal_distr.pdf(args=args, inputs=grid)

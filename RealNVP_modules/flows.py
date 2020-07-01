@@ -97,7 +97,7 @@ class FlowSequential(nn.Sequential):
         pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
 
         # Prob X in both distributions
-        prob_X_in_p = pred_distr.pdf(samples_pred.T.cpu().numpy()).T
+        prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
         prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
 
         # Prob Y in both distributions
