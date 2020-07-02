@@ -8,7 +8,7 @@ set -e
 # --batch-size 100 \
 # --obs 10000 \
 # --grid_search \
---early_stopping
+#--early_stopping
 
 echo 'Gaussian - Grid Search'
 
