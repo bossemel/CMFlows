@@ -1,13 +1,14 @@
 set -e
-echo 'Bimodal Gaussian - Grid Search'
+# echo 'Bimodal Gaussian - Grid Search'
 
-python DDSF.py \
---exp_name DDSF_bimodal_gaussian_grid_search \
---epochs 50 \
---marginal bimodal_gaussian \
---batch-size 100 \
---obs 10000 \
---grid_search
+# python DDSF.py \
+# --exp_name DDSF_bimodal_gaussian_grid_search \
+# --epochs 50 \
+# --marginal bimodal_gaussian \
+# --batch-size 100 \
+# --obs 10000 \
+# --grid_search \
+--early_stopping
 
 echo 'Gaussian - Grid Search'
 
@@ -19,7 +20,8 @@ python DDSF.py \
 --var 3 \
 --batch-size 100 \
 --obs 10000 \
---grid_search
+--grid_search \
+--early_stopping
 
 echo 'Uniform - Grid Search'
 
@@ -31,7 +33,8 @@ python DDSF.py \
 --high 3 \
 --batch-size 100 \
 --obs 10000 \
---grid_search
+--grid_search \
+--early_stopping
 
 echo 'Gamma - Grid Search'
 
@@ -42,7 +45,8 @@ python DDSF.py \
 --alpha 5 \
 --batch-size 100 \
 --obs 10000 \
---grid_search
+--grid_search \
+--early_stopping
 
 echo 'Lognormal - Grid Search'
 
@@ -54,4 +58,5 @@ python DDSF.py \
 --var 1 \
 --batch-size 100 \
 --obs 10000 \
---grid_search
+--grid_search \
+--early_stopping

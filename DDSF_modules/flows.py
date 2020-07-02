@@ -34,9 +34,9 @@ class MAF(nn.Sequential):
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
         # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
-        assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
+        # assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        assert not torch.isnan(torch.sum(density))
+        # assert not torch.isnan(torch.sum(density))
         return density
 
     def loss(self, x):
