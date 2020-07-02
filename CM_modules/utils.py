@@ -63,12 +63,12 @@ def jsd_eval_marginal_cm(marginal_1, marginal_2, args, epoch, model, test_dict,
 
     # Get Grid
     grid = np.linspace(np.min(samples), np.max(samples), 100).reshape(-1, 1)
-    grid = np.concatenate([grid, grid], axis=1)
+    grid_double = np.concatenate([grid, grid], axis=1)
 
     # Prob vector pred
     logdets, context = empty_logdets_context(grid, args.device)
-    output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((torch.tensor(grid).float(), logdets, context))
-    output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((torch.tensor(grid).float(), logdets, context))
+    output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((torch.tensor(grid_double).float(), logdets, context))
+    output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((torch.tensor(grid_double).float(), logdets, context))
     prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).detach().cpu().numpy())
     prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).detach().cpu().numpy())
 

@@ -24,13 +24,13 @@ class TrainOptions():
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=10)
+            '--num_flow_layers_DDSF', type=int, default=5)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=2)
+            '--num_hid_layers_DDSF', type=int, default=1)
         parser.add_argument(
             '--num_ds_dim', type=int, default=16)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=1)
+            '--num_ds_layers', type=int, default=2)
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(

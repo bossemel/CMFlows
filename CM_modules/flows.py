@@ -39,12 +39,12 @@ class CMFlow(nn.Module):
         inputs_, logdets, context = inputs
 
         # The inputs are split and fed to each of the DDSF models
-        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].reshape(-1, 1), logdets, context))
+        outputs_DDSF_1, logdets_DDSF_1, __ = self.model_DDSF_1((inputs_[:, 0].float().reshape(-1, 1), logdets, context))
         return outputs_DDSF_1, logdets_DDSF_1
 
     def forward_DDSF_2(self, inputs):
         inputs_, logdets, context = inputs
-        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].reshape(-1, 1), logdets, context))
+        outputs_DDSF_2, logdets_DDSF_2, __ = self.model_DDSF_2((inputs_[:, 1].float().reshape(-1, 1), logdets, context))
         return outputs_DDSF_2, logdets_DDSF_2
 
     def forward_RealNVP(self, inputs, logdets=None, mode='direct'):

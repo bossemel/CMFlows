@@ -68,13 +68,13 @@ class TrainOptions():
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=10)
+            '--num_flow_layers_DDSF', type=int, default=5)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=2)
+            '--num_hid_layers_DDSF', type=int, default=1)
         parser.add_argument(
             '--num_ds_dim', type=int, default=16)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=1)
+            '--num_ds_layers', type=int, default=2)
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
