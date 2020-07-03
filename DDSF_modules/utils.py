@@ -2,8 +2,8 @@ import torch
 import datasets.distributions
 import math
 import numpy as np
-import scipy.spatial
-from utils import js_divergence
+from utils import js_divergence_grid
+import scipy.stats
 
 
 def load_data(args):
@@ -87,21 +87,29 @@ def log_normal(inputs, mean, log_var, device, eps=0.00001):
 
 
 def jsd_eval(marginal, args, epoch, model, test_dict,
-             obs=10000, cm_flow=None, plotname='jsd_test_marginal'):
+             obs=1000, cm_flow=None, plotname='jsd_test_marginal'):
     # Get distributions
     marginal_distr = datasets.distributions.Marginals(args)
     samples = marginal_distr.sampler(args=args, obs=obs)
 
     # Get Grid
-    grid = np.linspace(np.min(samples), np.max(samples), 100).reshape(-1, 1)
+    grid = np.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)
 
     # Prob vector pred
+    args.obs = obs
     prob_vector_X = np.exp(model.log_density(torch.tensor(grid).float()).detach().cpu().numpy())
+    # prob_vector_X[prob_vector_X == 0] = 0 + eps
 
     # Prob vector target
-    prob_vector_Y = marginal_distr.pdf(args=args, inputs=grid)
+    pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
+    prob_vector_Y = pred_distr_Y(grid.T).T
 
-    divergence = scipy.spatial.distance.jensenshannon(prob_vector_X, prob_vector_Y)
+    assert np.min(prob_vector_X) >= 0
+    assert np.min(prob_vector_Y) >= 0
+
+    # Calculate JS Divergence
+    divergence = js_divergence_grid(prob_vector_X, prob_vector_Y)
+    print('JS divergence', divergence)
 
     if cm_flow is not None:
         jsd_name = plotname + '_' + str(cm_flow)

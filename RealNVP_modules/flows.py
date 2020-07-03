@@ -87,7 +87,7 @@ class FlowSequential(nn.Sequential):
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs)).float()
+            samples_target = torch.tensor(normal_distr.cdf(inputs.detach().cpu())).float()
         else:
             samples_target = torch.tensor(inputs)
 
@@ -116,8 +116,8 @@ class FlowSequential(nn.Sequential):
             prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
             prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-        assert samples_pred.cpu().numpy().all() > 0
-        assert samples_target.cpu().numpy().all() > 0
+        assert np.min(samples_pred.cpu().numpy()) >= 0
+        assert np.min(samples_target.cpu().numpy()) >= 0
         assert np.min(prob_X_in_p) >= 0
         assert np.min(prob_X_in_q) >= 0
         assert np.min(prob_Y_in_p) >= 0

@@ -2,7 +2,7 @@ import torch
 import datasets
 import numpy as np
 import scipy.spatial
-from utils import flow_density, empty_logdets_context
+from utils import flow_density, empty_logdets_context, js_divergence_grid
 
 
 def load_data(args):
@@ -55,28 +55,31 @@ def load_data(args):
 
 
 def jsd_eval_marginal_cm(marginal_1, marginal_2, args, epoch, model, test_dict,
-                         obs=10000, plotname='jsd_test_marginal'):
+                         obs=1000, plotname='jsd_test_marginal'):
     # Get distributions
     args.marginal = marginal_1
     marginal_distr_1 = datasets.distributions.Marginals(args)
     samples = marginal_distr_1.sampler(args=args, obs=obs)
 
     # Get Grid
-    grid = np.linspace(np.min(samples), np.max(samples), 100).reshape(-1, 1)
-    grid_double = np.concatenate([grid, grid], axis=1)
+    grid = torch.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)
 
     # Prob vector pred
-    logdets, context = empty_logdets_context(grid, args.device)
-    output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((torch.tensor(grid_double).float(), logdets, context))
-    output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((torch.tensor(grid_double).float(), logdets, context))
-    prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).detach().cpu().numpy())
-    prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).detach().cpu().numpy())
+    args.obs = obs
+    pred_density_1 = np.exp(model.log_density_DDSF_1(grid).data.detach().cpu().numpy())
+    pred_density_2 = np.exp(model.log_density_DDSF_2(grid).data.detach().cpu().numpy())
 
     # Prob vector target
-    prob_vector_Y = marginal_distr_1.pdf(args=args, inputs=grid)
+    pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
+    prob_vector_Y = pred_distr_Y(grid.T).T
 
-    divergence_1 = scipy.spatial.distance.jensenshannon(prob_vector_X_1, prob_vector_Y)
-    divergence_2 = scipy.spatial.distance.jensenshannon(prob_vector_X_2, prob_vector_Y)
+    assert np.min(pred_density_1) >= 0
+    assert np.min(pred_density_2) >= 0
+    assert np.min(prob_vector_Y) >= 0
+
+    # Calculate JS Divergence
+    divergence_1 = js_divergence_grid(pred_density_1, prob_vector_Y)
+    divergence_2 = js_divergence_grid(pred_density_2, prob_vector_Y)
 
     print('Marginal 1 Divergence: ', divergence_1)
     print('Marginal 2 Divergence: ', divergence_2)

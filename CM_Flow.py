@@ -36,14 +36,13 @@ def build_model(args):
         model_DDSF_2: 2nd DDSF model
     """
     model_RealNVP = build_model_RealNVP(args)
-
     model_DDSF_1 = build_model_DDSF(args)
     model_DDSF_2 = build_model_DDSF(args)
 
     model = flows.CMFlow(transform=args.transform_fct,
-                         model_RealNVP=model_RealNVP,
-                         model_DDSF_1=model_DDSF_1,
-                         model_DDSF_2=model_DDSF_2,
+                         # model_RealNVP=model_RealNVP,
+                         # model_DDSF_1=model_DDSF_1,
+                         # model_DDSF_2=model_DDSF_2,
                          device=args.device,
                          batch_size=args.batch_size,
                          args=args)
@@ -64,6 +63,9 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     model_DDSF_2.state = dict()
 
     model.to(args.device)
+    model_DDSF_1.to(args.device)
+    model_DDSF_2.to(args.device)
+    model_RealNVP.to(args.device)
 
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:

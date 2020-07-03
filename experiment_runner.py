@@ -11,6 +11,7 @@ from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
 from DDSF_modules.visualizer import visualize1D
+from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm
 from utils import flow_density, empty_logdets_context
 
@@ -58,12 +59,11 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the RealNVP
             logdets, context = empty_logdets_context(data, device)
 
-            output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((data, logdets, context))
-            output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((data, logdets, context))
+            output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+            output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
             outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-            logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-            output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs, mode='direct')
+            output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
 
             # Calculate losses using Change of Variable Theorem and a normal prior
             loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1).mean()
@@ -126,12 +126,11 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         with torch.no_grad():
             logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
 
-            output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((train_loader.dataset.tensors[0], logdets, context))
-            output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((train_loader.dataset.tensors[0], logdets, context))
+            output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
+            output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
             outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-            logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-            model.forward_RealNVP(outputs_DDSFs, logdets_DDSFs, mode='direct')
+            model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
     for module in model.modules():
         if isinstance(module, fnn.BatchNormFlow):
@@ -180,12 +179,11 @@ def validate(epoch, model, loader, device,
         with torch.no_grad():
             if model_name == 'CM_Flow':
                 logdets, context = empty_logdets_context(data, device)
-                output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((data, logdets, context))
-                output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((data, logdets, context))
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
                 outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-                logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-                output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs, logdets_DDSFs, mode='direct')
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
                 loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
                 current_loss = loss_RealNVP
@@ -246,12 +244,11 @@ def test(epoch, model, loader, device,
         with torch.no_grad():
             if model_name == 'CM_Flow':
                 logdets, context = empty_logdets_context(data, device)
-                output_DDSF_1, logdets_DDSF_1 = model.forward_DDSF_1((data, logdets, context))
-                output_DDSF_2, logdets_DDSF_2 = model.forward_DDSF_2((data, logdets, context))
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
                 outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-                logdets_DDSFs = torch.cat((logdets_DDSF_1.reshape(-1, 1), logdets_DDSF_2.reshape(-1, 1)), dim=1)
 
-                output_RealNVP, logdets_RealNVP = model.forward_RealNVP(outputs_DDSFs, logdets_DDSFs, mode='direct')
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
                 loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
                 current_loss = loss_RealNVP
@@ -417,7 +414,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           plotname='jsd_pretrain_marginal_1')
 
         if model_name == 'CM_Flow':
-            args.marginal = args.marginal_1
+            # args.marginal = args.marginal_1
             test_dict = jsd_eval_copula(args,
                                         best_dict_current_model['best_validation_epoch'],
                                         current_model,
@@ -429,12 +426,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         transform_inputs=transform_inputs,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
 
-            # # Visualize the marginals
-            # visualize1D_CM(model=current_model,
-            #                epoch=best_dict_current_model['best_validation_epoch'],
-            #                args=args,
-            #                best_val=True)
-
             test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
                                              marginal_2=args.marginal_2,
                                              args=args,
@@ -442,7 +433,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                              model=current_model,
                                              test_dict=test_dict,
                                              plotname='jsd_cm_flow_marginal')
-            args.marginal = args.marginal_2
+            # args.marginal = args.marginal_2
 
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(best_dict_current_model['best_validation_epoch'],
@@ -453,6 +444,12 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
                                           cm_flow=args.RealNVP_part_of_CM_Flow)
+
+            # Visualize the marginals
+            visualize1D_CM(model=current_model,
+                           epoch=best_dict_current_model['best_validation_epoch'],
+                           args=args,
+                           best_val=True)
 
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_name=model_name)

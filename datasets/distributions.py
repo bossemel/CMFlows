@@ -1,16 +1,9 @@
 import datasets.distributions
-from utils import split_train_val_test
+from utils import split_train_val_test, normalize
 import numpy as np
 import scipy.stats
 import sys
 import scipy
-
-
-def normalize(dataset):
-    mean, std = np.mean(dataset), np.std(dataset)
-    dataset = dataset - mean
-    dataset = dataset / std
-    return dataset
 
 
 def marginal_transform(inputs, marginal, args):

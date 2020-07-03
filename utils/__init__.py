@@ -4,7 +4,7 @@ import math
 import sys
 import os
 from sklearn import model_selection
-eps = 0.0001
+from torch.autograd import Variable
 
 
 def sigmoid(xx):
@@ -73,9 +73,21 @@ def flow_density(inputs, log_jacob):
     Returns:
         log density array
     """
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi)).sum(
-            -1, keepdim=True)
+    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi)).sum(-1, keepdim=True)
     return (log_prob + log_jacob).sum(-1, keepdim=True)
+
+
+def kl_divergence(p_x, q_x):
+    kl = p_x * [np.log2(p_x / q_x)]
+    kl[np.isinf(kl)] == 0
+    kl[np.isnan(kl)] == 0
+    assert not np.isnan(np.sum(kl))
+    return np.mean(kl)
+
+
+def js_divergence_grid(prob_vector_X, prob_vector_Y):
+    mix = 0.5 * (prob_vector_Y + prob_vector_X)
+    return (kl_divergence(prob_vector_X, mix) + kl_divergence(prob_vector_Y, mix)) / 2
 
 
 def js_divergence(prob_X_in_p, prob_X_in_q,
@@ -94,14 +106,18 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     mix_X = np.logaddexp(prob_X_in_p, prob_X_in_q)
     mix_Y = np.logaddexp(prob_Y_in_p, prob_Y_in_q)
 
-    mix_X[mix_X == 0] = 0 + eps
-    mix_Y[mix_Y == 0] = 0 + eps
+    assert np.min(mix_X) >= 0
+    assert np.min(mix_Y) >= 0
 
-    assert np.min(mix_X) > 0
-    assert np.min(mix_Y) > 0
+    KL_PM = np.log(2) + np.log(prob_X_in_p).mean() - np.log(mix_X)
+    KL_PM[np.isnan(KL_PM)] = 0
+    KL_PM[np.isinf(KL_PM)] = 0
+    KL_PM = KL_PM.mean()
 
-    KL_PM = np.log(2) + np.log(prob_X_in_p).mean() - np.log(mix_X).mean()
-    KL_QM = np.log(2) + np.log(prob_Y_in_q).mean() - np.log(mix_Y).mean()
+    KL_QM = np.log(2) + np.log(prob_Y_in_q).mean() - np.log(mix_Y)
+    KL_QM[np.isnan(KL_QM)] = 0
+    KL_QM[np.isinf(KL_QM)] = 0
+    KL_QM = KL_QM.mean()
 
     divergence = (KL_PM + KL_QM) / 2
     return divergence
@@ -125,7 +141,14 @@ def empty_logdets_context(inputs, device):
     """Create empty arrays as inputs for DDSF.
     """
     n = inputs.shape[0]
-    context = torch.FloatTensor(n, 1).zero_().to(device)
-    logdets = torch.FloatTensor(n).zero_().to(device)
+    context = Variable(torch.FloatTensor(n, 1).zero_()).to(device)
+    logdets = Variable(torch.FloatTensor(n).zero_()).to(device)
     return logdets, context
+
+
+def normalize(dataset):
+    mean, std = np.mean(dataset), np.std(dataset)
+    dataset = dataset - mean
+    dataset = dataset / std
+    return dataset
 

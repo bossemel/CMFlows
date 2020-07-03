@@ -78,10 +78,6 @@ class TrainOptions():
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
-            '--amsgrad', type=int, default=0)
-        parser.add_argument(
-            '--polyak', type=float, default=0.0)
-        parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
             '--beta1', type=float, default=0.9)
