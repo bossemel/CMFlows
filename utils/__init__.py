@@ -5,6 +5,7 @@ import sys
 import os
 from sklearn import model_selection
 from torch.autograd import Variable
+import scipy.special
 
 
 def sigmoid(xx):
@@ -77,17 +78,9 @@ def flow_density(inputs, log_jacob):
     return (log_prob + log_jacob).sum(-1, keepdim=True)
 
 
-def kl_divergence(p_x, q_x):
-    kl = p_x * [np.log2(p_x / q_x)]
-    kl[np.isinf(kl)] == 0
-    kl[np.isnan(kl)] == 0
-    assert not np.isnan(np.sum(kl))
-    return np.mean(kl)
-
-
 def js_divergence_grid(prob_vector_X, prob_vector_Y):
     mix = 0.5 * (prob_vector_Y + prob_vector_X)
-    return (kl_divergence(prob_vector_X, mix) + kl_divergence(prob_vector_Y, mix)) / 2
+    return (scipy.special.kl_div(prob_vector_X, mix).mean() + scipy.special.kl_div(prob_vector_Y, mix).mean()) / 2
 
 
 def js_divergence(prob_X_in_p, prob_X_in_q,

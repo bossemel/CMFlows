@@ -67,21 +67,26 @@ class CMFlow(nn.Module):
         # assert not torch.isnan(torch.sum(density))
         return density
 
-    def sample(self, num_samples=None, noise=None):
+    def log_density_RealNVP(self, inputs):
+        """Calculates log density of the flow
+        """
+        outputs, log_jacob = self.model_RealNVP.forward(inputs=inputs)
+        density = flow_density(outputs, log_jacob)
+        return density
+
+    def sample(self, num_samples=None):
         """Samples from the copula without transforming the marginals.
         """
-        if noise is None:
-            noise = torch.Tensor(num_samples, 1).normal_()
+        noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
         return samples
 
-    def sample_copula(self, num_samples=None, noise=None):
+    def sample_copula(self, num_samples=None):
         """Sampels from the copula and transforms the marginals to uniform
         """
-        if noise is None:
-            noise = torch.Tensor(num_samples, 1).normal_()
+        noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
@@ -93,7 +98,7 @@ class CMFlow(nn.Module):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
         # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None)
+        samples_pred = self.sample_copula(num_samples=inputs.shape[0])
         samples_pred = samples_pred.detach().cpu().numpy()
 
         assert np.min(samples_pred) >= 0
@@ -162,7 +167,7 @@ class CMFlow(nn.Module):
         """Evaluates the uniformity of the predicted marginals.
         """
         if cm_flow:
-            samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
+            samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

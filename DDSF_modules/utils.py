@@ -87,7 +87,8 @@ def log_normal(inputs, mean, log_var, device, eps=0.00001):
 
 
 def jsd_eval(marginal, args, epoch, model, test_dict,
-             obs=1000, cm_flow=None, plotname='jsd_test_marginal'):
+             obs=1000, plotname='jsd_test_marginal',
+             cm_flow=False, marginal_num='1'):
     # Get distributions
     marginal_distr = datasets.distributions.Marginals(args)
     samples = marginal_distr.sampler(args=args, obs=obs)
@@ -97,7 +98,14 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
 
     # Prob vector pred
     args.obs = obs
-    prob_vector_X = np.exp(model.log_density(torch.tensor(grid).float()).detach().cpu().numpy())
+    if not cm_flow:
+        prob_vector_X = np.exp(model.log_density(torch.tensor(grid).float()).detach().cpu().numpy())
+    else:
+        if marginal_num == '1':
+            prob_vector_X = np.exp(model.log_density_DDSF_1(torch.tensor(grid).float()).detach().cpu().numpy())
+        elif marginal_num == '2':
+            prob_vector_X = np.exp(model.log_density_DDSF_2(torch.tensor(grid).float()).detach().cpu().numpy())
+
     # prob_vector_X[prob_vector_X == 0] = 0 + eps
 
     # Prob vector target

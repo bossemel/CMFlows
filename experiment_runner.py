@@ -19,7 +19,7 @@ eps = 0.0001
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
-          model_name=None, transform_model_1=None, transform_model_2=None,
+          model_name=None,
           transform_inputs=True, disable_tqdm=False):
     """Performs training.
 
@@ -38,43 +38,26 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     for batch_idx, data in enumerate(train_loader):
         if isinstance(data, list):
             data = data[0]
-            if model_name == 'DDSF_1':
-                # DDSF_1 takes the first dimension of the data
-                data = data[:, 0].reshape(-1, 1)
-            elif model_name == 'DDSF_2':
-                # DDSF_2 takes the second deimension of the data
-                data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP' and transform_inputs is True:
-                # RealNVP takes the outputs of DDSF_1 and DDSF_2
-                with torch.no_grad():
-                    logdets, context = empty_logdets_context(data, device)
-                    data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
-                    data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
-                    data = torch.cat((data_1, data_2), dim=1)
 
         data = data.to(device)
-        # args.optimizer.zero_grad()
+        if model_name is not None:
+            logdets, context = empty_logdets_context(data, device)
 
         if model_name == 'CM_Flow':
             # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the RealNVP
-            logdets, context = empty_logdets_context(data, device)
-
             output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
             output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
-            outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
 
-            output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
+            with torch.no_grad():
+                outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+
+            output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct') #, logdets=logdets_DDSFs)
 
             # Calculate losses using Change of Variable Theorem and a normal prior
-            loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1).mean()
-            loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2).mean()
+            loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+            loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
             loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
 
-            # Perform backwards calculation for each loss on its own, retaining the first two graphs. Since the outputs
-            # of the DDSF's are inputs to RealNVP, the RealNVP loss contains the DDSF weights as well.
-            loss_DDSF_1.backward(retain_graph=True)
-            loss_DDSF_2.backward(retain_graph=True)
-            loss_RealNVP.backward()
             loss = loss_RealNVP
 
             # Append Training loss to current_epoch_losses dictionary
@@ -82,10 +65,31 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
             else:
                 current_epoch_losses['train_loss'] = []
+
+            # Perform backwards calculation for each loss on its own, retaining the first two graphs. Since the outputs
+            # of the DDSF's are inputs to RealNVP, the RealNVP loss contains the DDSF weights as well.
+            loss_DDSF_1.backward(retain_graph=True)
+            loss_DDSF_2.backward(retain_graph=True)
+            loss_RealNVP.backward()
         else:
             # When training just the DDSF or RealNVP, there is only one loss and no preprocessing of data.
-            losses = model.loss(data)
-            loss = losses.mean()
+            if model_name == 'DDSF_1':
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                loss = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+            elif model_name == 'DDSF_2':
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
+                loss = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
+            elif model_name == 'RealNVP' and transform_inputs is True:
+                with torch.no_grad():
+                    output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                    output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
+                    outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
+                loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+            else:
+                losses = model.loss(data)
+                loss = losses.mean()
+
             if 'train_loss' in current_epoch_losses:
                 current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
             else:
@@ -111,21 +115,18 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         if isinstance(module, fnn.BatchNormFlow):
             module.momentum = 0
 
-    if model_name == 'RealNVP':
-        if transform_inputs is True:
-            with torch.no_grad():
+    with torch.no_grad():
+        if model_name == 'RealNVP':
+            if transform_inputs is True:
                 logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
-
-                data_1, __, __ = transform_model_1((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
-                data_2, __, __ = transform_model_2((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
-                train_loader_tensor = torch.cat((data_1, data_2), dim=1)
-                model(train_loader_tensor.to(data.device))
-        else:
-            model(train_loader.dataset.tensors[0].to(data.device))
-    elif model_name == 'CM_Flow':
-        with torch.no_grad():
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
+                train_loader_tensor = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+                model.model_RealNVP.forward(train_loader_tensor.to(data.device))
+            else:
+                model(train_loader.dataset.tensors[0].to(data.device))
+        elif model_name == 'CM_Flow':
             logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
-
             output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((train_loader.dataset.tensors[0][:, 0].reshape(-1, 1), logdets, context))
             output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((train_loader.dataset.tensors[0][:, 1].reshape(-1, 1), logdets, context))
             outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
@@ -164,29 +165,32 @@ def validate(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
-            if model_name == 'DDSF_1':
-                data = data[:, 0].reshape(-1, 1)
-            elif model_name == 'DDSF_2':
-                data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP' and transform_inputs is True:
-                with torch.no_grad():
-                    logdets, context = empty_logdets_context(data, device)
-                    data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
-                    data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
-                    data = torch.cat((data_1, data_2), dim=1)
+
         data = data.to(device)
+        if model_name is not None:
+            logdets, context = empty_logdets_context(data, device)
 
         with torch.no_grad():
             if model_name == 'CM_Flow':
-                logdets, context = empty_logdets_context(data, device)
                 output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
                 output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
                 outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
 
                 output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
-                loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
-                current_loss = loss_RealNVP
+                current_loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+            elif model_name == 'DDSF_1':
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                current_loss = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+            elif model_name == 'DDSF_2':
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                current_loss = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
+            elif model_name == 'RealNVP' and transform_inputs is True:
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
+                outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
+                current_loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
             else:
                 losses = model.loss(data)
                 current_loss = losses.mean()
@@ -209,7 +213,7 @@ def validate(epoch, model, loader, device,
 
 def test(epoch, model, loader, device,
          test_dict, model_name,
-         transform_model_1=None, transform_model_2=None, transform_inputs=True,
+         transform_inputs=True,
          disable_tqdm=False):
     """Return log probabilities on test set.
 
@@ -230,18 +234,11 @@ def test(epoch, model, loader, device,
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
-            if model_name == 'DDSF_1':
-                data = data[:, 0].reshape(-1, 1)
-            elif model_name == 'DDSF_2':
-                data = data[:, 1].reshape(-1, 1)
-            elif model_name == 'RealNVP' and transform_inputs is True:
-                with torch.no_grad():
-                    logdets, context = empty_logdets_context(data, device)
-                    data_1, __, __ = transform_model_1((data[:, 0].reshape(-1, 1), logdets, context))
-                    data_2, __, __ = transform_model_2((data[:, 1].reshape(-1, 1), logdets, context))
-                    data = torch.cat((data_1, data_2), dim=1)
+
         data = data.to(device)
         with torch.no_grad():
+            if model_name is not None:
+                logdets, context = empty_logdets_context(data, device)
             if model_name == 'CM_Flow':
                 logdets, context = empty_logdets_context(data, device)
                 output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
@@ -252,6 +249,20 @@ def test(epoch, model, loader, device,
 
                 loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
                 current_loss = loss_RealNVP
+            elif model_name == 'DDSF_1':
+                logdets, context = empty_logdets_context(data, device)
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                current_loss = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+            elif model_name == 'DDSF_2':
+                logdets, context = empty_logdets_context(data, device)
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                current_loss = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
+            elif model_name == 'RealNVP' and transform_inputs is True:
+                output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+                output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
+                outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
+                current_loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
             else:
                 losses = model.loss(data)
                 current_loss = losses.mean()
@@ -288,8 +299,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                      current_epoch_losses=current_epoch_losses,
                                      device=args.device,
                                      model_name=model_name,
-                                     transform_model_1=transform_model_1,
-                                     transform_model_2=transform_model_2,
+                                     # transform_model_1=transform_model_1,
+                                     # transform_model_2=transform_model_2,
                                      transform_inputs=transform_inputs,
                                      disable_tqdm=disable_tqdm)
 
@@ -301,8 +312,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                                                  current_epoch_losses=current_epoch_losses,
                                                                  best_dict=best_dict_current_model,
                                                                  model_name=model_name,
-                                                                 transform_model_1=transform_model_1,
-                                                                 transform_model_2=transform_model_2,
+                                                                 # transform_model_1=transform_model_1,
+                                                                 # transform_model_2=transform_model_2,
                                                                  transform_inputs=transform_inputs,
                                                                  disable_tqdm=disable_tqdm)
 
@@ -349,8 +360,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                          device=args.device,
                          test_dict=test_dict,
                          model_name=model_name,
-                         transform_model_1=transform_model_1,
-                         transform_model_2=transform_model_2,
+                         # transform_model_1=transform_model_1,
+                         # transform_model_2=transform_model_2,
                          transform_inputs=transform_inputs,
                          disable_tqdm=disable_tqdm)
 
@@ -364,8 +375,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
-                                        transform_model_1=transform_model_1,
-                                        transform_model_2=transform_model_2,
+                                        # transform_model_1=transform_model_1,
+                                        # transform_model_2=transform_model_2,
                                         transform_inputs=transform_inputs,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
             # Evaluate copula margins on test set
@@ -401,7 +412,9 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           epoch=best_dict_current_model['best_validation_epoch'],
                                           model=current_model,
                                           test_dict=test_dict,
-                                          plotname='jsd_pretrain_marginal_0')
+                                          plotname='jsd_pretrain_marginal_0',
+                                          cm_flow=True,
+                                          marginal_num='1')
 
         # Calculate Jensen-Shannon Divergence of marginal 1
         if model_name == 'DDSF_2':
@@ -411,7 +424,9 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           epoch=best_dict_current_model['best_validation_epoch'],
                                           model=current_model,
                                           test_dict=test_dict,
-                                          plotname='jsd_pretrain_marginal_1')
+                                          plotname='jsd_pretrain_marginal_1',
+                                          cm_flow=True,
+                                          marginal_num='1')
 
         if model_name == 'CM_Flow':
             # args.marginal = args.marginal_1
@@ -421,8 +436,8 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
-                                        transform_model_1=transform_model_1,
-                                        transform_model_2=transform_model_2,
+                                        # transform_model_1=transform_model_1,
+                                        # transform_model_2=transform_model_2,
                                         transform_inputs=transform_inputs,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
 

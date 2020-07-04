@@ -11,9 +11,6 @@ from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
-from RealNVP import build_model as build_model_RealNVP
-from DDSF import build_model as build_model_DDSF
-
 from utils.visualizer import visualize_joint
 from utils.save_statistics import save_statistics
 import datasets.distributions
@@ -35,19 +32,12 @@ def build_model(args):
         model_DDSF_1: 1st DDSF model
         model_DDSF_2: 2nd DDSF model
     """
-    model_RealNVP = build_model_RealNVP(args)
-    model_DDSF_1 = build_model_DDSF(args)
-    model_DDSF_2 = build_model_DDSF(args)
-
     model = flows.CMFlow(transform=args.transform_fct,
-                         # model_RealNVP=model_RealNVP,
-                         # model_DDSF_1=model_DDSF_1,
-                         # model_DDSF_2=model_DDSF_2,
                          device=args.device,
                          batch_size=args.batch_size,
                          args=args)
 
-    return model, model_RealNVP, model_DDSF_1, model_DDSF_2
+    return model #, model.model_RealNVP, model.model_DDSF_1, model.model_DDSF_2
 
 
 def train_and_plot(args, disable_tqdm=False, grid_search=False):
@@ -56,40 +46,41 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     visualize_joint(dataset.trn.x, args, name='input_dataset')
 
     # Build model and send to device
-    model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
+    #model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
+    model = build_model(args)
     model.state = dict()
-    model_RealNVP.state = dict()
-    model_DDSF_1.state = dict()
-    model_DDSF_2.state = dict()
+    #model_RealNVP.state = dict()
+    #model_DDSF_1.state = dict()
+    #model_DDSF_2.state = dict()
 
     model.to(args.device)
-    model_DDSF_1.to(args.device)
-    model_DDSF_2.to(args.device)
-    model_RealNVP.to(args.device)
+    #model_DDSF_1.to(args.device)
+    #model_DDSF_2.to(args.device)
+    #model_RealNVP.to(args.device)
 
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model_DDSF_1,
-                                                              model_name='DDSF_1',
-                                                              args=args,
-                                                              data_loaders=data_loaders,
-                                                              dataset=dataset,
-                                                              transform_inputs=True,
-                                                              disable_tqdm=disable_tqdm,
-                                                              grid_search=False)
+        best_model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model,
+                                                                   model_name='DDSF_1',
+                                                                   args=args,
+                                                                   data_loaders=data_loaders,
+                                                                   dataset=dataset,
+                                                                   transform_inputs=True,
+                                                                   disable_tqdm=disable_tqdm,
+                                                                   grid_search=False)
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model_DDSF_2,
-                                                              model_name='DDSF_2',
-                                                              args=args,
-                                                              data_loaders=data_loaders,
-                                                              dataset=dataset,
-                                                              test_dict=test_dict,
-                                                              transform_inputs=True,
-                                                              disable_tqdm=disable_tqdm,
-                                                              grid_search=False)
+        best_model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model,
+                                                                   model_name='DDSF_2',
+                                                                   args=args,
+                                                                   data_loaders=data_loaders,
+                                                                   dataset=dataset,
+                                                                   test_dict=test_dict,
+                                                                   transform_inputs=True,
+                                                                   disable_tqdm=disable_tqdm,
+                                                                   grid_search=False)
 
         # Visualize DDFS transformations
         with torch.no_grad():
@@ -97,8 +88,8 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
             n = vizdata.shape[0]
             context = torch.FloatTensor(n, 1).zero_().to(args.device)
             logdets = torch.FloatTensor(n).zero_().to(args.device)
-            vizdata_1, __, __ = model_DDSF_1((vizdata[:, 0].reshape(-1, 1), logdets, context))
-            vizdata_2, __, __ = model_DDSF_2((vizdata[:, 1].reshape(-1, 1), logdets, context))
+            vizdata_1, __, __ = best_model_DDSF_1.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
+            vizdata_2, __, __ = best_model_DDSF_2.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
             vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
             if args.cuda:
                 visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
@@ -107,21 +98,19 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model_RealNVP, best_dict_RealNVP, test_dict = train_val(model_RealNVP,
-                                                                model_name='RealNVP',
-                                                                args=args,
-                                                                data_loaders=data_loaders,
-                                                                dataset=dataset,
-                                                                transform_model_1=model_DDSF_1,
-                                                                transform_model_2=model_DDSF_1,
-                                                                test_dict=test_dict,
-                                                                transform_inputs=True,
-                                                                disable_tqdm=disable_tqdm,
-                                                                grid_search=False)
+        best_model_RealNVP, best_dict_RealNVP, test_dict = train_val(model,
+                                                                     model_name='RealNVP',
+                                                                     args=args,
+                                                                     data_loaders=data_loaders,
+                                                                     dataset=dataset,
+                                                                     test_dict=test_dict,
+                                                                     transform_inputs=True,
+                                                                     disable_tqdm=disable_tqdm,
+                                                                     grid_search=False)
 
         with torch.no_grad():
             # Visualize RealNVP outputs
-            output_copula = model_RealNVP.sample_copula(num_samples=100000, transform='gaussian')
+            output_copula = best_model_RealNVP.sample_copula(num_samples=100000)
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
             # Visualize true copula
