@@ -25,7 +25,6 @@ def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
         pred_distr_Y = scipy.stats.gaussian_kde(true_samples.T)
         prob_vector_Y = pred_distr_Y(grid.T).T
 
-        plt.plot(grid.numpy(), prob_vector_Y, label='gaussian kde true samples')
         sns.distplot(true_samples, bins=100, kde=False, label='Input Samples', norm_hist=True, color='orange')
         plt.plot(grid.numpy(), np.exp(pred_samples), label='Predicted Distribution', color='royalblue', linewidth=3.0)
         plt.xlabel('x', fontsize=16)
