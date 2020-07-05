@@ -12,11 +12,17 @@ class TrainOptions():
 
     def initialize(self, parser):
         # Training settings
+        parser = argparse.ArgumentParser(description='PyTorch Flows')
 
         # CM Options
-        parser = argparse.ArgumentParser(description='PyTorch Flows')
+
+        # Architecture
         parser.add_argument(
             '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
+        parser.add_argument(
+            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+
+        # Training options
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
@@ -24,13 +30,23 @@ class TrainOptions():
         parser.add_argument(
             '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
+            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
+        parser.add_argument(
+            '--random_seed', type=int, default=58093, help='random seed')
+        parser.add_argument(
+            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
+        parser.add_argument(
+            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
+
+        # Dataset options
+        parser.add_argument(
             '--copula', default='clayton', help='gaussian | tdistr | clayton | frank | gumbel')
         parser.add_argument(
             '--marginal_1', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
         parser.add_argument(
             '--marginal_2', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
-        parser.add_argument(
-            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
@@ -38,29 +54,13 @@ class TrainOptions():
         parser.add_argument(
             '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
-        parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
             '--alpha', type=float, required=False, help='alpha for gamma distribution')
-        parser.add_argument(
-            '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
-        parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
-        parser.add_argument(
-            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
-        parser.add_argument(
-            '--experiment_saved_models', type=str, default='saved_models')
-        parser.add_argument(
-            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
-        parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
 
         # Options RealNVP
         parser.add_argument(
             '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
-        parser.add_argument(
-            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
             '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
         parser.add_argument(
@@ -88,9 +88,14 @@ class TrainOptions():
         parser.add_argument(
             '--var', type=float, required=False, help='var for marginal gaussian distribution')
 
-        # Options CM Flow
+        # Save options
         parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+            '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
+        parser.add_argument(
+            '--experiment_saved_models', type=str, default='saved_models')
+
         self.initialized = True
         return parser
 

@@ -51,14 +51,14 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             with torch.no_grad():
                 outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
 
-            output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct') #, logdets=logdets_DDSFs)
+            output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
             # Calculate losses using Change of Variable Theorem and a normal prior
             loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
             loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
             loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
 
-            loss = loss_RealNVP
+            loss = loss_RealNVP + loss_DDSF_1 + loss_DDSF_2
 
             # Append Training loss to current_epoch_losses dictionary
             if 'train_loss' in current_epoch_losses:
@@ -178,7 +178,11 @@ def validate(epoch, model, loader, device,
 
                 output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
-                current_loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+                loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+                loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
+                loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+                current_loss = loss_RealNVP + loss_DDSF_1 + loss_DDSF_2
+
             elif model_name == 'DDSF_1':
                 output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
                 current_loss = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
@@ -247,8 +251,11 @@ def test(epoch, model, loader, device,
 
                 output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
 
+                loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
+                loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
                 loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
-                current_loss = loss_RealNVP
+                current_loss = loss_RealNVP + loss_DDSF_1 + loss_DDSF_2
+
             elif model_name == 'DDSF_1':
                 logdets, context = empty_logdets_context(data, device)
                 output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
