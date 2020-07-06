@@ -47,7 +47,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     return test_dict
 
 
-def margin_uniformity(epoch, model, loader, device, transform_fct, test_dict, num_samples, cm_flow):
+def margin_uniformity(epoch, model, loader, device, transform_fct, test_dict, num_samples, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
