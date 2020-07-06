@@ -32,23 +32,21 @@ def t_m_metric_eval(margin, intervals=25):
         m_metric: int metric for marginal
     """
     sum_probs = 0
-    highest_interval = -math.inf
+    highest_interval = 0
+    print(abs(highest_interval + np.log(intervals)))
     for ii in range(intervals):
         A_k_lower = (ii - 1) / intervals
         A_k_upper = ii / intervals
         points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
         if len(points_within) > 0:
-            log_prob = np.log(len(points_within) / len(margin))
-            assert not math.isinf(log_prob), (len(points_within) / len(margin))
+            prob = len(points_within) / len(margin)
+            sum_probs += abs(np.log(prob) + np.log(intervals))
         else:
-            log_prob = 0
-        if highest_interval == -math.inf:
-            highest_interval = log_prob
-        if abs(log_prob + np.log(intervals)) > abs(highest_interval + np.log(intervals)):
-            highest_interval = log_prob
-        sum_probs += abs(log_prob + np.log(intervals))
+            prob = 0
+        if prob > highest_interval:
+            highest_interval = prob
     t_metric = sum_probs / intervals
-    m_metric = abs(highest_interval + np.log(intervals))
+    m_metric = abs(np.log(highest_interval) + np.log(intervals))
     return t_metric, m_metric
 
 

@@ -4,9 +4,9 @@ import scipy
 from utils import t_m_metric_eval, js_divergence, flow_density
 import datasets
 import numpy as np
-eps = 0.0001
 from RealNVP import build_model as build_model_RealNVP
 from DDSF import build_model as build_model_DDSF
+eps = 0.0001
 
 
 class CMFlow(nn.Module):
@@ -163,11 +163,10 @@ class CMFlow(nn.Module):
                                    prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=None):
         """Evaluates the uniformity of the predicted marginals.
         """
-        if cm_flow:
-            samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
+        samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

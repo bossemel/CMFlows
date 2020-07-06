@@ -129,13 +129,13 @@ class FlowSequential(nn.Sequential):
                                    prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=True):
+    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
         """Returns evaluation metrics for the copula marginals.
         """
         if cm_flow:
             samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
         else:
-            samples = self.sample(num_samples=num_samples, noise=None).detach().cpu().numpy()
+            samples = self.sample(num_samples=num_samples, noise=None, transform=transform_fct).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

@@ -464,8 +464,7 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           args.device,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
-                                          num_samples=num_samples,
-                                          cm_flow=args.RealNVP_part_of_CM_Flow)
+                                          num_samples=num_samples)
 
             # Visualize the marginals
             visualize1D_CM(model=current_model,
