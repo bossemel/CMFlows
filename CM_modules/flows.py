@@ -16,10 +16,6 @@ class CMFlow(nn.Module):
         self.model_RealNVP = build_model_RealNVP(args)
         self.model_DDSF_1 = build_model_DDSF(args)
         self.model_DDSF_2 = build_model_DDSF(args)
-
-        # self.model_RealNVP = model_RealNVP
-        # self.model_DDSF_1 = model_DDSF_1
-        # self.model_DDSF_2 = model_DDSF_2
         self.transform_fct = transform
         self.device = device
         self.batch_size = batch_size

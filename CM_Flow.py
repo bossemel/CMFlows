@@ -6,13 +6,14 @@ import os
 import numpy as np
 from pathlib import Path
 import random
+import csv
 
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
 from utils.visualizer import visualize_joint
-from utils.save_statistics import save_statistics
+from utils.save_statistics import save_statistics, load_statistics
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -37,26 +38,18 @@ def build_model(args):
                          batch_size=args.batch_size,
                          args=args)
 
-    return model #, model.model_RealNVP, model.model_DDSF_1, model.model_DDSF_2
+    return model
 
 
-def train_and_plot(args, disable_tqdm=False, grid_search=False):
+def train_and_plot(args, disable_tqdm=False, error_bars=False):
     # Set up data loader
     dataset, data_loaders, train_dataset = utils.load_data(args)
     visualize_joint(dataset.trn.x, args, name='input_dataset')
 
     # Build model and send to device
-    #model, model_RealNVP, model_DDSF_1, model_DDSF_2 = build_model(args)
     model = build_model(args)
     model.state = dict()
-    #model_RealNVP.state = dict()
-    #model_DDSF_1.state = dict()
-    #model_DDSF_2.state = dict()
-
     model.to(args.device)
-    #model_DDSF_1.to(args.device)
-    #model_DDSF_2.to(args.device)
-    #model_RealNVP.to(args.device)
 
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
@@ -69,7 +62,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                                    dataset=dataset,
                                                                    transform_inputs=True,
                                                                    disable_tqdm=disable_tqdm,
-                                                                   grid_search=False)
+                                                                   error_bars=error_bars)
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model,
@@ -80,7 +73,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                                    test_dict=test_dict,
                                                                    transform_inputs=True,
                                                                    disable_tqdm=disable_tqdm,
-                                                                   grid_search=False)
+                                                                   error_bars=error_bars)
 
         # Visualize DDFS transformations
         with torch.no_grad():
@@ -106,7 +99,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                                      test_dict=test_dict,
                                                                      transform_inputs=True,
                                                                      disable_tqdm=disable_tqdm,
-                                                                     grid_search=False)
+                                                                     error_bars=error_bars)
 
         with torch.no_grad():
             # Visualize RealNVP outputs
@@ -114,11 +107,8 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
             visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
             # Visualize true copula
-            # obs = args.obs
-            # args.obs = 100000
             dataset = datasets.distributions.Copula_Distr(args, transform=False)
             visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
-#            args.obs = obs
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -128,7 +118,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                   best_dict_RealNVP['best_validation_epoch'])
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=epochs)
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
 
     # Train the CM Flow
     if args.train_cm_flow:
@@ -143,7 +133,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
                                                 disable_tqdm=disable_tqdm,
-                                                grid_search=False)
+                                                error_bars=error_bars)
 
         with torch.no_grad():
             # Sample from the predicted copula
@@ -170,7 +160,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                        test_dict.items()}  # save test set metrics in dict format
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
 
 
 if __name__ == '__main__':
@@ -203,6 +193,23 @@ if __name__ == '__main__':
     args.RealNVP_part_of_CM_Flow = True
 
     # Train model with specified options
-    train_and_plot(args=args,
-                   disable_tqdm=False,
-                   grid_search=False)
+    if args.error_bars is True:
+        eval_dict = {}
+        train_and_plot(args=args,
+                       disable_tqdm=False,
+                       error_bars=False)
+        for ii in range(1, 3):
+            train_and_plot(args=args,
+                           disable_tqdm=False,
+                           error_bars=True)
+        stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
+        with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
+            writer = csv.writer(f)
+            for key in stats_dict.keys():
+                if key != 'epoch':
+                    float_list = np.array([float(xx) for xx in stats_dict[key]])
+                    line = [key, np.mean(float_list), np.std(float_list)]
+                    writer.writerow(line)
+    else:
+        train_and_plot(args=args,
+                       disable_tqdm=False)

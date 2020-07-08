@@ -38,7 +38,9 @@ class TrainOptions():
         parser.add_argument(
             '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
         parser.add_argument(
-            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
+            '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
+        parser.add_argument(
+            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
 
         # Dataset options
         parser.add_argument(

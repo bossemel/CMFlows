@@ -59,32 +59,39 @@ def jsd_eval_marginal_cm(marginal_1, marginal_2, args, epoch, model, test_dict,
     # Get distributions
     args.marginal = marginal_1
     marginal_distr_1 = datasets.distributions.Marginals(args)
-    samples = marginal_distr_1.sampler(args=args, obs=obs)
+    args.marginal = marginal_2
+    marginal_distr_2 = datasets.distributions.Marginals(args)
+    samples_1 = marginal_distr_1.sampler(args=args, obs=obs)
+    samples_2 = marginal_distr_2.sampler(args=args, obs=obs)
 
     # Get Grid
-    grid = np.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)
+    grid_1 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
+    grid_2 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
 
     # Prob vector pred
-    logdets, context = empty_logdets_context(grid, args.device)
+    logdets, context = empty_logdets_context(grid_1, args.device)
 
-    output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((torch.tensor(grid).float(), logdets, context))
-    output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((torch.tensor(grid).float(), logdets, context))
+    output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((torch.tensor(grid_1).float(), logdets, context))
+    output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((torch.tensor(grid_2).float(), logdets, context))
 
     args.obs = obs
     prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).float().detach().cpu().numpy())
     prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).float().detach().cpu().numpy())
 
     # Prob vector target
-    pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
-    prob_vector_Y = pred_distr_Y(grid.T).T
+    pred_distr_Y_1 = scipy.stats.gaussian_kde(samples_1.T)
+    prob_vector_Y_1 = pred_distr_Y_1(grid_1.T).T
+    pred_distr_Y_2 = scipy.stats.gaussian_kde(samples_2.T)
+    prob_vector_Y_2 = pred_distr_Y_2(grid_2.T).T
 
     assert np.min(prob_vector_X_1) >= 0
     assert np.min(prob_vector_X_2) >= 0
-    assert np.min(prob_vector_Y) >= 0
+    assert np.min(prob_vector_Y_1) >= 0
+    assert np.min(prob_vector_Y_2) >= 0
 
     # Calculate JS Divergence
-    divergence_1 = js_divergence_grid(prob_vector_X_1, prob_vector_Y)
-    divergence_2 = js_divergence_grid(prob_vector_X_2, prob_vector_Y)
+    divergence_1 = js_divergence_grid(prob_vector_X_1, prob_vector_Y_1)
+    divergence_2 = js_divergence_grid(prob_vector_X_2, prob_vector_Y_2)
 
     print('Marginal 1 Divergence: ', divergence_1)
     print('Marginal 2 Divergence: ', divergence_2)

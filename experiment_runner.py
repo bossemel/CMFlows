@@ -273,13 +273,14 @@ def test(epoch, model, loader, device,
             else:
                 losses = model.loss(data)
                 current_loss = losses.mean()
+        test_loss_name = model_name + '_test_loss'
         if 'test_loss' in test_dict:
-            test_dict["test_loss"].append(current_loss.item())  # add current iter loss to test loss list.
+            test_dict[test_loss_name].append(current_loss.item())  # add current iter loss to test loss list.
         else:
-            test_dict["test_loss"] = [current_loss.item()]  # add current iter loss to test loss list.
+            test_dict[test_loss_name] = [current_loss.item()]  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
-        pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, np.mean(test_dict["test_loss"])))
+        pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, np.mean(test_dict[test_loss_name])))
 
     pbar.close()
 
@@ -288,7 +289,7 @@ def test(epoch, model, loader, device,
 
 def train_val(current_model, model_name, args, data_loaders, dataset,
               transform_model_1=None, transform_model_2=None, transform_inputs=True,
-              test_dict={}, disable_tqdm=False, grid_search=False):
+              test_dict={}, disable_tqdm=False, grid_search=False, error_bars=False):
     best_dict_current_model = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses_current_model = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
 
@@ -405,11 +406,12 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           model=current_model,
                                           test_dict=test_dict)
 
-            # Visualize the marginals
-            visualize1D(model=current_model,
-                        epoch=best_dict_current_model['best_validation_epoch'],
-                        args=args,
-                        best_val=True)
+            if not error_bars:
+                # Visualize the marginals
+                visualize1D(model=current_model,
+                            epoch=best_dict_current_model['best_validation_epoch'],
+                            args=args,
+                            best_val=True)
 
         if model_name == 'DDSF_1':
             # Calculate Jensen-Shannon Divergence of marginal 1
@@ -466,19 +468,21 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                           test_dict=test_dict,
                                           num_samples=num_samples)
 
-            # Visualize the marginals
-            visualize1D_CM(model=current_model,
-                           epoch=best_dict_current_model['best_validation_epoch'],
-                           args=args,
-                           best_val=True)
+            if not error_bars:
+                # Visualize the marginals
+                visualize1D_CM(model=current_model,
+                               epoch=best_dict_current_model['best_validation_epoch'],
+                               args=args,
+                               best_val=True)
 
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_name=model_name)
-        if model_name == 'DDSF':
-            plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, current_model_name=model_name)
-        elif model_name == 'RealNVP':
-            plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
-        else:
-            plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
+        if not error_bars or not grid_search:
+            if model_name == 'DDSF':
+                plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, current_model_name=model_name)
+            elif model_name == 'RealNVP':
+                plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
+            else:
+                plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
 
     return current_model, best_dict_current_model, test_dict
