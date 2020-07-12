@@ -50,21 +50,10 @@ class FlowSequential(nn.Sequential):
         """
         return - self.log_density(inputs)
 
-    def sample(self, num_samples=None, noise=None):
+    def sample(self, num_samples=None, transform='gaussian'):
         """Returns an output sample without transformation
         """
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        return samples
-
-    def sample_copula(self, num_samples=None, noise=None, transform='gaussian'):
-        """Returns the predicted copula (output sample with transformation)
-        """
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.forward(noise, mode='inverse')[0]
@@ -75,7 +64,18 @@ class FlowSequential(nn.Sequential):
             samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
+    def sample_copula(self, num_samples=None):
+        """Returns the predicted copula (output sample with transformation)
+        """
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        device = next(self.parameters()).device
+        noise = noise.to(device)
+        samples = self.forward(noise, mode='inverse')[0]
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        samples = normal_distr.cdf(samples)
+        return samples
+
+    def jsd(self, args, inputs, transform_fct='gaussian', obs=1000, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         # Define distributions
@@ -83,7 +83,10 @@ class FlowSequential(nn.Sequential):
         true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
         # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
+        if cm_flow is True:
+            samples_pred = self.sample_copula(num_samples=inputs.shape[0])
+        else:
+            samples_pred = self.sample(num_samples=inputs.shape[0], transform=transform_fct)
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
         elif transform_fct == 'gaussian':
@@ -133,9 +136,9 @@ class FlowSequential(nn.Sequential):
         """Returns evaluation metrics for the copula marginals.
         """
         if cm_flow:
-            samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
+            samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
         else:
-            samples = self.sample(num_samples=num_samples, noise=None, transform=transform_fct).detach().cpu().numpy()
+            samples = self.sample(num_samples=num_samples, transform=transform_fct).detach().cpu().numpy()
         margin_x1 = samples[:, 0]
         margin_x2 = samples[:, 1]
         t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)

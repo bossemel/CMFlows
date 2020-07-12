@@ -22,16 +22,14 @@ def load_data(args):
 
     dataset = datasets.distributions.Marginals(args)
 
-    train_tensor = torch.from_numpy(dataset.trn.x)
+    train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)
 
-    valid_tensor = torch.from_numpy(dataset.val.x)
+    valid_tensor = torch.from_numpy(dataset.val)
     valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
 
-    test_tensor = torch.from_numpy(dataset.tst.x)
+    test_tensor = torch.from_numpy(dataset.tst)
     test_dataset = torch.utils.data.TensorDataset(test_tensor)
-
-    num_inputs = dataset.n_dims
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
@@ -53,7 +51,7 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, num_inputs, data_loaders
+    return dataset, data_loaders
 
 
 def maximum(x, A_max, axis=-1):

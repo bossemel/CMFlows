@@ -102,7 +102,7 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
 
 def train_and_plot(args, disable_tqdm=False, grid_search=False):
     # Set up data loader
-    dataset, num_inputs, data_loaders = load_data(args)
+    dataset, data_loaders = load_data(args)
 
     # Build model and send to device
     model = build_model(args)
