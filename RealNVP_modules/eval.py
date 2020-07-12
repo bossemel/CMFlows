@@ -23,7 +23,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     if cm_flow is True:
         dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        data = dataset.tst.x
+        data = dataset.tst
         with torch.no_grad():
             data = torch.tensor(data)
             current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()

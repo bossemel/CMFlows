@@ -307,8 +307,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                      current_epoch_losses=current_epoch_losses,
                                      device=args.device,
                                      model_name=model_name,
-                                     # transform_model_1=transform_model_1,
-                                     # transform_model_2=transform_model_2,
                                      transform_inputs=transform_inputs,
                                      disable_tqdm=disable_tqdm)
 
@@ -320,8 +318,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                                                  current_epoch_losses=current_epoch_losses,
                                                                  best_dict=best_dict_current_model,
                                                                  model_name=model_name,
-                                                                 # transform_model_1=transform_model_1,
-                                                                 # transform_model_2=transform_model_2,
                                                                  transform_inputs=transform_inputs,
                                                                  disable_tqdm=disable_tqdm)
 
@@ -368,8 +364,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                          device=args.device,
                          test_dict=test_dict,
                          model_name=model_name,
-                         # transform_model_1=transform_model_1,
-                         # transform_model_2=transform_model_2,
                          transform_inputs=transform_inputs,
                          disable_tqdm=disable_tqdm)
 
@@ -383,8 +377,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
-                                        # transform_model_1=transform_model_1,
-                                        # transform_model_2=transform_model_2,
                                         transform_inputs=transform_inputs,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
             # Evaluate copula margins on test set
@@ -445,8 +437,6 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
-                                        # transform_model_1=transform_model_1,
-                                        # transform_model_2=transform_model_2,
                                         transform_inputs=transform_inputs,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
 
@@ -484,5 +474,12 @@ def train_val(current_model, model_name, args, data_loaders, dataset,
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, current_model_name=model_name)
+
+        # Save best model under different name
+        save_model(model=current_model,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="best_epoch_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict_current_model['best_validation_epoch'],
+                   best_validation_model_loss=best_dict_current_model['best_validation_loss'])
 
     return current_model, best_dict_current_model, test_dict

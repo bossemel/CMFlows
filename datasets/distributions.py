@@ -51,20 +51,13 @@ def marginal_transform(inputs, marginal, args):
 class Joint_Distr():
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
-    class Data:
-        def __init__(self, data):
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args):
         self.xx = Joint_Distr.sampler(self, args)
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = self.trn.x.shape[1]
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
     def sampler(self, args, obs=None):
         """Returns copula samples.
@@ -84,22 +77,14 @@ class Joint_Distr():
 class Marginals():
     """Class for univariate samples
     """
-    class Data:
-        def __init__(self, data):
-
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args):
         self.xx = Marginals.sampler(self, args)
 
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = args.obs
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
     def sampler(self, args, obs=None):
         """Returns marginal samples.
@@ -179,23 +164,14 @@ class Marginals():
 
 
 class Copula_Distr:
-    class Data:
-        def __init__(self, data):
-
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args, transform=True):
 
         self.xx = Copula_Distr.sampler(args, transform)
-
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = self.trn.x.shape[1]
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
         self.copula = args.copula
         self.theta = args.theta

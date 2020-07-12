@@ -98,7 +98,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
 def train_and_plot(args, disable_tqdm=False, grid_search=False):
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)
-    visualize_joint(dataset.trn.x, args, name='input_dataset')
+    visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         obs = args.obs
         args.obs = 100000
         dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
-        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
         args.obs = obs
 
         # Gather test losses and save statistics

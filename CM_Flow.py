@@ -41,10 +41,9 @@ def build_model(args):
     return model
 
 
-def train_and_plot(args, disable_tqdm=False, error_bars=False):
-    # Set up data loader
-    dataset, data_loaders, train_dataset = utils.load_data(args)
-    visualize_joint(dataset.trn.x, args, name='input_dataset')
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False):
+    if not error_bars:
+        visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)
@@ -76,18 +75,19 @@ def train_and_plot(args, disable_tqdm=False, error_bars=False):
                                                                    error_bars=error_bars)
 
         # Visualize DDFS transformations
-        with torch.no_grad():
-            vizdata = train_dataset
-            n = vizdata.shape[0]
-            context = torch.FloatTensor(n, 1).zero_().to(args.device)
-            logdets = torch.FloatTensor(n).zero_().to(args.device)
-            vizdata_1, __, __ = best_model_DDSF_1.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
-            vizdata_2, __, __ = best_model_DDSF_2.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
-            vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
-            if args.cuda:
-                visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
-            else:
-                visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+        if not error_bars:
+            with torch.no_grad():
+                vizdata = train_dataset
+                n = vizdata.shape[0]
+                context = torch.FloatTensor(n, 1).zero_().to(args.device)
+                logdets = torch.FloatTensor(n).zero_().to(args.device)
+                vizdata_1, __, __ = best_model_DDSF_1.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
+                vizdata_2, __, __ = best_model_DDSF_2.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
+                vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
+                if args.cuda:
+                    visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
+                else:
+                    visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
@@ -101,21 +101,23 @@ def train_and_plot(args, disable_tqdm=False, error_bars=False):
                                                                      disable_tqdm=disable_tqdm,
                                                                      error_bars=error_bars)
 
-        with torch.no_grad():
-            # Visualize RealNVP outputs
-            output_copula = best_model_RealNVP.sample_copula(num_samples=100000)
-            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
+        if not error_bars:
+            with torch.no_grad():
+                # Visualize RealNVP outputs
+                output_copula = best_model_RealNVP.sample_copula(num_samples=100000)
+                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
-            # Visualize true copula
-            dataset = datasets.distributions.Copula_Distr(args, transform=False)
-            visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+                # Visualize true copula
+                dataset = datasets.distributions.Copula_Distr(args, transform=False)
+                visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
                        test_dict.items()}  # save test set metrics in dict format
-        epochs = (best_dict_DDSF_1['best_validation_epoch'],
-                  best_dict_DDSF_2['best_validation_epoch'],
-                  best_dict_RealNVP['best_validation_epoch'])
+        sep = '_'
+        epochs = sep.join(list([str(best_dict_DDSF_1['best_validation_epoch']),
+                                str(best_dict_DDSF_2['best_validation_epoch']),
+                                str(best_dict_RealNVP['best_validation_epoch'])]))
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
@@ -135,25 +137,26 @@ def train_and_plot(args, disable_tqdm=False, error_bars=False):
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars)
 
-        with torch.no_grad():
-            # Sample from the predicted copula
-            output_copula = model.sample_copula(num_samples=100000)
-            # Visualize the predicted copula
-            if args.cuda:
-                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
-            else:
-                visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
+        if not error_bars:
+            with torch.no_grad():
+                # Sample from the predicted copula
+                output_copula = model.sample_copula(num_samples=100000)
+                # Visualize the predicted copula
+                if args.cuda:
+                    visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
+                else:
+                    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
 
-            # Sample from the true copula and visualize it
-            dataset = datasets.distributions.Copula_Distr(args, transform=False)
-            visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+                # Sample from the true copula and visualize it
+                dataset = datasets.distributions.Copula_Distr(args, transform=False)
+                visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
 
-            # Sample from the non-transformed copula (normal margins)
-            output_copula = model.sample(num_samples=100000)
-            if args.cuda:
-                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
-            else:
-                visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+                # Sample from the non-transformed copula (normal margins)
+                output_copula = model.sample(num_samples=100000)
+                if args.cuda:
+                    visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
+                else:
+                    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -192,14 +195,21 @@ if __name__ == '__main__':
     # Specify, that this RealNVP is part of a CM_Flow
     args.RealNVP_part_of_CM_Flow = True
 
+    # Set up data loader
+    dataset, data_loaders, train_dataset = utils.load_data(args)
+
     # Train model with specified options
     if args.error_bars is True:
         eval_dict = {}
         train_and_plot(args=args,
+                       dataset=dataset,
+                       data_loaders=data_loaders,
                        disable_tqdm=False,
                        error_bars=False)
-        for ii in range(1, 3):
+        for ii in range(1, 10):
             train_and_plot(args=args,
+                           dataset=dataset,
+                           data_loaders=data_loaders,
                            disable_tqdm=False,
                            error_bars=True)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
@@ -212,4 +222,6 @@ if __name__ == '__main__':
                     writer.writerow(line)
     else:
         train_and_plot(args=args,
+                       dataset=dataset,
+                       data_loaders=data_loaders,
                        disable_tqdm=False)
