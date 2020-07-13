@@ -6,6 +6,16 @@ import sys
 import scipy
 
 
+class Rvine_Joint():
+
+    def __init__(args):
+        if args.single_copula_type is True:
+            pass
+        else:
+            pass
+        raise NotImplementedError
+
+
 def marginal_transform(inputs, marginal, args):
     """Transforms the uniform copula marginals into a different distribution.
 
@@ -419,21 +429,6 @@ def gumbel_cdf(theta, uu, vv):
         h = -np.power(h, 1.0 / theta)
         cdfs = np.exp(h)
         return cdfs
-
-
-# class copula_distr():
-#     def __init__(self, copula, theta):
-#         self.copula = copula
-#         self.theta = theta
-
-#     def pdf(self, xx):
-#         uu = xx[:, 0]
-#         vv = xx[:, 1]
-#         copula_pdf_samples = copula_pdf(self.copula, self.theta, uu, vv)
-#         assert not np.isnan(np.sum(copula_pdf_samples))
-#         print(copula_pdf_samples[:10])
-#         copula_pdf_samples = copula_pdf_samples[~np.isnan(copula_pdf_samples)]
-#         return copula_pdf_samples
 
 
 def copula_pdf(copula, theta, uu, vv):

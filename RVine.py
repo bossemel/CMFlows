@@ -1,5 +1,3 @@
-import pandas as pd
-from rvine import Rvine
 import torch
 import torch.utils.data
 
@@ -8,10 +6,10 @@ import numpy as np
 from pathlib import Path
 import random
 
-from CM_modules.options import TrainOptions
+from RVine_modules.options import TrainOptions
 
 from experiment_runner import train_val
-
+from RVine_modules.model_rvine import RVine
 
 if __name__ == '__main__':
 
@@ -41,10 +39,11 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = pd.DataFrame(np.random.randn(20, 3))
+    dataset = np.random.randn(1000, 3)
 
     # Initialize R-vine
-    rv = Rvine(dataset)
+    rv = RVine(args=args, data=dataset)
+    rv.initialize_graph()
 
     # Estimate R-vine
     rv.estimate_rvine()
@@ -63,28 +62,28 @@ if __name__ == '__main__':
     # 'c' for C-vine and 'd' for D-vine, 'familyset' accepts list of
     # integers from 1 to 6, 'threads_num' accepts integer specifying number
     # of threads using for taking mle on edges of the same vine tree
-    # simultaneously.
+    # simultaneously.å
 
-    rv.modeling(structure='r', familyset=[1, 2, 3, 4, 5, 6], threads_num=1)
+    # rv.modeling(structure='r', familyset=[1, 2, 3, 4, 5, 6], threads_num=1)
 
-    # maximum likelihood estimation for rv. 'disp' controls the printing
-    # of ratio of progress of iterating for L-BFGS-B algorithm, 'threads_num'
-    # specifies the number of threads using for computing loglikelihood value
-    # for each edge in the same vine tree.
+    # # maximum likelihood estimation for rv. 'disp' controls the printing
+    # # of ratio of progress of iterating for L-BFGS-B algorithm, 'threads_num'
+    # # specifies the number of threads using for computing loglikelihood value
+    # # for each edge in the same vine tree.
 
-    raise NotImplementedError('cm flow estimation')
-    #rv.mle(disp=False, threads_num=1)
+    # raise NotImplementedError('cm flow estimation')
+    # #rv.mle(disp=False, threads_num=1)
 
-    # plot the R-vine structure for modeled object rv. All the vine trees will
-    # be plotted as default.
+    # # plot the R-vine structure for modeled object rv. All the vine trees will
+    # # be plotted as default.
 
-    rv.plot()
+    # rv.plot()
 
-    # display the result of estimation on each edge. 'ndigits' controls number
-    # of decimal digits for result.
+    # # display the result of estimation on each edge. 'ndigits' controls number
+    # # of decimal digits for result.
 
-    rv.res(ndigits=3)
+    # rv.res(ndigits=3)
 
-    # testing
+    # # testing
 
-    rv.test()
+    # rv.test()

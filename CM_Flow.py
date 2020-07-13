@@ -50,29 +50,31 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.state = dict()
     model.to(args.device)
 
+    print(args.pretrain_models)
+    print(args.train_cm_flow)
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        best_model_DDSF_1, best_dict_DDSF_1, test_dict = train_val(current_model=model,
-                                                                   model_name='DDSF_1',
-                                                                   args=args,
-                                                                   data_loaders=data_loaders,
-                                                                   dataset=dataset,
-                                                                   transform_inputs=True,
-                                                                   disable_tqdm=disable_tqdm,
-                                                                   error_bars=error_bars)
+        model, best_dict_DDSF_1, test_dict = train_val(current_model=model,
+                                                       model_name='DDSF_1',
+                                                       args=args,
+                                                       data_loaders=data_loaders,
+                                                       dataset=dataset,
+                                                       transform_inputs=True,
+                                                       disable_tqdm=disable_tqdm,
+                                                       error_bars=error_bars)
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        best_model_DDSF_2, best_dict_DDSF_2, test_dict = train_val(current_model=model,
-                                                                   model_name='DDSF_2',
-                                                                   args=args,
-                                                                   data_loaders=data_loaders,
-                                                                   dataset=dataset,
-                                                                   test_dict=test_dict,
-                                                                   transform_inputs=True,
-                                                                   disable_tqdm=disable_tqdm,
-                                                                   error_bars=error_bars)
+        model, best_dict_DDSF_2, test_dict = train_val(current_model=model,
+                                                       model_name='DDSF_2',
+                                                       args=args,
+                                                       data_loaders=data_loaders,
+                                                       dataset=dataset,
+                                                       test_dict=test_dict,
+                                                       transform_inputs=True,
+                                                       disable_tqdm=disable_tqdm,
+                                                       error_bars=error_bars)
 
         # Visualize DDFS transformations
         if not error_bars:
@@ -81,8 +83,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                 n = vizdata.shape[0]
                 context = torch.FloatTensor(n, 1).zero_().to(args.device)
                 logdets = torch.FloatTensor(n).zero_().to(args.device)
-                vizdata_1, __, __ = best_model_DDSF_1.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
-                vizdata_2, __, __ = best_model_DDSF_2.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
+                vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
+                vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
                 vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
                 if args.cuda:
                     visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
@@ -91,20 +93,20 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        best_model_RealNVP, best_dict_RealNVP, test_dict = train_val(model,
-                                                                     model_name='RealNVP',
-                                                                     args=args,
-                                                                     data_loaders=data_loaders,
-                                                                     dataset=dataset,
-                                                                     test_dict=test_dict,
-                                                                     transform_inputs=True,
-                                                                     disable_tqdm=disable_tqdm,
-                                                                     error_bars=error_bars)
+        model, best_dict_RealNVP, test_dict = train_val(model,
+                                                        model_name='RealNVP',
+                                                        args=args,
+                                                        data_loaders=data_loaders,
+                                                        dataset=dataset,
+                                                        test_dict=test_dict,
+                                                        transform_inputs=True,
+                                                        disable_tqdm=disable_tqdm,
+                                                        error_bars=error_bars)
 
         if not error_bars:
             with torch.no_grad():
                 # Visualize RealNVP outputs
-                output_copula = best_model_RealNVP.sample_copula(num_samples=100000)
+                output_copula = model.sample_copula(num_samples=100000)
                 visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
 
                 # Visualize true copula
@@ -164,6 +166,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
+    return model
 
 
 if __name__ == '__main__':

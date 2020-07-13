@@ -90,6 +90,15 @@ class CMFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
+    # def joint_distr(self, marginal_1, marginal_2):
+    #     # we need the pdf of the marginal samples
+
+    #     #marginal_samples = torch.concatenate([marginal_1, marginal_2], axis=1)
+    #     joint_samples = self.model_RealNVP.forward(marginal_samples, mode='inverse')[0]
+    #     normal_distr = torch.distributions.normal.Normal(0, 1)
+    #     joint_samples = normal_distr.cdf(joint_samples)
+    #     return joint_samples
+
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
         """Evaluated the JS-Divergence using Monte Carlo.
         """

@@ -38,7 +38,7 @@ def DataCheck(cp_data):
     return (bval, bstr)
 
 
-class Rvine:
+class Rvinee:
     def __init__(self, dataframe):
         """
         Initialization function for an Rvine class object using data

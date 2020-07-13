@@ -22,11 +22,9 @@ def logit(xx):
 
 def t_m_metric_eval(margin, intervals=25):
     """Calculate T and M metric using Monte Carlo.
-
     Params:
         margin: margin array
         intervals: number of intervals to split data into (default 25)
-
     Returns:
         t_metric: int metric for marginal
         m_metric: int metric for marginal
@@ -64,11 +62,9 @@ class HiddenPrints:
 
 def flow_density(inputs, log_jacob):
     """Calculate density using change of variable formula.
-
     Params:
         inputs: data array
         log_jacob: accumulated log jacobian determinant
-
     Returns:
         log density array
     """
@@ -84,13 +80,11 @@ def js_divergence_grid(prob_vector_X, prob_vector_Y):
 def js_divergence(prob_X_in_p, prob_X_in_q,
                   prob_Y_in_p, prob_Y_in_q):
     """Calculate JS-Divergence using Monte Carlo.
-
     Params:
         prob_X_in_p: p(x), x from distr p(x), array
         prob_X_in_q: q(x), x from distr p(x), array
         prob_Y_in_p: p(y), y from distr q(y), array
         prob_Y_in_q: p(y), y from distr q(y), array
-
     Returns:
         divergence: int, JS-Divergence
     """
@@ -116,10 +110,8 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
 
 def split_train_val_test(xx):
     """Splits data into train, val and test set, using 80/20/280 split.
-
     Params:
         xx: data to split
-
     Returns:
         train, val, test: train, val and test set
     """
@@ -142,4 +134,3 @@ def normalize(dataset):
     dataset = dataset - mean
     dataset = dataset / std
     return dataset
-
