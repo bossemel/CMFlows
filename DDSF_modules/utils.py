@@ -84,9 +84,18 @@ def log_normal(inputs, mean, log_var, device, eps=0.00001):
     return - (inputs - mean.to(device)) ** 2 / (2. * torch.exp(log_var).to(device) + eps) - log_var.to(device) / 2. + c
 
 
-def jsd_eval(marginal, args, epoch, model, test_dict,
+def jsd_eval(marginal, args, model, test_dict,
              obs=1000, plotname='jsd_test_marginal',
              cm_flow=False, marginal_num='1'):
+    """Calculate pointwise JS-Divergence for the predicted marginal distribution.
+
+    Params:
+        marginal: marginal distribution
+        args: passed arguments
+
+
+    Returns:
+    """
     # Get distributions
     marginal_distr = datasets.distributions.Marginals(args)
     samples = marginal_distr.sampler(args=args, obs=obs)
@@ -104,8 +113,6 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
         elif marginal_num == '2':
             prob_vector_X = np.exp(model.log_density_DDSF_2(torch.tensor(grid).float()).detach().cpu().numpy())
 
-    # prob_vector_X[prob_vector_X == 0] = 0 + eps
-
     # Prob vector target
     pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
     prob_vector_Y = pred_distr_Y(grid.T).T
@@ -115,7 +122,7 @@ def jsd_eval(marginal, args, epoch, model, test_dict,
 
     # Calculate JS Divergence
     divergence = js_divergence_grid(prob_vector_X, prob_vector_Y)
-    print('JS divergence', divergence)
+    print('JS divergence: ', divergence)
 
     if cm_flow is not None:
         jsd_name = plotname + '_' + str(cm_flow)

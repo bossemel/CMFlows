@@ -56,11 +56,8 @@ class CMFlow(nn.Module):
         self.n = inputs.shape[0]
         self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self.model_DDSF_2.forward((inputs, self.logdets, self.context))
-        # assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        # assert not torch.isnan(torch.sum(density))
         return density
 
     def log_density_RealNVP(self, inputs):

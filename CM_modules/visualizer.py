@@ -4,8 +4,7 @@ import torch
 import os
 import datasets
 import seaborn as sns
-from utils import empty_logdets_context, flow_density
-import scipy.stats
+
 
 def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
     """Visualizes the true and predicted marginals.
@@ -22,9 +21,6 @@ def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
 
     def plotting_fct(grid, true_samples, pred_samples, which_marginal):
         fig = plt.figure(figsize=(8, 6))
-        pred_distr_Y = scipy.stats.gaussian_kde(true_samples.T)
-        prob_vector_Y = pred_distr_Y(grid.T).T
-
         sns.distplot(true_samples, bins=100, kde=False, label='Input Samples', norm_hist=True, color='orange')
         plt.plot(grid.numpy(), np.exp(pred_samples), label='Predicted Distribution', color='royalblue', linewidth=3.0)
         plt.xlabel('x', fontsize=16)
@@ -59,4 +55,3 @@ def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
     plotting_fct(grid_1, true_samples_1, pred_density_1, which_marginal='1')
     pred_density_2 = model.log_density_DDSF_2(grid_2).data.detach().cpu().numpy()
     plotting_fct(grid_2, true_samples_2, pred_density_2, which_marginal='2')
-

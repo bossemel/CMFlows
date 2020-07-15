@@ -41,7 +41,65 @@ def build_model(args):
     return model
 
 
-def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False):
+def visualize_DDSF_output(model):
+    with torch.no_grad():
+        vizdata = torch.tensor(dataset.trn)
+        n = vizdata.shape[0]
+        context = torch.FloatTensor(n, 1).zero_().to(args.device)
+        logdets = torch.FloatTensor(n).zero_().to(args.device)
+        vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
+        vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
+        vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
+        if args.cuda:
+            visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
+        else:
+            visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+
+
+def visualize_RealNVP_output(model):
+    with torch.no_grad():
+        # Visualize RealNVP outputs
+        output_copula = model.sample_copula(num_samples=100000)
+        visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
+
+        # Visualize true copula
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+
+
+def visualize_CM_Flow_output(model):
+    with torch.no_grad():
+        # Sample from the predicted copula
+        output_copula = model.sample_copula(num_samples=100000)
+        # Visualize the predicted copula
+        if args.cuda:
+            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
+        else:
+            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
+
+        # Sample from the true copula and visualize it
+        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+
+        # Sample from the non-transformed copula (normal margins)
+        output_copula = model.sample(num_samples=100000)
+        if args.cuda:
+            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
+        else:
+            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+
+
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False, rvine=False):
+    """Trains the CM Flow, saves test set results and plots.
+
+    Params:
+        args: passed arguments
+        dataset: dataset class
+        data_loaders: torch dataset loaders
+        disable_tqdm: indicate whether to print progress bar
+        error_bars: disables plotting and test set results for error bar calculation
+        rvine: disables plotting and test set results for r-vine estimation
+    """
     if not error_bars:
         visualize_joint(dataset.trn, args, name='input_dataset')
 
@@ -50,23 +108,22 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.state = dict()
     model.to(args.device)
 
-    print(args.pretrain_models)
-    print(args.train_cm_flow)
     # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model, best_dict_DDSF_1, test_dict = train_val(current_model=model,
+        model, best_dict_DDSF_1, test_dict = train_val(model=model,
                                                        model_name='DDSF_1',
                                                        args=args,
                                                        data_loaders=data_loaders,
                                                        dataset=dataset,
                                                        transform_inputs=True,
                                                        disable_tqdm=disable_tqdm,
-                                                       error_bars=error_bars)
+                                                       error_bars=error_bars,
+                                                       rvine=rvine)
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model, best_dict_DDSF_2, test_dict = train_val(current_model=model,
+        model, best_dict_DDSF_2, test_dict = train_val(model=model,
                                                        model_name='DDSF_2',
                                                        args=args,
                                                        data_loaders=data_loaders,
@@ -74,22 +131,12 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                        test_dict=test_dict,
                                                        transform_inputs=True,
                                                        disable_tqdm=disable_tqdm,
-                                                       error_bars=error_bars)
+                                                       error_bars=error_bars,
+                                                       rvine=rvine)
 
         # Visualize DDFS transformations
-        if not error_bars:
-            with torch.no_grad():
-                vizdata = train_dataset
-                n = vizdata.shape[0]
-                context = torch.FloatTensor(n, 1).zero_().to(args.device)
-                logdets = torch.FloatTensor(n).zero_().to(args.device)
-                vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
-                vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
-                vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
-                if args.cuda:
-                    visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
-                else:
-                    visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+        if not error_bars and not rvine:
+            visualize_DDSF_output(model)
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
@@ -101,17 +148,11 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                         test_dict=test_dict,
                                                         transform_inputs=True,
                                                         disable_tqdm=disable_tqdm,
-                                                        error_bars=error_bars)
+                                                        error_bars=error_bars,
+                                                        rvine=rvine)
 
-        if not error_bars:
-            with torch.no_grad():
-                # Visualize RealNVP outputs
-                output_copula = model.sample_copula(num_samples=100000)
-                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
-
-                # Visualize true copula
-                dataset = datasets.distributions.Copula_Distr(args, transform=False)
-                visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+        if not error_bars and not rvine:
+            visualize_RealNVP_output(model)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -139,26 +180,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars)
 
-        if not error_bars:
-            with torch.no_grad():
-                # Sample from the predicted copula
-                output_copula = model.sample_copula(num_samples=100000)
-                # Visualize the predicted copula
-                if args.cuda:
-                    visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
-                else:
-                    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
-
-                # Sample from the true copula and visualize it
-                dataset = datasets.distributions.Copula_Distr(args, transform=False)
-                visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
-
-                # Sample from the non-transformed copula (normal margins)
-                output_copula = model.sample(num_samples=100000)
-                if args.cuda:
-                    visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
-                else:
-                    visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+        if not error_bars and not rvine:
+            visualize_CM_Flow_output(model)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in

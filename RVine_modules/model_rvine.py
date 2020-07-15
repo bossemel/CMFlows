@@ -21,38 +21,44 @@ class RVine():
         """Sequentially estimates the best tree by minimum spanning algorithm
         and estimates the copula between nodes using CM Flows.
         """
-        def cm_flow_estimation(self):
+        def cm_flow_estimation(self, num_current_nodes):
             """Adds attributes 'trained_cm_model' (or name of saved model) and 'copula' to each edge of the current tree.
             Created new graph from these edges as nodes.
             """
             new_graph = nx.Graph()
             new_nodes = []
-            nodes_dict = {}
             for ee, edge in enumerate(self.current_tree.edges()):
-                print(edge)
                 n0, n1 = edge
                 v0 = self.current_tree[n0][n1]['edge_data'][n0]
                 v1 = self.current_tree[n0][n1]['edge_data'][n1]
                 dataset, data_loaders = create_dataset(v0, v1, self.args)
-                print(dataset.trn.shape)
-                trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=False, error_bars=False)
-                exit()
-                # what do i do here? copula_distr = trained_cm_flow.sample_copula(v0, v1)
-                new_nodes.append(ee)
-                nodes_dict[ee] = {'copula_distr': copula_distr, 'model': trained_cm_flow}
-            paired_nodes = combinations(new_nodes, 2)
-            for e in paired_nodes:
-                new_graph.add_edge(*e)
-            for edge, ee in enumerate(new_graph.edges()):
-                new_graph[ee] = nodes_dict[ee]
+                print('Start CM Flow training for tree {}, edge {}'.format(len(self.tree_list), edge))
+                if num_current_nodes > 2:
+                    trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=True)
+                else:
+                    trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=False)
+                copula_distr = trained_cm_flow.sample_copula(num_samples=v0.shape[0]).detach().numpy()
+                new_nodes.append(edge)
+                self.current_tree[n0][n1]['edge_data']['copula_distr'] = copula_distr
+                self.current_tree[n0][n1]['edge_data']['model'] = trained_cm_flow
+                new_graph.add_node(ee, copula_distr=copula_distr, model=trained_cm_flow)
             return new_graph
 
-        num_current_nodes = len(self.current_graph.nodes())
-        while num_current_nodes >= 2:
-            print('start estimation')
-            self.current_tree = nx.minimum_spanning_tree(self.current_graph, weight='weight')
+        while len(self.current_graph.nodes()) >= 2:
+            self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight')
             self.tree_list.append(self.current_tree)
-            self.current_graph = cm_flow_estimation(self)
+            self.current_graph = cm_flow_estimation(self, len(self.current_graph.nodes()))
+            paired_nodes = combinations(list(self.current_graph.nodes), 2)
+            for e in paired_nodes:
+                self.current_graph.add_edge(*e)
+            for edge in self.current_graph.edges():
+                n0, n1 = edge
+                edge_data = {n0: self.current_graph.nodes[n0]['copula_distr'], n1: self.current_graph.nodes[n1]['copula_distr']}
+                self.current_graph[n0][n1]['edge_data'] = edge_data
+                ktau, __ = scipy.stats.kendalltau(edge_data[n0],
+                                                  edge_data[n1])
+                self.current_graph[n0][n1]['weight'] = ktau #1 - np.abs(ktau)
+
             self.graph_list.append(self.current_graph)
 
     def initialize_graph(self):
@@ -78,7 +84,7 @@ class RVine():
             self.current_graph[n0][n1]['edge_data'] = edge_data
             ktau, __ = scipy.stats.kendalltau(edge_data[n0], edge_data[n1])
             self.current_graph[n0][n1]['kendalltau'] = ktau
-            self.current_graph[n0][n1]['weight'] = 1 - np.abs(ktau)
+            self.current_graph[n0][n1]['weight'] = np.abs(ktau)
 
         self.graph_list.append(self.current_graph)
 
@@ -99,24 +105,27 @@ class Rvine_data():
     def __init__(self, dim1, dim2):
         self.xx = np.concatenate([dim1.reshape(-1, 1), dim2.reshape(-1, 1)], axis=1)
         trn, val, tst = split_train_val_test(self.xx)
+        trn = torch.from_numpy(trn)
+        val = torch.from_numpy(val)
+        tst = torch.from_numpy(tst)
 
-        self.trn = trn.astype(np.float32)
-        self.val = val.astype(np.float32)
-        self.tst = tst.astype(np.float32)
+        self.trn = trn.float()
+        self.val = val.float()
+        self.tst = tst.float()
 
 
 def create_dataset(dim1, dim2, args):
     dataset = Rvine_data(dim1, dim2)
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    train_tensor = torch.from_numpy(dataset.trn)
-    train_dataset = torch.utils.data.TensorDataset(train_tensor)
+    # train_tensor = torch.from_numpy(dataset.trn)
+    train_dataset = torch.utils.data.TensorDataset(dataset.trn)
 
-    valid_tensor = torch.from_numpy(dataset.val)
-    valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
+    # valid_tensor = torch.from_numpy(dataset.val)
+    valid_dataset = torch.utils.data.TensorDataset(dataset.val)
 
-    test_tensor = torch.from_numpy(dataset.tst)
-    test_dataset = torch.utils.data.TensorDataset(test_tensor)
+    # test_tensor = torch.from_numpy(dataset.tst)
+    test_dataset = torch.utils.data.TensorDataset(dataset.tst)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)

@@ -19,7 +19,6 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    # @Todo: change thiso.
     dataset = datasets.distributions.Joint_Distr(args)
 
     train_tensor = torch.from_numpy(dataset.trn)
@@ -54,8 +53,22 @@ def load_data(args):
     return dataset, data_loaders, train_tensor
 
 
-def jsd_eval_marginal_cm(marginal_1, marginal_2, args, epoch, model, test_dict,
+def jsd_eval_marginal_cm(marginal_1, marginal_2, args, model, test_dict,
                          obs=1000, plotname='jsd_test_marginal'):
+    """Evaluates the pointwise JSD of the predicted marginal and the true marginal distribution.
+
+    Params:
+        marginal_1: distribution of first marginal
+        marginal_2: distribution of second marginal
+        args: passed arguments
+        model: trained CM Flow
+        test_dict: dictionary with test results
+        obs: number of observations to test the divergence on
+        plotname
+
+    Returns:
+        test_dict: updated test dictionary
+    """
     # Get distributions
     args.marginal = marginal_1
     marginal_distr_1 = datasets.distributions.Marginals(args)

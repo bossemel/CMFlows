@@ -5,8 +5,9 @@ import torch.utils.data
 import torch.nn as nn
 from pathlib import Path
 import random
+import torch.optim as optim
 
-from DDSF_modules import nn_modules as nn_, flows, optim
+from DDSF_modules import nn_modules as nn_, flows
 from DDSF_modules.utils import load_data
 from DDSF_modules.options import TrainOptions
 from DDSF_modules.flows import MAF
@@ -113,7 +114,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
 
     # Train
-    model, best_dict, test_dict = train_val(current_model=model,
+    model, best_dict, test_dict = train_val(model=model,
                                             model_name='DDSF',
                                             args=args,
                                             data_loaders=data_loaders,

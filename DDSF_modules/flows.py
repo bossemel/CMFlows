@@ -20,7 +20,7 @@ class MAF(nn.Sequential):
         self.device = args.device
         self.args = args
 
-    def log_density(self, inputs, logdets=None, context=None):
+    def log_density(self, inputs):
         """Returns log of target density of the Flow
 
         Params:
@@ -290,10 +290,6 @@ class IAF_DDSF(BaseFlow):
             start = end
 
         assert out_dim == 1, 'last dsf out dim should be 1'
-        # assert not torch.isnan(torch.sum(h[:, :, 0]))
-        # assert not torch.isnan(torch.sum(lgd))
-        # assert not torch.isnan(torch.sum(context.to(self.device)))
-
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet.to(self.device), context.to(self.device)
 
 

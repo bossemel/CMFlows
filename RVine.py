@@ -8,13 +8,13 @@ import random
 
 from RVine_modules.options import TrainOptions
 
-from experiment_runner import train_val
 from RVine_modules.model_rvine import RVine
 
 if __name__ == '__main__':
 
     # Training settings
     args = TrainOptions().parse()   # get training options
+    args.RealNVP_part_of_CM_Flow = True
 
     # Create Folders
     args.exp_path = os.path.join('results', args.exp_name)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = np.random.randn(1000, 3)
+    dataset = torch.randn(1000, 5)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)

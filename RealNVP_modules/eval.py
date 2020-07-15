@@ -4,7 +4,6 @@ import torch
 
 
 def jsd_eval(args, epoch, model, loader, device, test_dict,
-             transform_model_1=None, transform_model_2=None, transform_inputs=True,
              cm_flow=True):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
@@ -47,7 +46,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     return test_dict
 
 
-def margin_uniformity(epoch, model, loader, device, transform_fct, test_dict, num_samples, cm_flow=False):
+def margin_uniformity(epoch, model, transform_fct, test_dict, num_samples, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:

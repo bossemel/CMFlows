@@ -109,7 +109,7 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
 
     # Train
-    model, best_dict, test_dict = train_val(current_model=model,
+    model, best_dict, test_dict = train_val(model=model,
                                             model_name='RealNVP',
                                             args=args,
                                             data_loaders=data_loaders,
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                                                      grid_search=False)
 
         # Sample from predicted copual and visualize it
-        output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
+        output_copula = model.sample_copula(num_samples=100000)
         visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
 
         # Sample from true copula and visualize it
