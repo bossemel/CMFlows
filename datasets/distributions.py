@@ -7,7 +7,8 @@ import scipy
 
 
 class Rvine_Joint():
-
+    """Class for multivariate joint distributino with specified marginal and copula correlations
+    """
     def __init__(args):
         if args.single_copula_type is True:
             pass

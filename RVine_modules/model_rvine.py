@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from utils import split_train_val_test
+from utils.visualizer import visualize_joint
 from CM_Flow import train_and_plot
 
 
@@ -41,7 +42,7 @@ class RVine():
                 new_nodes.append(edge)
                 self.current_tree[n0][n1]['edge_data']['copula_distr'] = copula_distr
                 self.current_tree[n0][n1]['edge_data']['model'] = trained_cm_flow
-                new_graph.add_node(ee, copula_distr=copula_distr, model=trained_cm_flow)
+                new_graph.add_node(edge, copula_distr=copula_distr, model=trained_cm_flow)
             return new_graph
 
         while len(self.current_graph.nodes()) >= 2:
@@ -57,7 +58,7 @@ class RVine():
                 self.current_graph[n0][n1]['edge_data'] = edge_data
                 ktau, __ = scipy.stats.kendalltau(edge_data[n0],
                                                   edge_data[n1])
-                self.current_graph[n0][n1]['weight'] = ktau #1 - np.abs(ktau)
+                self.current_graph[n0][n1]['weight'] = ktau
 
             self.graph_list.append(self.current_graph)
 
@@ -91,7 +92,27 @@ class RVine():
     def sample_multivariate_copula(self, num_samples=1000):
         """Returns samples from estimated multivariate copula.
         """
-        raise NotImplementedError
+        with torch.no_grad():
+            samples_dict = {}
+            for tt, tree in enumerate(self.tree_list):
+                if tt == 0:
+                    for edge in tree.edges():
+                        n0, n1 = edge
+                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples)
+                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
+                elif tt < len(self.tree_list) - 1:
+                    for edge in tree.edges():
+                        n0, n1 = edge
+                        inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
+                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples, noise=inputs)
+                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
+                else:
+                    for edge in tree.edges():
+                        n0, n1 = edge
+                        inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
+                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples, noise=inputs)
+                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
+                        visualize_joint(copula_samples, self.args, 'last_copula_rvine')
 
     def plot(self, tree_num=1):
         """Plots R-vine tree structure.

@@ -32,7 +32,9 @@ def load_data(args):
     test_dataset = torch.utils.data.TensorDataset(test_tensor)
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=False, **kwargs)
 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,

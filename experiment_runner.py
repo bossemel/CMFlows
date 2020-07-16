@@ -94,13 +94,14 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     model.train()
 
     pbar = tqdm(total=len(train_loader.dataset), disable=disable_tqdm)
-    for batch_idx, data in enumerate(train_loader):
-        if isinstance(data, list):
-            data = data[0]
 
-        data = data.to(device)
+    if model_name == 'CM_Flow':
+        for batch_idx, data in enumerate(train_loader):
+            if isinstance(data, list):
+                data = data[0]
 
-        if model_name == 'CM_Flow':
+            data = data.to(device)
+
             model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
                                                                                   data,
                                                                                   device)
@@ -116,7 +117,12 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss_DDSF_2.backward(retain_graph=True)
             loss_RealNVP.backward()
 
-        else:
+    else:
+        for batch_idx, data in enumerate(train_loader):
+            if isinstance(data, list):
+                data = data[0]
+
+            data = data.to(device)
             model, loss = single_model_forward(model,
                                                model_name,
                                                data,
@@ -195,7 +201,8 @@ def validate(epoch, model, loader, device,
         with torch.no_grad():
             if model_name == 'CM_Flow':
                 model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
-                                                                                      data)
+                                                                                      data,
+                                                                                      device)
             else:
                 model, loss = single_model_forward(model,
                                                    model_name,
@@ -248,7 +255,8 @@ def test(epoch, model, loader, device,
         with torch.no_grad():
             if model_name == 'CM_Flow':
                 model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
-                                                                                      data)
+                                                                                      data,
+                                                                                      device)
             else:
                 model, loss = single_model_forward(model,
                                                    model_name,

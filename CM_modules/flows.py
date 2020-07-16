@@ -37,11 +37,8 @@ class CMFlow(nn.Module):
         self.n = inputs.shape[0]
         self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self.model_DDSF_1.forward((inputs, self.logdets, self.context))
-        # assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        # assert not torch.isnan(torch.sum(density))
         return density
 
     def log_density_DDSF_2(self, inputs, logdets=None, context=None):
@@ -67,34 +64,27 @@ class CMFlow(nn.Module):
         density = flow_density(outputs, log_jacob)
         return density
 
-    def sample(self, num_samples=None):
+    def sample(self, num_samples=None, noise=None):
         """Samples from the copula without transforming the marginals.
         """
-        noise = torch.Tensor(num_samples, 2).normal_()
+        if noise is None:
+            noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
         return samples
 
-    def sample_copula(self, num_samples=None):
+    def sample_copula(self, num_samples=None, noise=None):
         """Sampels from the copula and transforms the marginals to uniform
         """
-        noise = torch.Tensor(num_samples, 2).normal_()
+        if noise is None:
+            noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
         samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
         return samples
-
-    # def joint_distr(self, marginal_1, marginal_2):
-    #     # we need the pdf of the marginal samples
-
-    #     #marginal_samples = torch.concatenate([marginal_1, marginal_2], axis=1)
-    #     joint_samples = self.model_RealNVP.forward(marginal_samples, mode='inverse')[0]
-    #     normal_distr = torch.distributions.normal.Normal(0, 1)
-    #     joint_samples = normal_distr.cdf(joint_samples)
-    #     return joint_samples
 
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
         """Evaluated the JS-Divergence using Monte Carlo.

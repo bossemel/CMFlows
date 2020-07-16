@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = torch.randn(1000, 5)
+    dataset = torch.randn(1000, 3)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)
@@ -47,6 +47,14 @@ if __name__ == '__main__':
 
     # Estimate R-vine
     rv.estimate_rvine()
+
+    # Sample Copula
+    print(rv.tree_list)
+    print(rv.tree_list[0].nodes())
+    print(rv.tree_list[0].edges())
+    print(rv.tree_list[1].nodes())
+    print(rv.tree_list[1].edges())
+    rv.sample_multivariate_copula()
 
     # read the data and do rank transformation
     # dat = ps.read_csv("data.csv",index_col = 0)

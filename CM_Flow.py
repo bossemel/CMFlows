@@ -41,7 +41,7 @@ def build_model(args):
     return model
 
 
-def visualize_DDSF_output(model):
+def visualize_DDSF_output(model, dataset, args):
     with torch.no_grad():
         vizdata = torch.tensor(dataset.trn)
         n = vizdata.shape[0]
@@ -56,7 +56,7 @@ def visualize_DDSF_output(model):
             visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
 
 
-def visualize_RealNVP_output(model):
+def visualize_RealNVP_output(model, dataset, args):
     with torch.no_grad():
         # Visualize RealNVP outputs
         output_copula = model.sample_copula(num_samples=100000)
@@ -67,7 +67,7 @@ def visualize_RealNVP_output(model):
         visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
 
 
-def visualize_CM_Flow_output(model):
+def visualize_CM_Flow_output(model, dataset, args):
     with torch.no_grad():
         # Sample from the predicted copula
         output_copula = model.sample_copula(num_samples=100000)
@@ -136,7 +136,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         # Visualize DDFS transformations
         if not error_bars and not rvine:
-            visualize_DDSF_output(model)
+            visualize_DDSF_output(model, dataset, args)
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
@@ -152,7 +152,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                         rvine=rvine)
 
         if not error_bars and not rvine:
-            visualize_RealNVP_output(model)
+            visualize_RealNVP_output(model, dataset, args)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -181,7 +181,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 error_bars=error_bars)
 
         if not error_bars and not rvine:
-            visualize_CM_Flow_output(model)
+            visualize_CM_Flow_output(model, dataset, args)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
