@@ -13,7 +13,7 @@ import CM_modules.utils as utils
 import CM_modules.flows as flows
 
 from utils.visualizer import visualize_joint
-from utils.save_statistics import save_statistics, load_statistics, model_loader
+from utils.save_statistics import save_statistics, load_statistics, load_model
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -122,8 +122,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 error_bars=error_bars,
                                                 rvine=rvine)
 
-        model = model_loader(model, args.experiment_saved_models, 'train_model',
-                             best_dict_DDSF_1['best_validation_epoch'], name='')
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                             best_dict_DDSF_1['best_validation_epoch'])
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_dict_DDSF_2, test_dict = train_val(model=model,
@@ -137,8 +137,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 error_bars=error_bars,
                                                 rvine=rvine)
 
-        model = model_loader(model, args.experiment_saved_models, 'train_model',
-                             best_dict_DDSF_2['best_validation_epoch'], name='')
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                             best_dict_DDSF_2['best_validation_epoch'])
 
         # Visualize DDFS transformations
         if not error_bars and not rvine:
@@ -157,8 +157,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                  error_bars=error_bars,
                                                  rvine=rvine)
 
-        model = model_loader(model, args.experiment_saved_models, 'train_model',
-                             best_dict_RealNVP['best_validation_epoch'], name='')
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                             best_dict_RealNVP['best_validation_epoch'])
+
+        best_dict = best_dict_RealNVP
 
         if not error_bars and not rvine:
             visualize_RealNVP_output(model, dataset, args)
@@ -182,15 +184,15 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         # Train model, and perform validation and test
         best_dict, test_dict = train_val(model,
-                                                model_name='CM_Flow',
-                                                args=args,
-                                                data_loaders=data_loaders,
-                                                dataset=dataset,
-                                                disable_tqdm=disable_tqdm,
-                                                error_bars=error_bars)
+                                         model_name='CM_Flow',
+                                         args=args,
+                                         data_loaders=data_loaders,
+                                         dataset=dataset,
+                                         disable_tqdm=disable_tqdm,
+                                         error_bars=error_bars)
 
-        model = model_loader(model, args.experiment_saved_models, 'train_model',
-                             best_dict['best_validation_epoch'], name='')
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                             best_dict['best_validation_epoch'])
 
         if not error_bars and not rvine:
             visualize_CM_Flow_output(model, dataset, args)
@@ -201,7 +203,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
-    return model
+    return best_dict
 
 
 if __name__ == '__main__':

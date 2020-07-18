@@ -30,13 +30,6 @@ class RVine():
             """Adds attributes 'trained_cm_model' (or name of saved model) and 'copula' to each edge of the current tree.
             Created new graph from these edges as nodes.
             """
-            def model_saver():
-                model_name = re.sub('[, ()]', '', str(edge))
-                save_model(model=trained_cm_flow,
-                           model_save_dir=self.args.experiment_saved_models,
-                           model_save_name="best_epoch_model", model_idx=model_name,
-                           best_validation_model_idx=0,
-                           best_validation_model_loss=0)
             new_graph = nx.Graph()
             for ee, edge in enumerate(self.current_tree.edges()):
                 n0, n1 = edge
@@ -45,13 +38,15 @@ class RVine():
                 dataset, data_loaders = create_dataset(v0, v1, self.args)
                 print('Start CM Flow training for tree {}, edge {}'.format(len(self.tree_list), edge))
                 if num_current_nodes > 2:
-                    trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=True)
+                    best_dict = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=True)
                 else:
-                    trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=False)
-                model_saver()
-                copula_distr = trained_cm_flow.sample(num_samples=v0.shape[0]).detach().numpy()
+                    best_dict = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=False)
+                self.model = load_model(self.model, self.args.experiment_saved_models, 'train_model',
+                                        best_dict['best_validation_epoch'])
+                self.model.eval()
+                copula_distr = self.model.sample(num_samples=v0.shape[0]).detach().numpy()
                 self.current_tree[n0][n1]['edge_data']['copula_distr'] = copula_distr
-                new_graph.add_node(edge, copula_distr=copula_distr, model=trained_cm_flow)
+                new_graph.add_node(edge, copula_distr=copula_distr, best_dict=best_dict)
             return new_graph
 
         while len(self.current_graph.nodes()) >= 2:
@@ -109,6 +104,7 @@ class RVine():
         with torch.no_grad():
             samples_dict = {}
             tree = self.tree_list[0]
+            print(tree.nodes())
             for edge in tree.edges():
                 n0, n1 = edge
                 model_loader()
@@ -120,12 +116,15 @@ class RVine():
                     n0, n1 = edge
                     model_loader()
                     inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
-                    #copula_samples = #self.model.sample(num_samples=num_samples, noise=inputs)
                     samples_dict[edge] = np.exp(self.model.log_density_RealNVP(inputs).detach().numpy())
                 if tt == len(self.tree_list) - 2:
                     normal_distr = torch.distributions.normal.Normal(0, 1)
                     copula_samples = normal_distr.cdf(copula_samples)
                     visualize_joint(copula_samples, self.args, 'last_copula_rvine')
+
+    def simulate_distribution():
+        raise NotImplementedError
+
 
     def plot(self, tree_num=1):
         """Plots R-vine tree structure.

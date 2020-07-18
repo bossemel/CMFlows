@@ -44,7 +44,7 @@ class TrainOptions():
 
         # Dataset options
         parser.add_argument(
-            '--copula', default='clayton', help='gaussian | tdistr | clayton | frank | gumbel')
+            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
             '--marginal_1', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
         parser.add_argument(
