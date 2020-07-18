@@ -95,13 +95,12 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
 
     pbar = tqdm(total=len(train_loader.dataset), disable=disable_tqdm)
 
-    if model_name == 'CM_Flow':
-        for batch_idx, data in enumerate(train_loader):
-            if isinstance(data, list):
-                data = data[0]
+    for batch_idx, data in enumerate(train_loader):
+        if isinstance(data, list):
+            data = data[0]
+        data = data.to(device)
 
-            data = data.to(device)
-
+        if model_name == 'CM_Flow':
             model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
                                                                                   data,
                                                                                   device)
@@ -117,12 +116,9 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss_DDSF_2.backward(retain_graph=True)
             loss_RealNVP.backward()
 
-    else:
-        for batch_idx, data in enumerate(train_loader):
-            if isinstance(data, list):
-                data = data[0]
+            model.clip_grad_norm()
 
-            data = data.to(device)
+        else:
             model, loss = single_model_forward(model,
                                                model_name,
                                                data,
@@ -464,4 +460,4 @@ def train_val(model, model_name, args, data_loaders, dataset,
                    best_validation_model_idx=best_dict['best_validation_epoch'],
                    best_validation_model_loss=best_dict['best_validation_loss'])
 
-    return model, best_dict, test_dict
+    return best_dict, test_dict

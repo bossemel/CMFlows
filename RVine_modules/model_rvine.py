@@ -3,10 +3,13 @@ from itertools import combinations
 import scipy.stats
 import numpy as np
 import torch
+import re
 
 from utils import split_train_val_test
 from utils.visualizer import visualize_joint
-from CM_Flow import train_and_plot
+from utils.save_statistics import save_model, load_model
+from CM_Flow import train_and_plot, build_model
+from experiment_runner import test
 
 
 class RVine():
@@ -17,6 +20,7 @@ class RVine():
         self.data = data
         self.graph_list = []
         self.tree_list = []
+        self.model = build_model(self.args)
 
     def estimate_rvine(self):
         """Sequentially estimates the best tree by minimum spanning algorithm
@@ -26,8 +30,14 @@ class RVine():
             """Adds attributes 'trained_cm_model' (or name of saved model) and 'copula' to each edge of the current tree.
             Created new graph from these edges as nodes.
             """
+            def model_saver():
+                model_name = re.sub('[, ()]', '', str(edge))
+                save_model(model=trained_cm_flow,
+                           model_save_dir=self.args.experiment_saved_models,
+                           model_save_name="best_epoch_model", model_idx=model_name,
+                           best_validation_model_idx=0,
+                           best_validation_model_loss=0)
             new_graph = nx.Graph()
-            new_nodes = []
             for ee, edge in enumerate(self.current_tree.edges()):
                 n0, n1 = edge
                 v0 = self.current_tree[n0][n1]['edge_data'][n0]
@@ -38,10 +48,9 @@ class RVine():
                     trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=True)
                 else:
                     trained_cm_flow = train_and_plot(self.args, dataset, data_loaders, disable_tqdm=True, rvine=False)
-                copula_distr = trained_cm_flow.sample_copula(num_samples=v0.shape[0]).detach().numpy()
-                new_nodes.append(edge)
+                model_saver()
+                copula_distr = trained_cm_flow.sample(num_samples=v0.shape[0]).detach().numpy()
                 self.current_tree[n0][n1]['edge_data']['copula_distr'] = copula_distr
-                self.current_tree[n0][n1]['edge_data']['model'] = trained_cm_flow
                 new_graph.add_node(edge, copula_distr=copula_distr, model=trained_cm_flow)
             return new_graph
 
@@ -58,7 +67,7 @@ class RVine():
                 self.current_graph[n0][n1]['edge_data'] = edge_data
                 ktau, __ = scipy.stats.kendalltau(edge_data[n0],
                                                   edge_data[n1])
-                self.current_graph[n0][n1]['weight'] = ktau
+                self.current_graph[n0][n1]['weight'] = np.abs(ktau)
 
             self.graph_list.append(self.current_graph)
 
@@ -84,35 +93,39 @@ class RVine():
             edge_data = {n0: self.data[:, n0], n1: self.data[:, n1]}
             self.current_graph[n0][n1]['edge_data'] = edge_data
             ktau, __ = scipy.stats.kendalltau(edge_data[n0], edge_data[n1])
-            self.current_graph[n0][n1]['kendalltau'] = ktau
             self.current_graph[n0][n1]['weight'] = np.abs(ktau)
 
         self.graph_list.append(self.current_graph)
 
-    def sample_multivariate_copula(self, num_samples=1000):
+    def sample_multivariate_copula(self, num_samples=100000):
         """Returns samples from estimated multivariate copula.
         """
+        def model_loader():
+            model_name = re.sub('[, ()]', '', str(edge))
+            load_model(self.model, self.args.experiment_saved_models, 'best_epoch_model',
+                       model_name)
+            self.model.eval()
+
         with torch.no_grad():
             samples_dict = {}
-            for tt, tree in enumerate(self.tree_list):
-                if tt == 0:
-                    for edge in tree.edges():
-                        n0, n1 = edge
-                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples)
-                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
-                elif tt < len(self.tree_list) - 1:
-                    for edge in tree.edges():
-                        n0, n1 = edge
-                        inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
-                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples, noise=inputs)
-                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
-                else:
-                    for edge in tree.edges():
-                        n0, n1 = edge
-                        inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
-                        copula_samples = tree[n0][n1]['edge_data']['model'].sample(num_samples=num_samples, noise=inputs)
-                        samples_dict[edge] = tree[n0][n1]['edge_data']['model'].log_density_RealNVP(copula_samples).detach().numpy()
-                        visualize_joint(copula_samples, self.args, 'last_copula_rvine')
+            tree = self.tree_list[0]
+            for edge in tree.edges():
+                n0, n1 = edge
+                model_loader()
+                copula_samples = self.model.sample(num_samples=num_samples)
+                samples_dict[edge] = np.exp(self.model.log_density_RealNVP(copula_samples).detach().numpy())
+
+            for tt, tree in enumerate(self.tree_list[1:]):
+                for edge in tree.edges():
+                    n0, n1 = edge
+                    model_loader()
+                    inputs = torch.tensor(np.concatenate([samples_dict[n0], samples_dict[n1]], axis=1))
+                    #copula_samples = #self.model.sample(num_samples=num_samples, noise=inputs)
+                    samples_dict[edge] = np.exp(self.model.log_density_RealNVP(inputs).detach().numpy())
+                if tt == len(self.tree_list) - 2:
+                    normal_distr = torch.distributions.normal.Normal(0, 1)
+                    copula_samples = normal_distr.cdf(copula_samples)
+                    visualize_joint(copula_samples, self.args, 'last_copula_rvine')
 
     def plot(self, tree_num=1):
         """Plots R-vine tree structure.

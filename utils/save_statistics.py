@@ -65,7 +65,7 @@ def load_statistics(experiment_log_dir, filename):
 
 
 def save_model(model, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
-               best_validation_model_loss, model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
+               best_validation_model_loss): #, model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
     """
     Save the network parameter state and current best val epoch idx and best val accuracy.
     :param model_save_name: Name to use to save model without the epoch index
@@ -84,14 +84,14 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
 
     model_saver(model, '')
 
-    if model_RealNVP is not None:
-        model_saver(model_RealNVP, '_RealNVP')
+    # if model_RealNVP is not None:
+    #     model_saver(model_RealNVP, '_RealNVP')
 
-    if model_DDSF_1 is not None:
-        model_saver(model_DDSF_1, '_DDSF_1')
+    # if model_DDSF_1 is not None:
+    #     model_saver(model_DDSF_1, '_DDSF_1')
 
-    if model_RealNVP is not None:
-        model_saver(model_DDSF_2, '_DDSF_2')
+    # if model_RealNVP is not None:
+    #     model_saver(model_DDSF_2, '_DDSF_2')
 
 
 def model_loader(model_type, model_save_dir, model_save_name, model_idx, name=''):
@@ -100,8 +100,8 @@ def model_loader(model_type, model_save_dir, model_save_name, model_idx, name=''
     return model_type
 
 
-def load_model(model, model_save_dir, model_save_name, model_idx,
-               model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
+def load_model(model, model_save_dir, model_save_name, model_idx): #,
+              # model_RealNVP=None, model_DDSF_1=None, model_DDSF_2=None):
     """
     Load the network parameter state and the best val model idx and best val acc to be compared with the future val accuracies, in order to choose the best val model
     :param model_save_dir: The directory to store the state at.
@@ -117,11 +117,11 @@ def load_model(model, model_save_dir, model_save_name, model_idx,
 
     model_loader(model, '')
 
-    if model_RealNVP is not None:
-        model_loader(model_RealNVP, '_RealNVP')
+    # if model_RealNVP is not None:
+    #     model_loader(model_RealNVP, '_RealNVP')
 
-    if model_DDSF_1 is not None:
-        model_loader(model_DDSF_1, '_DDSF_1')
+    # if model_DDSF_1 is not None:
+    #     model_loader(model_DDSF_1, '_DDSF_1')
 
-    if model_RealNVP is not None:
-        model_loader(model_DDSF_2, '_DDSF_2')
+    # if model_RealNVP is not None:
+    #     model_loader(model_DDSF_2, '_DDSF_2')

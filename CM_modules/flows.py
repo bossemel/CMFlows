@@ -107,7 +107,7 @@ class CMFlow(nn.Module):
         assert np.min(samples_pred) > 0
         assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
 
-        samples_target = torch.tensor(inputs)
+        samples_target = torch.as_tensor(inputs)
 
         # Define distributions
         true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)

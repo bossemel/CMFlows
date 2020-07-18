@@ -6,9 +6,27 @@ import numpy as np
 from pathlib import Path
 import random
 
-from RVine_modules.options import TrainOptions
+import pyvinecopulib as pv
+import numpy as np
 
+from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
+
+
+def gen_dataset():
+    # Specify pair-copulas
+    bicop = pv.Bicop(pv.BicopFamily.bb1, 90, [3, 2])
+    pcs = [[bicop, bicop], [bicop]]
+
+    # Specify R-vine matrix
+    mat = np.array([[1, 1, 1], [2, 2, 0], [3, 0, 0]])
+
+    # Set-up a vine copula
+    cop = pv.Vinecop(mat, pcs)
+    print(cop)
+    u = cop.simulate(n=1000, seeds=[1, 2, 3])
+    return torch.tensor(u)
+
 
 if __name__ == '__main__':
 
@@ -39,6 +57,7 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
+    # dataset = gen_dataset() #
     dataset = torch.randn(1000, 3)
 
     # Initialize R-vine
@@ -49,38 +68,7 @@ if __name__ == '__main__':
     rv.estimate_rvine()
 
     # Sample Copula
-    print(rv.tree_list)
-    print(rv.tree_list[0].nodes())
-    print(rv.tree_list[0].edges())
-    print(rv.tree_list[1].nodes())
-    print(rv.tree_list[1].edges())
     rv.sample_multivariate_copula()
-
-    # read the data and do rank transformation
-    # dat = ps.read_csv("data.csv",index_col = 0)
-    # dat = pd.DataFrame(np.random.randn(20, 3))
-
-    # cp_dat = dat.rank() / (len(dat) + 1)
-
-    # initialize R-vine object named rv
-
-    # rv = Rvine(cp_dat)
-
-    # sequential estimation for rv. 'structure' accepts 'r' for R-vine,
-    # 'c' for C-vine and 'd' for D-vine, 'familyset' accepts list of
-    # integers from 1 to 6, 'threads_num' accepts integer specifying number
-    # of threads using for taking mle on edges of the same vine tree
-    # simultaneously.å
-
-    # rv.modeling(structure='r', familyset=[1, 2, 3, 4, 5, 6], threads_num=1)
-
-    # # maximum likelihood estimation for rv. 'disp' controls the printing
-    # # of ratio of progress of iterating for L-BFGS-B algorithm, 'threads_num'
-    # # specifies the number of threads using for computing loglikelihood value
-    # # for each edge in the same vine tree.
-
-    # raise NotImplementedError('cm flow estimation')
-    # #rv.mle(disp=False, threads_num=1)
 
     # # plot the R-vine structure for modeled object rv. All the vine trees will
     # # be plotted as default.

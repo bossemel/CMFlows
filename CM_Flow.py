@@ -13,7 +13,7 @@ import CM_modules.utils as utils
 import CM_modules.flows as flows
 
 from utils.visualizer import visualize_joint
-from utils.save_statistics import save_statistics, load_statistics
+from utils.save_statistics import save_statistics, load_statistics, model_loader
 import datasets.distributions
 
 from experiment_runner import train_val
@@ -112,27 +112,33 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model, best_dict_DDSF_1, test_dict = train_val(model=model,
-                                                       model_name='DDSF_1',
-                                                       args=args,
-                                                       data_loaders=data_loaders,
-                                                       dataset=dataset,
-                                                       transform_inputs=True,
-                                                       disable_tqdm=disable_tqdm,
-                                                       error_bars=error_bars,
-                                                       rvine=rvine)
+        best_dict_DDSF_1, test_dict = train_val(model=model,
+                                                model_name='DDSF_1',
+                                                args=args,
+                                                data_loaders=data_loaders,
+                                                dataset=dataset,
+                                                transform_inputs=True,
+                                                disable_tqdm=disable_tqdm,
+                                                error_bars=error_bars,
+                                                rvine=rvine)
+
+        model = model_loader(model, args.experiment_saved_models, 'train_model',
+                             best_dict_DDSF_1['best_validation_epoch'], name='')
 
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model, best_dict_DDSF_2, test_dict = train_val(model=model,
-                                                       model_name='DDSF_2',
-                                                       args=args,
-                                                       data_loaders=data_loaders,
-                                                       dataset=dataset,
-                                                       test_dict=test_dict,
-                                                       transform_inputs=True,
-                                                       disable_tqdm=disable_tqdm,
-                                                       error_bars=error_bars,
-                                                       rvine=rvine)
+        best_dict_DDSF_2, test_dict = train_val(model=model,
+                                                model_name='DDSF_2',
+                                                args=args,
+                                                data_loaders=data_loaders,
+                                                dataset=dataset,
+                                                test_dict=test_dict,
+                                                transform_inputs=True,
+                                                disable_tqdm=disable_tqdm,
+                                                error_bars=error_bars,
+                                                rvine=rvine)
+
+        model = model_loader(model, args.experiment_saved_models, 'train_model',
+                             best_dict_DDSF_2['best_validation_epoch'], name='')
 
         # Visualize DDFS transformations
         if not error_bars and not rvine:
@@ -140,16 +146,19 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        model, best_dict_RealNVP, test_dict = train_val(model,
-                                                        model_name='RealNVP',
-                                                        args=args,
-                                                        data_loaders=data_loaders,
-                                                        dataset=dataset,
-                                                        test_dict=test_dict,
-                                                        transform_inputs=True,
-                                                        disable_tqdm=disable_tqdm,
-                                                        error_bars=error_bars,
-                                                        rvine=rvine)
+        best_dict_RealNVP, test_dict = train_val(model,
+                                                 model_name='RealNVP',
+                                                 args=args,
+                                                 data_loaders=data_loaders,
+                                                 dataset=dataset,
+                                                 test_dict=test_dict,
+                                                 transform_inputs=True,
+                                                 disable_tqdm=disable_tqdm,
+                                                 error_bars=error_bars,
+                                                 rvine=rvine)
+
+        model = model_loader(model, args.experiment_saved_models, 'train_model',
+                             best_dict_RealNVP['best_validation_epoch'], name='')
 
         if not error_bars and not rvine:
             visualize_RealNVP_output(model, dataset, args)
@@ -172,13 +181,16 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=args.betas)
 
         # Train model, and perform validation and test
-        model, best_dict, test_dict = train_val(model,
+        best_dict, test_dict = train_val(model,
                                                 model_name='CM_Flow',
                                                 args=args,
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars)
+
+        model = model_loader(model, args.experiment_saved_models, 'train_model',
+                             best_dict['best_validation_epoch'], name='')
 
         if not error_bars and not rvine:
             visualize_CM_Flow_output(model, dataset, args)
