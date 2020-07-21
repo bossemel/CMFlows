@@ -57,8 +57,8 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    # dataset = gen_dataset() #
-    dataset = torch.randn(1000, 3)
+    dataset = gen_dataset() #
+    # dataset = torch.randn(1000, 3)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)
@@ -67,8 +67,11 @@ if __name__ == '__main__':
     # Estimate R-vine
     rv.estimate_rvine()
 
+    # Simulate Distribution
+    rv.simulate_distribution(num_samples=100000)
+
     # Sample Copula
-    rv.sample_multivariate_copula()
+    # rv.sample_multivariate_copula()
 
     # # plot the R-vine structure for modeled object rv. All the vine trees will
     # # be plotted as default.

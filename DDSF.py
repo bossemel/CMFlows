@@ -13,7 +13,7 @@ from DDSF_modules.options import TrainOptions
 from DDSF_modules.flows import MAF
 
 from experiment_runner import train_val
-from utils.save_statistics import save_statistics
+from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
 
 
@@ -46,6 +46,58 @@ def build_model(args):
 
     model = MAF(args, *sequels)
     return model
+
+
+def random_search(args):
+    results_dict = {}
+    tested_combinations = []
+    best_loss = 1000
+    ii = 0
+    while ii < 50:
+        args.num_flow_layers_DDSF = 2**np.random.choice(range(5))
+        args.num_hid_layers_DDSF = 2**np.random.choice(range(5))
+        args.dimh_DDSF = 2**np.random.choice(range(10))
+        args.num_ds_dim = 2**np.random.choice(range(10))
+        args.num_ds_layers = 2**np.random.choice(range(5))
+
+        current_hyperparams = (args.num_flow_layers_DDSF,
+                               args.num_hid_layers_DDSF,
+                               args.dimh_DDSF,
+                               args.num_ds_dim,
+                               args.num_ds_layers)
+        if current_hyperparams not in tested_combinations:
+            print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
+                Num. Sigm. Units: {}, Num. Sigm. Layers: {}'.format(args.num_flow_layers_DDSF,
+                                                                    args.num_hid_layers_DDSF,
+                                                                    args.dimh_DDSF,
+                                                                    args.num_ds_dim,
+                                                                    args.num_ds_layers))
+            try:
+                with HiddenPrints():
+                    __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                              disable_tqdm=True,
+                                                                              grid_search=True)
+                results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                     current_best_dict['best_validation_loss'])
+                print(results_dict[current_hyperparams])
+                with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                    f.write(str(results_dict))
+                if current_best_dict['best_validation_loss'] < best_loss:
+                    best_loss = current_best_dict['best_validation_loss']
+                    best_hyperparams = current_hyperparams
+                    best_dict = current_best_dict
+                tested_combinations.append(current_hyperparams)
+                ii += 1
+            except:
+                print('Error for {}'.format(current_hyperparams))
+                ii += 1
+    print('Random search complete for {}'.format(args.marginal))
+    print('Best hyperparams: {}'.format(best_hyperparams))
+    print('Lowest Val Loss: {}'.format(best_loss))
+    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
+    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
 
 
 def grid_search(args, flow_layers, hidden_layers, hidden_units,
@@ -90,7 +142,7 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
                                 best_dict = current_best_dict
                                 test_dict = current_test_dict
                         except:
-                            pass
+                            print('Error for {}'.format(current_hyperparams))
     print('Grid search complete for ', args.marginal)
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
@@ -114,12 +166,13 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
 
     # Train
-    model, best_dict, test_dict = train_val(model=model,
-                                            model_name='DDSF',
-                                            args=args,
-                                            data_loaders=data_loaders,
-                                            dataset=dataset,
-                                            disable_tqdm=disable_tqdm)
+    best_dict, test_dict = train_val(model=model,
+                                     model_name='DDSF',
+                                     args=args,
+                                     data_loaders=data_loaders,
+                                     dataset=dataset,
+                                     disable_tqdm=disable_tqdm,
+                                     grid_search=grid_search)
     return model, best_dict, test_dict
 
 
@@ -149,7 +202,9 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    if args.grid_search:
+    if args.random_search:
+        random_search(args)
+    elif args.grid_search:
         # Hyperparameter options:
         flow_layers = [5, 10]
         hidden_layers = [1, 2]
@@ -167,6 +222,9 @@ if __name__ == '__main__':
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args)
+
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                           best_dict['best_validation_epoch'])
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in

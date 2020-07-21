@@ -57,21 +57,25 @@ class CMFlow(nn.Module):
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
         return density
 
-    def log_density_RealNVP(self, inputs):
+    def log_density_RealNVP(self, inputs, cond_inputs=None, mode='direct', transform_inputs=False):
         """Calculates log density of the flow
         """
-        outputs, log_jacob = self.model_RealNVP.forward(inputs=inputs)
+        if transform_inputs:
+            raise NotImplementedError
+        outputs, log_jacob = self.model_RealNVP.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
         density = flow_density(outputs, log_jacob)
         return density
 
-    def sample(self, num_samples=None, noise=None):
+    def sample(self, num_samples=None, noise=None, cond_inputs=None):
         """Samples from the copula without transforming the marginals.
         """
         if noise is None:
             noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
+        if cond_inputs is not None:
+            cond_inputs = cond_inputs.to(device)
+        samples = self.model_RealNVP.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         return samples
 
     def sample_copula(self, num_samples=None, noise=None):

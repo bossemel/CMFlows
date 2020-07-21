@@ -6,7 +6,7 @@ import numpy as np
 
 import RealNVP_modules.flows as fnn
 
-from utils.save_statistics import save_statistics, save_model, model_loader
+from utils.load_and_save import save_statistics, save_model, model_loader
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
@@ -47,7 +47,7 @@ def cm_flow_forward(model, data, device):
     return model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP
 
 
-def single_model_forward(model, model_name, data, transform_inputs, device):
+def single_model_forward(args, model, model_name, data, transform_inputs, device):
     # When training just the DDSF or RealNVP, there is only one loss and no preprocessing of data.
     if model_name == 'DDSF_1':
         output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
@@ -55,13 +55,23 @@ def single_model_forward(model, model_name, data, transform_inputs, device):
     elif model_name == 'DDSF_2':
         output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
         loss = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
-    elif model_name == 'RealNVP' and transform_inputs is True:
-        with torch.no_grad():
-            output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
-            output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
-            outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-        output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
-        loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+    elif model_name == 'RealNVP':
+        if transform_inputs is True:
+            with torch.no_grad():
+                output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
+                output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
+                outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+            if args.conditional_copula:
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=output_DDSF_1, cond_inputs=output_DDSF_2, mode='direct')
+            else:
+                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
+            loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+        else:
+            if args.conditional_copula:
+                losses = model.loss(inputs=data[:, 0].reshape(-1, 1), cond_inputs=data[:, 1].reshape(-1, 1))
+            else:
+                losses = model.loss(data)
+            loss = losses.mean()
     else:
         losses = model.loss(data)
         loss = losses.mean()
@@ -69,12 +79,15 @@ def single_model_forward(model, model_name, data, transform_inputs, device):
     return model, loss
 
 
-def move_transformed_outputs(train_loader, device, model, data):
+def move_transformed_outputs(args, train_loader, device, model, data):
     logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
     output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, train_loader.dataset.tensors[0], device)
     output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, train_loader.dataset.tensors[0], device)
-    train_loader_tensor = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-    model.model_RealNVP.forward(train_loader_tensor.to(data.device))
+    if args.conditional_copula:
+        model.model_RealNVP.forward(inputs=output_DDSF_1.to(data.device), cond_inputs=output_DDSF_2.to(data.device))
+    else:
+        train_loader_tensor = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+        model.model_RealNVP.forward(train_loader_tensor.to(data.device))
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
@@ -119,7 +132,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             model.clip_grad_norm()
 
         else:
-            model, loss = single_model_forward(model,
+            model, loss = single_model_forward(args,
+                                               model,
                                                model_name,
                                                data,
                                                transform_inputs,
@@ -153,11 +167,15 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     with torch.no_grad():
         if model_name == 'RealNVP':
             if transform_inputs is True:
-                move_transformed_outputs(train_loader, device, model, data)
+                move_transformed_outputs(args, train_loader, device, model, data)
             else:
-                model(train_loader.dataset.tensors[0].to(data.device))
+                if args.conditional_copula:
+                    model(inputs=train_loader.dataset.tensors[0][:, 0].reshape(-1, 1).to(data.device),
+                          cond_inputs=train_loader.dataset.tensors[0][:, 1].reshape(-1, 1).to(data.device))
+                else:
+                    model(train_loader.dataset.tensors[0].to(data.device))
         elif model_name == 'CM_Flow':
-            move_transformed_outputs(train_loader, device, model, data)
+            move_transformed_outputs(args, train_loader, device, model, data)
 
     for module in model.modules():
         if isinstance(module, fnn.BatchNormFlow):
@@ -166,7 +184,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     return current_epoch_losses
 
 
-def validate(epoch, model, loader, device,
+def validate(args, epoch, model, loader, device,
              current_epoch_losses=None, best_dict=None, model_name=None,
              transform_model_1=None, transform_model_2=None, transform_inputs=True, disable_tqdm=False):
     """Return log probabilities on validation set.
@@ -200,7 +218,8 @@ def validate(epoch, model, loader, device,
                                                                                       data,
                                                                                       device)
             else:
-                model, loss = single_model_forward(model,
+                model, loss = single_model_forward(args,
+                                                   model,
                                                    model_name,
                                                    data,
                                                    transform_inputs,
@@ -223,7 +242,7 @@ def validate(epoch, model, loader, device,
     return current_epoch_losses, best_dict
 
 
-def test(epoch, model, loader, device,
+def test(args, epoch, model, loader, device,
          test_dict, model_name,
          transform_inputs=True,
          disable_tqdm=False):
@@ -254,7 +273,8 @@ def test(epoch, model, loader, device,
                                                                                       data,
                                                                                       device)
             else:
-                model, loss = single_model_forward(model,
+                model, loss = single_model_forward(args,
+                                                   model,
                                                    model_name,
                                                    data,
                                                    transform_inputs,
@@ -299,7 +319,8 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                      disable_tqdm=disable_tqdm)
 
         # Perform Validation
-        current_epoch_losses, best_dict = validate(epoch=epoch,
+        current_epoch_losses, best_dict = validate(args=args,
+                                                   epoch=epoch,
                                                    model=model,
                                                    loader=data_loaders['valid_loader'],
                                                    device=args.device,
@@ -346,7 +367,8 @@ def train_val(model, model_name, args, data_loaders, dataset,
                              best_dict['best_validation_epoch'], name='')
 
         # Perform test evaluation
-        test_dict = test(epoch=best_dict['best_validation_epoch'],
+        test_dict = test(args=args,
+                         epoch=best_dict['best_validation_epoch'],
                          model=model,
                          loader=data_loaders['test_loader'],
                          device=args.device,
@@ -367,8 +389,10 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                         test_dict=test_dict,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
             # Evaluate copula margins on test set
-            test_dict = margin_uniformity(best_dict['best_validation_epoch'],
+            test_dict = margin_uniformity(args,
+                                          best_dict['best_validation_epoch'],
                                           model,
+                                          torch.tensor(dataset.tst[:, 1].reshape(-1, 1)),
                                           data_loaders['test_loader'],
                                           test_dict=test_dict,
                                           num_samples=num_samples,
@@ -430,8 +454,10 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # args.marginal = args.marginal_2
 
             # Evaluate copula margins on test set
-            test_dict = margin_uniformity(best_dict['best_validation_epoch'],
+            test_dict = margin_uniformity(args,
+                                          best_dict['best_validation_epoch'],
                                           model,
+                                          torch.tensor(dataset.tst[:, 1].reshape(-1, 1)),
                                           data_loaders['test_loader'],
                                           test_dict=test_dict,
                                           num_samples=num_samples)

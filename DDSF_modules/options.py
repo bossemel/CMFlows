@@ -66,6 +66,8 @@ class TrainOptions():
         parser.add_argument(
             '--grid_search', action='store_true', help='grid search over hyperparameters')
         parser.add_argument(
+            '--random_search', action='store_true', help='random search over hyperparameters')
+        parser.add_argument(
             '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
