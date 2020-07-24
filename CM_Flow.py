@@ -19,26 +19,6 @@ import datasets.distributions
 from experiment_runner import train_val
 
 eps = 0.0001
-import scipy.integrate
-import time
-
-
-def estimate_conditional(model, u_1):
-    #f_u_1 = scipy.integrate.quad(lambda xx: model.log_density_RealNVP(torch.tensor([1, 2]).reshape(-1, 1).T, mode='inverse').detach().numpy(), 0, 1)[0]
-    xx = torch.arange(0, 1, 1000).float()
-    print(u_1.shape)
-    print(xx.shape)
-    yy = model.log_density_RealNVP(torch.cat([u_1, xx], axis=1), mode='inverse').detach().numpy()
-    result = scipy.integrate.simps(yy, xx)
-    print(result.shape)
-    # f_u_1 = np.zeros(u_1.shape)
-    # t0 = time.time()
-    # for ii, u_1_ii in enumerate(u_1):
-    #     f_u_1[ii] = scipy.integrate.quad(lambda xx: model.log_density_RealNVP(torch.tensor([u_1_ii, xx]).reshape(-1, 1).T, mode='inverse').detach().numpy(), 0, 1)[0]
-    # t1 = time.time()
-    total = t1 - t0
-    print('time: ', total)
-    print(f_u_1[:10])
 
 
 def build_model(args):
@@ -215,11 +195,6 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                            best_dict['best_validation_epoch'])
 
         if not error_bars and not rvine:
-            sampler = torch.distributions.Uniform(low=0, high=1)
-            u_1 = sampler.sample((3, 1)).float()
-            # u_1 = np.random.uniform(size=1)
-            estimate_conditional(model, u_1)
-
             visualize_CM_Flow_output(model, dataset, args)
 
         # Gather test losses and save statistics

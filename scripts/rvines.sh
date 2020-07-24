@@ -8,5 +8,5 @@ python RVine.py \
 --marginal_1 bimodal_gaussian \
 --marginal_2 bimodal_gaussian \
 --theta 2 \
---obs 100 \
+--obs 10000 \
 --pretrain_models

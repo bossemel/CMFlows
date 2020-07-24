@@ -54,7 +54,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     return test_dict
 
 
-def margin_uniformity(args, epoch, model, cond_inputs, transform_fct, test_dict, num_samples, cm_flow=False):
+def margin_uniformity(args, epoch, model, cond_inputs=None, transform_fct=None, test_dict=None, num_samples=100000, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -70,10 +70,12 @@ def margin_uniformity(args, epoch, model, cond_inputs, transform_fct, test_dict,
     model.eval()
 
     with torch.no_grad():
+        if args.conditional_copula:
+            num_samples = cond_inputs.shape[0]
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args, num_samples=cond_inputs.shape[0], cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow)
+            current_m_metric_x2 = model.t_metric_eval(args, num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow)
     if 't_1' in test_dict:
         test_dict["t_1"].append(current_t_metric_x1 / num_samples)
         test_dict["m_1"].append(current_m_metric_x1 / num_samples)

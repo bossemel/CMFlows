@@ -18,8 +18,6 @@ class FlowSequential(nn.Sequential):
             inputs: a tuple of inputs and logdets
             mode: to run direct computation or inverse
         """
-        # if isinstance(inputs, tuple):
-        #     inputs, __, __ = inputs
         self.num_inputs = inputs.size(-1)
 
         if logdets is None:
@@ -50,31 +48,40 @@ class FlowSequential(nn.Sequential):
         """
         return - self.log_density(inputs, cond_inputs)
 
-    def sample(self, num_samples=None, transform='gaussian', cond_inputs=None):
+    def transform(self, inputs, cond_inputs):
+        return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode='inverse')[0]
+
+    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False):
         """Returns an output sample without transformation
         """
-        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
+        if num_inputs is not None:
+            self.num_inputs = num_inputs
         if cond_inputs is not None:
-            cond_inputs = cond_inputs.to(device)
+            num_samples = cond_inputs.shape[0]
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
-        if transform == 'sigmoid':
-            samples = sigmoid(samples)
-        elif transform == 'gaussian':
+        if cond_inputs is not None:
+            samples = torch.cat([cond_inputs, samples], axis=1)
+        if not copula:
+            if transform == 'sigmoid':
+                samples = sigmoid(samples)
+            elif transform == 'gaussian':
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                samples = normal_distr.cdf(samples)
+        else:
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
         return samples
 
-    def sample_copula(self, num_samples=None, cond_inputs=None):
+    def sample_copula(self, num_samples=None, cond_inputs=None, num_inputs=None):
         """Returns the predicted copula (output sample with transformation)
         """
+        if num_inputs is not None:
+            self.num_inputs = num_inputs
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        if cond_inputs is not None:
-            cond_inputs = cond_inputs.to(device)
         samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
+        if cond_inputs is not None:
+            samples = torch.cat([cond_inputs, samples], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
         return samples
@@ -93,13 +100,16 @@ class FlowSequential(nn.Sequential):
             samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
         if transform_fct == 'sigmoid':
             samples_target = torch.tensor(sigmoid(inputs))
-            cond_inputs = torch.tensor(sigmoid(cond_inputs))
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(sigmoid(cond_inputs))
         elif transform_fct == 'gaussian':
             samples_target = torch.tensor(normal_distr.cdf(inputs.detach().cpu())).float()
-            cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs.detach().cpu())).float()
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs.detach().cpu())).float()
         else:
             samples_target = torch.tensor(inputs)
-            cond_inputs = torch.tensor(cond_inputs)
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(cond_inputs)
 
         # Estimate Copula distr
         # RealNVP outputs the density directly, but not the transformation to
@@ -116,9 +126,11 @@ class FlowSequential(nn.Sequential):
         # Prob Y in both distributions
         if args.conditional_copula:
             prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
+            prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).T).T
+
         else:
             prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
-        prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
         if np.isnan(np.sum(prob_X_in_q)):
             prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]

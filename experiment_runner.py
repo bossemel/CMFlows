@@ -6,7 +6,7 @@ import numpy as np
 
 import RealNVP_modules.flows as fnn
 
-from utils.load_and_save import save_statistics, save_model, model_loader
+from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
@@ -296,7 +296,7 @@ def test(args, epoch, model, loader, device,
 def train_val(model, model_name, args, data_loaders, dataset,
               transform_model_1=None, transform_model_2=None, transform_inputs=True,
               test_dict={}, disable_tqdm=False, grid_search=False, error_bars=False,
-              rvine=False):
+              rvine=False, save_name=None):
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
 
@@ -363,8 +363,8 @@ def train_val(model, model_name, args, data_loaders, dataset,
     if not grid_search and not rvine:
 
         # Load model with best validation epoch
-        model = model_loader(model, args.experiment_saved_models, 'train_model',
-                             best_dict['best_validation_epoch'], name='')
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                           best_dict['best_validation_epoch'])
 
         # Perform test evaluation
         test_dict = test(args=args,
@@ -392,7 +392,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args,
                                           best_dict['best_validation_epoch'],
                                           model,
-                                          torch.tensor(dataset.tst[:, 1].reshape(-1, 1)),
+                                          dataset.tst[:, 1].reshape(-1, 1),
                                           data_loaders['test_loader'],
                                           test_dict=test_dict,
                                           num_samples=num_samples,
@@ -457,7 +457,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args,
                                           best_dict['best_validation_epoch'],
                                           model,
-                                          torch.tensor(dataset.tst[:, 1].reshape(-1, 1)),
+                                          torch.from_numpy(dataset.tst[:, 1].reshape(-1, 1)),
                                           data_loaders['test_loader'],
                                           test_dict=test_dict,
                                           num_samples=num_samples)
@@ -479,11 +479,12 @@ def train_val(model, model_name, args, data_loaders, dataset,
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
 
-        # Save best model under different name
-        save_model(model=model,
-                   model_save_dir=args.experiment_saved_models,
-                   model_save_name="best_epoch_model", model_idx=epoch,
-                   best_validation_model_idx=best_dict['best_validation_epoch'],
-                   best_validation_model_loss=best_dict['best_validation_loss'])
+    # Save best model under different name
+    save_model(model=model,
+               model_save_dir=args.experiment_saved_models,
+               model_save_name="best_epoch_model", model_idx=epoch,
+               best_validation_model_idx=best_dict['best_validation_epoch'],
+               best_validation_model_loss=best_dict['best_validation_loss'],
+               save_name=save_name)
 
     return best_dict, test_dict

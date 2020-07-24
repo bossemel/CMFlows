@@ -7,15 +7,15 @@ from pathlib import Path
 import random
 
 import pyvinecopulib as pv
-import numpy as np
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
+from RVine_modules.load_and_save import save_rvine, load_rvine
 
 
 def gen_dataset():
     # Specify pair-copulas
-    bicop = pv.Bicop(pv.BicopFamily.bb1, 90, [3, 2])
+    bicop = pv.Bicop(pv.BicopFamily.bb1, 90, [6, 2])
     pcs = [[bicop, bicop], [bicop]]
 
     # Specify R-vine matrix
@@ -57,8 +57,8 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = gen_dataset() #
-    # dataset = torch.randn(1000, 3)
+    dataset = gen_dataset()
+    dataset = torch.randn(1000, 5)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)
@@ -66,9 +66,15 @@ if __name__ == '__main__':
 
     # Estimate R-vine
     rv.estimate_rvine()
+    save_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
+    rv = load_rvine(args.experiment_saved_models, 'rvine_object')
+
+    print(rv.tree_list)
+    # Get density estimate
+    rv.density(torch.randn(10, 5))
     # Simulate Distribution
-    rv.simulate_distribution(num_samples=100000)
+    # rv.simulate_distribution(num_samples=100000)
 
     # Sample Copula
     # rv.sample_multivariate_copula()

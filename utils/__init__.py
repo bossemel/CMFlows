@@ -31,7 +31,6 @@ def t_m_metric_eval(margin, intervals=25):
     """
     sum_probs = 0
     highest_interval = 0
-    print(abs(highest_interval + np.log(intervals)))
     for ii in range(intervals):
         A_k_lower = (ii - 1) / intervals
         A_k_upper = ii / intervals

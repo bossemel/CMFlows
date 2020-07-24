@@ -74,6 +74,8 @@ def random_search(args):
                 args.transform_fct, args.num_blocks, args.num_hidden))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                          dataset=dataset,
+                                                                          data_loaders=data_loaders,
                                                                           disable_tqdm=True,
                                                                           grid_search=True)
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
@@ -112,6 +114,8 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units):
                           ' num_hidden:', num_hidden)
                     with HiddenPrints():
                         current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                             dataset=dataset,
+                                                                                             data_loaders=data_loaders,
                                                                                              disable_tqdm=True,
                                                                                              grid_search=True)
                     current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
@@ -136,10 +140,8 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units):
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, disable_tqdm=False, grid_search=False):
-    # Set up data loader
-    dataset, data_loaders = utils.load_data(args)
-    if not grid_search:
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, save_name=None):
+    if not grid_search and not rvine:
         visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
@@ -158,7 +160,9 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                      dataset=dataset,
                                      transform_inputs=False,
                                      disable_tqdm=disable_tqdm,
-                                     grid_search=grid_search)
+                                     grid_search=grid_search,
+                                     rvine=rvine,
+                                     save_name=save_name)
 
     return model, best_dict, test_dict
 
@@ -192,6 +196,9 @@ if __name__ == '__main__':
     # Specify, that this RealNVP is not part of a CM_Flow
     args.RealNVP_part_of_CM_Flow = False
 
+    # Set up data loader
+    dataset, data_loaders = utils.load_data(args)
+
     if args.random_search:
         random_search(args=args)
     elif args.grid_search:
@@ -208,6 +215,8 @@ if __name__ == '__main__':
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args=args,
+                                                     dataset=dataset,
+                                                     data_loaders=data_loaders,
                                                      disable_tqdm=False,
                                                      grid_search=False)
 
@@ -215,13 +224,18 @@ if __name__ == '__main__':
                            best_dict['best_validation_epoch'])
 
         # Sample from predicted copual and visualize it
-        if args.conditional_copula:
-            cond_inputs = torch.tensor(np.random.uniform(size=100000)).float().reshape(-1, 1)
-            output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct)
-            visualize_joint(torch.cat([cond_inputs, output_copula], axis=1).detach().cpu().numpy(), args, name='output_copula')
-        else:
-            output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
-            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
+        with torch.no_grad():
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(np.random.normal(size=100000)).float().reshape(-1, 1)
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct)
+                visualize_joint(output_copula, args, name='output_copula')
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None)
+                visualize_joint(output_copula, args, name='output_copula_untransformed')
+            else:
+                output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
+                visualize_joint(output_copula, args, name='output_copula')
+                output_copula = model.sample(num_samples=100000, transform=None)
+                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it
         obs = args.obs

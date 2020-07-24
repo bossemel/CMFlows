@@ -21,6 +21,8 @@ class TrainOptions():
             '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
         parser.add_argument(
             '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+        parser.add_argument(
+            '--conditional_copula', action='store_true', help='estimates the conditional copula')
 
         # Training options
         parser.add_argument(

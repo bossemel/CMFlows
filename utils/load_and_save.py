@@ -66,7 +66,7 @@ def load_statistics(experiment_log_dir, filename):
 
 
 def save_model(model, model_save_dir, model_save_name, model_idx, best_validation_model_idx,
-               best_validation_model_loss):
+               best_validation_model_loss, save_name=None):
     """
     Save the network parameter state and current best val epoch idx and best val accuracy.
     :param model_save_name: Name to use to save model without the epoch index
@@ -79,14 +79,10 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
     model.state['network'] = model.state_dict()  # save network parameter and other variables.
     model.state['best_val_model_idx'] = best_validation_model_idx  # save current best val idx
     model.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
+    if save_name is not None:
+        model_save_name = model_save_name + save_name
     torch.save(model.state, f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(
         model_idx))))  # save state at prespecified filepath
-
-
-def model_loader(model_type, model_save_dir, model_save_name, model_idx, name=''):
-    state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model{}".format(model_save_name, str(model_idx), name)))
-    model_type.load_state_dict(state_dict=state['network'])
-    return model_type
 
 
 def load_model(model, model_save_dir, model_save_name, model_idx):

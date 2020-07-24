@@ -159,7 +159,7 @@ class CMFlow(nn.Module):
                                    prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=None):
+    def t_metric_eval(self, args, num_samples, transform_fct, intervals=25, cm_flow=None):
         """Evaluates the uniformity of the predicted marginals.
         """
         samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
