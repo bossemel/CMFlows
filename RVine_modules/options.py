@@ -44,25 +44,13 @@ class TrainOptions():
 
         # Dataset options
         parser.add_argument(
-            '--single_copula_type', action='store_true', help='whether rvine should be constructed using on copula type')
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--single_marginal_type', action='store_true', help='whether rvine should be constructed using on marginal distr type')
+            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
         parser.add_argument(
-            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel'])
-        parser.add_argument(
-            '--marginal_1', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
-        parser.add_argument(
-            '--marginal_2', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
+            '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
-        parser.add_argument(
-            '--tau', type=float, required=False, help='tau to use for copula sampling')
-        parser.add_argument(
-            '--theta', type=float, required=False, help='theta for copula sampling')
-        parser.add_argument(
-            '--df', type=int, required=False, help='degrees of freedom for student-t copula')
-        parser.add_argument(
-            '--alpha', type=float, required=False, help='alpha for gamma distribution')
 
         # Options RealNVP
         parser.add_argument(
@@ -101,6 +89,8 @@ class TrainOptions():
             '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--load_model', action='store_true', help='loads saved model under experiment name')
 
         self.initialized = True
         return parser

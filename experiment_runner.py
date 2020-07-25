@@ -482,7 +482,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
     # Save best model under different name
     save_model(model=model,
                model_save_dir=args.experiment_saved_models,
-               model_save_name="best_epoch_model", model_idx=epoch,
+               model_save_name="best_epoch_model", model_idx=best_dict['best_validation_epoch'],
                best_validation_model_idx=best_dict['best_validation_epoch'],
                best_validation_model_loss=best_dict['best_validation_loss'],
                save_name=save_name)

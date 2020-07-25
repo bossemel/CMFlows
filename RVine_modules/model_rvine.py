@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import re
 
-from utils import split_train_val_test
+from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
 from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
@@ -15,16 +15,15 @@ from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_buil
 def model_loader(model, args, edge, epoch, add_name):
     edge_str = re.sub('[, ()]', '', str(edge))
     model_load_name = 'best_epoch_model' + edge_str + add_name
-    load_model(model, args.experiment_saved_models, model_load_name,
-               epoch)
+    load_model(model, args.experiment_saved_models, model_load_name, epoch)
     model.eval()
 
 
 def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, num_current_nodes, save_name, add_name):
     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
     args.conditional_copula = conditional_copula
-    rvine = True if num_current_nodes > 2 else False
-    __, best_dict, __ = RealNVP_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=rvine, save_name=save_name)
+    # rvine = True if num_current_nodes > 2 else False
+    __, best_dict, __ = RealNVP_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
     return best_dict
 
 
@@ -32,6 +31,11 @@ def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name)
     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
     __, best_dict, __ = DDSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
     return best_dict
+
+
+def flatten(nested_tuple):
+    for i in nested_tuple:
+        yield from [i] if not isinstance(i, tuple) else flatten(i)
 
 
 class RVine():
@@ -67,19 +71,20 @@ class RVine():
                 dataset, data_loaders = create_dataset_1dim(self.data[:, node].float().reshape(-1, 1), self.args)
 
                 print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-
-                best_dict = train_marginal_flow(self.args,
-                                                self.model_uncon,
-                                                dataset,
-                                                data_loaders,
-                                                save_name=node,
-                                                add_name='marginal')
-                model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-                with torch.no_grad():
-                    transformed_inputs = self.model_marg.transform(self.data[:, node].float().reshape(-1, 1))
+                if self.args.marginal != 'uniform':
+                    best_dict = train_marginal_flow(self.args,
+                                                    self.model_uncon,
+                                                    dataset,
+                                                    data_loaders,
+                                                    save_name=node,
+                                                    add_name='marginal')
+                    model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+                    with torch.no_grad():
+                        transformed_inputs = self.model_marg.transform(self.data[:, node].float().reshape(-1, 1))
+                        self.current_graph.nodes[node]['best_dict'] = best_dict
+                else:
+                    transformed_inputs = self.data[:, node].float().reshape(-1, 1)
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
-                self.current_graph.nodes[node]['best_dict'] = best_dict
-
 
             for edge in self.current_graph.edges():
                 n0, n1 = edge
@@ -113,6 +118,7 @@ class RVine():
             else:
                 v0 = self.current_tree.nodes[n1]['cond_distr']
                 v1 = self.current_tree.nodes[n0]['cond_distr']
+                n1, n0 = n0, n1
             dataset, data_loaders = create_dataset(v0, v1, self.args)
 
             print('Train CM Flow for tree {}, edge {}'.format(len(self.tree_list), edge))
@@ -134,8 +140,8 @@ class RVine():
                                               num_current_nodes,
                                               save_name=edge,
                                               add_name='cop_con')
-
             # Estimate F(u_1|u_2)? or c(u_1|u_2)?
+
             model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
             self.model_con.eval()
@@ -177,9 +183,12 @@ class RVine():
             for ii in range(len(self.tree_list)):
                 if ii == 0:
                     for node in self.tree_list[ii].nodes():
-                        best_dict = self.tree_list[ii].nodes[node]['best_dict']
-                        model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-                        transformed_input = self.model_marg.transform(inputs=inputs[:, node].float().reshape(-1, 1))
+                        if self.args.marginal != 'uniform':
+                            best_dict = self.tree_list[ii].nodes[node]['best_dict']
+                            model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+                            transformed_input = self.model_marg.transform(inputs=inputs[:, node].float().reshape(-1, 1))
+                        else:
+                            transformed_input = inputs[:, node].float().reshape(-1, 1)
 
                     for edge in self.tree_list[ii].edges():
                         # @Todo: add DDSF transformation
@@ -197,6 +206,8 @@ class RVine():
                         elif n1 in common_node:
                             v0 = self.tree_list[ii - 1].nodes[n1]['cond_distr']
                             v1 = self.tree_list[ii - 1].nodes[n0]['cond_distr']
+                            n1, n0 = n0, n1
+
                         else:
                             raise ValueError('No common node found.')
 
@@ -219,11 +230,89 @@ class RVine():
                         log_prob += copula_density
             assert log_prob.shape[0] == inputs.shape[0]
             prob = torch.exp(log_prob)
-            assert torch.min(prob) >= 0 and torch.max(prob) <= 1
+            assert torch.min(prob) >= 0
         return prob
 
-    def simulate_distribution(self, num_samples=100000):
-        raise NotImplementedError
+    def sample(self, num_samples=1000, num_inputs=3, transform=False):
+        with torch.no_grad():
+            # first: sample multivariate uniform distribution. then, transform the samples accordingly.
+            self.uniform_samples = torch.Tensor(num_samples, num_inputs).normal_()
+
+            # for each tree, find out which variable was transformed and transform it 'back'
+            for ii in reversed(range(1, len(self.tree_list))):
+                # dim to be transformed: the one that has no common edge in the previous tree,
+                # the common edge is the condtional input
+                for node in self.tree_list[ii].nodes():
+                    n0, n1 = node
+                    common_node = self.tree_list[ii].nodes[node]['common_node']
+
+                    if n0 == common_node or n0 in common_node:
+                        v0 = self.tree_list[ii - 1].nodes[n0]['cond_distr']
+                    elif n1 == common_node or n1 in common_node:
+                        v0 = self.tree_list[ii - 1].nodes[n1]['cond_distr']
+                        n1, n0 = n0, n1
+
+                    else:
+                        raise ValueError('No common node found.')
+
+                    best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
+                    model_loader(self.model_con, self.args, node, best_dict_con['best_validation_epoch'], add_name='cop_con')
+                    transformed_marginal = self.model_con.sample(num_samples=num_samples, cond_inputs=v0)[:, 1]
+                    self.uniform_samples[:, next(flatten(node))] = transformed_marginal
+        if transform:
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            self.uniform_samples = normal_distr.cdf(self.uniform_samples)
+        return self.uniform_samples
+
+    def jsd_vinecopula(self, args, rvine_estimate, true_rvine, obs=1000):
+        """Returns JS-Divergence of the predicted Copula and the true Copula
+        """
+        with torch.no_grad():
+            # Define distributions
+            # normal_distr = scipy.stats.norm(0, 1)
+            # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+
+            # Samples from both distributinos
+            self.sample(num_samples=obs, transform=True)
+            samples_target = true_rvine.simulate(obs)
+
+            # Estimate Copula distr
+            # RealNVP outputs the density directly, but not the transformation to
+            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+            pred_distr = scipy.stats.gaussian_kde(self.uniform_samples.cpu().numpy().T)
+
+            # Prob X in both distributions
+            prob_X_in_p = pred_distr.pdf(self.uniform_samples.cpu().numpy().T).T
+            prob_X_in_q = true_rvine.pdf(self.uniform_samples.cpu().numpy())
+
+            # Prob Y in both distributions
+            prob_Y_in_q = true_rvine.pdf(samples_target)
+            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+
+            if np.isnan(np.sum(prob_X_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+
+            if np.isnan(np.sum(prob_Y_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+
+            assert np.min(self.uniform_samples.cpu().numpy()) >= 0
+            assert np.min(samples_target) >= 0
+            assert np.min(prob_X_in_p) >= 0
+            assert np.min(prob_X_in_q) >= 0
+            assert np.min(prob_Y_in_p) >= 0
+            assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
+
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q)
+            return divergence
 
 
 class Rvine_data():

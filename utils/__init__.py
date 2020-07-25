@@ -80,7 +80,11 @@ def js_divergence_grid(prob_vector_X, prob_vector_Y):
         pointwise JS-Divergence
     """
     mix = 0.5 * (prob_vector_Y + prob_vector_X)
-    return (scipy.special.kl_div(prob_vector_X, mix).mean() + scipy.special.kl_div(prob_vector_Y, mix).mean()) / 2
+    KL_X_mix = scipy.special.kl_div(prob_vector_X, mix).mean()
+    KL_Y_mix = scipy.special.kl_div(prob_vector_Y, mix).mean()
+    print(KL_X_mix)
+    print(KL_Y_mix)
+    return (KL_X_mix + KL_Y_mix) / 2
 
 
 def js_divergence(prob_X_in_p, prob_X_in_q,
@@ -142,7 +146,7 @@ def normalize(dataset):
     return dataset
 
 
-def make_meshgrid(obs, dim):
-    meshgrid = np.array(np.meshgrid(*[np.linspace(0, 1, obs)] * dim))
+def make_meshgrid(obs, dim, low, high):
+    meshgrid = np.array(np.meshgrid(*[np.linspace(low, high, obs)] * dim))
     return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
 
