@@ -39,10 +39,18 @@ class MAF(nn.Sequential):
         # assert not torch.isnan(torch.sum(density))
         return density
 
-    def loss(self, x):
+    def loss(self, inputs):
         """Loss is negative log density
         """
-        return - self.log_density(x)
+        return - self.log_density(inputs)
+
+    def transform(self, inputs):
+        self.n = inputs.shape[0]
+        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        # assert not torch.isnan(torch.sum(inputs))
+        outputs, __, __ = self((inputs, self.logdets, self.context))
+        return outputs
 
     def clip_grad_norm(self):
         """Performs gradient clipping

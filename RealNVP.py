@@ -98,7 +98,7 @@ def random_search(args):
                 'Best Epoch: ' + str(best_dict['best_validation_epoch']))
 
 
-def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units):
+def grid_search(args, dataset, data_loaders, transform_functions, num_inv_blocks, num_hidden_units):
     results_dict = {}
     best_loss = 1000
     print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units')
@@ -118,7 +118,7 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units):
                                                                                              data_loaders=data_loaders,
                                                                                              disable_tqdm=True,
                                                                                              grid_search=True)
-                    current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
+                    current_hyperparams = (transform_fct, num_blocks, num_hidden)
                     results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                          current_best_dict['best_validation_loss'])
                     print(results_dict[current_hyperparams])
@@ -206,12 +206,12 @@ if __name__ == '__main__':
         transform_functions = ['gaussian', 'sigmoid']
         num_inv_blocks = [4, 8, 16]
         num_hidden_units = [32, 64, 128]
-        weight_decay = [0, 0.000001]
         grid_search(args=args,
+                    dataset=dataset,
+                    data_loaders=data_loaders,
                     transform_functions=transform_functions,
                     num_inv_blocks=num_inv_blocks,
-                    num_hidden_units=num_hidden_units,
-                    weight_decay_adam=weight_decay)
+                    num_hidden_units=num_hidden_units)
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args=args,
@@ -235,7 +235,7 @@ if __name__ == '__main__':
                 output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
                 visualize_joint(output_copula, args, name='output_copula')
                 output_copula = model.sample(num_samples=100000, transform=None)
-                visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_untransformed')
+                visualize_joint(output_copula, args, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it
         obs = args.obs

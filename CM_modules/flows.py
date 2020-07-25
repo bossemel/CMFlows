@@ -93,81 +93,83 @@ class CMFlow(nn.Module):
     def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
-        # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0])
-        samples_pred = samples_pred.detach().cpu().numpy()
+        with torch.no_grad():
+            # Samples from both distributinos
+            samples_pred = self.sample_copula(num_samples=inputs.shape[0])
+            samples_pred = samples_pred.cpu().numpy()
 
-        assert np.min(samples_pred) >= 0
-        assert np.max(samples_pred) <= 1
+            assert np.min(samples_pred) >= 0
+            assert np.max(samples_pred) <= 1
 
-        samples_target = inputs.detach().cpu().numpy()
-        samples_target[samples_target == 1] = 1 - eps
-        samples_target[samples_target == 0] = 0 + eps
-        samples_pred[samples_pred == 0] = 0 + eps
-        samples_pred[samples_pred == 1] = 1 - eps
+            samples_target = inputs.cpu().numpy()
+            samples_target[samples_target == 1] = 1 - eps
+            samples_target[samples_target == 0] = 0 + eps
+            samples_pred[samples_pred == 0] = 0 + eps
+            samples_pred[samples_pred == 1] = 1 - eps
 
-        assert np.min(samples_target) > 0
-        assert np.max(samples_target) < 1
-        assert np.min(samples_pred) > 0
-        assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
+            assert np.min(samples_target) > 0
+            assert np.max(samples_target) < 1
+            assert np.min(samples_pred) > 0
+            assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
 
-        samples_target = torch.as_tensor(inputs)
+            samples_target = torch.as_tensor(inputs)
 
-        # Define distributions
-        true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-        # Estimate Copula distr
-        pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+            # Define distributions
+            true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            # Estimate Copula distr
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
-        # Prob X in both distributions
-        prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-        prob_X_in_q = true_cop_distr.pdf(samples_pred)
+            # Prob X in both distributions
+            prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+            prob_X_in_q = true_cop_distr.pdf(samples_pred)
 
-        # Prob Y in both distributions
-        prob_Y_in_q = true_cop_distr.pdf(samples_target.detach().cpu().numpy())
-        prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            # Prob Y in both distributions
+            prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
+            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
-        if np.isnan(np.sum(prob_X_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            if np.isnan(np.sum(prob_X_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
 
-        if np.isnan(np.sum(prob_Y_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+            if np.isnan(np.sum(prob_Y_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-        prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
-        prob_X_in_p[prob_X_in_q == 0] = 0 + eps
-        prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
-        prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
+            prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
+            prob_X_in_p[prob_X_in_q == 0] = 0 + eps
+            prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
+            prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
 
-        assert not np.isnan(np.sum(prob_X_in_p))
-        assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
-        assert not np.isnan(np.sum(prob_Y_in_p))
-        assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+            assert not np.isnan(np.sum(prob_X_in_p))
+            assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
+            assert not np.isnan(np.sum(prob_Y_in_p))
+            assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
 
-        assert np.min(prob_X_in_p) > 0
-        assert np.min(prob_X_in_q) > 0, '%r' % np.min(prob_X_in_q)
-        assert np.min(prob_Y_in_p) > 0
-        assert np.min(prob_Y_in_q) > 0
+            assert np.min(prob_X_in_p) > 0
+            assert np.min(prob_X_in_q) > 0, '%r' % np.min(prob_X_in_q)
+            assert np.min(prob_Y_in_p) > 0
+            assert np.min(prob_Y_in_q) > 0
 
-        divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                   prob_X_in_q=prob_X_in_q,
-                                   prob_Y_in_p=prob_Y_in_p,
-                                   prob_Y_in_q=prob_Y_in_q)
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, args, num_samples, transform_fct, intervals=25, cm_flow=None):
+    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=None):
         """Evaluates the uniformity of the predicted marginals.
         """
-        samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
-        margin_x1 = samples[:, 0]
-        margin_x2 = samples[:, 1]
-        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
-        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
-        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+        with torch.no_grad():
+            samples = self.sample_copula(num_samples=num_samples).cpu().numpy()
+            margin_x1 = samples[:, 0]
+            margin_x2 = samples[:, 1]
+            t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+            t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+            return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
     def clip_grad_norm(self):
         """Performs gradient clipping

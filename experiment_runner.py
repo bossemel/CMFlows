@@ -9,7 +9,7 @@ import RealNVP_modules.flows as fnn
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from DDSF_modules.utils import jsd_eval as jsd_eval_marginal
+from DDSF_modules.eval import jsd_eval as jsd_eval_marginal
 from DDSF_modules.visualizer import visualize1D
 from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm

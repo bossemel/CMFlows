@@ -72,6 +72,13 @@ def flow_density(inputs, log_jacob):
 
 
 def js_divergence_grid(prob_vector_X, prob_vector_Y):
+    """Calculates the JS-Divergence of each point on a grid using pointwise KL-divergence, averaged.
+    Params:
+        prob_vector_X: probability of grid in distr p(x)
+        prob_vector_Y: probability of grid in distr p(y)
+    Returns:
+        pointwise JS-Divergence
+    """
     mix = 0.5 * (prob_vector_Y + prob_vector_X)
     return (scipy.special.kl_div(prob_vector_X, mix).mean() + scipy.special.kl_div(prob_vector_Y, mix).mean()) / 2
 
@@ -133,3 +140,9 @@ def normalize(dataset):
     dataset = dataset - mean
     dataset = dataset / std
     return dataset
+
+
+def make_meshgrid(obs, dim):
+    meshgrid = np.array(np.meshgrid(*[np.linspace(0, 1, obs)] * dim))
+    return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
+

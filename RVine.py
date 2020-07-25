@@ -11,6 +11,7 @@ import pyvinecopulib as pv
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
 from RVine_modules.load_and_save import save_rvine, load_rvine
+from RVine_modules.eval import jsd_eval
 
 
 def gen_dataset():
@@ -62,17 +63,22 @@ if __name__ == '__main__':
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)
-    rv.initialize_graph()
+    # rv.initialize_graph()
 
     # Estimate R-vine
-    rv.estimate_rvine()
-    save_rvine(args.experiment_saved_models, 'rvine_object', rv)
+    # rv.estimate_rvine()
+    # save_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
-    rv = load_rvine(args.experiment_saved_models, 'rvine_object')
+    load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
     print(rv.tree_list)
     # Get density estimate
     rv.density(torch.randn(10, 5))
+
+    new_data = torch.randn(1000, 5)
+
+    jsd_eval(new_data, args, rv)
+
     # Simulate Distribution
     # rv.simulate_distribution(num_samples=100000)
 

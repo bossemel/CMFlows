@@ -72,56 +72,57 @@ def jsd_eval_marginal_cm(marginal_1, marginal_2, args, model, test_dict,
     Returns:
         test_dict: updated test dictionary
     """
-    # Get distributions
-    args.marginal = marginal_1
-    marginal_distr_1 = datasets.distributions.Marginals(args)
-    args.marginal = marginal_2
-    marginal_distr_2 = datasets.distributions.Marginals(args)
-    samples_1 = marginal_distr_1.sampler(args=args, obs=obs)
-    samples_2 = marginal_distr_2.sampler(args=args, obs=obs)
+    with torch.no_grad():
+        # Get distributions
+        args.marginal = marginal_1
+        marginal_distr_1 = datasets.distributions.Marginals(args)
+        args.marginal = marginal_2
+        marginal_distr_2 = datasets.distributions.Marginals(args)
+        samples_1 = marginal_distr_1.sampler(args=args, obs=obs)
+        samples_2 = marginal_distr_2.sampler(args=args, obs=obs)
 
-    # Get Grid
-    grid_1 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
-    grid_2 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
+        # Get Grid
+        grid_1 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
+        grid_2 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)
 
-    # Prob vector pred
-    logdets, context = empty_logdets_context(grid_1, args.device)
+        # Prob vector pred
+        logdets, context = empty_logdets_context(grid_1, args.device)
 
-    output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((torch.tensor(grid_1).float(), logdets, context))
-    output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((torch.tensor(grid_2).float(), logdets, context))
+        output_DDSF_1, logdets_DDSF_1, __ = model.model_DDSF_1.forward((torch.tensor(grid_1).float(), logdets, context))
+        output_DDSF_2, logdets_DDSF_2, __ = model.model_DDSF_2.forward((torch.tensor(grid_2).float(), logdets, context))
 
-    args.obs = obs
-    prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).float().detach().cpu().numpy())
-    prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).float().detach().cpu().numpy())
+        args.obs = obs
+        prob_vector_X_1 = np.exp(flow_density(output_DDSF_1, logdets_DDSF_1).float().cpu().numpy())
+        prob_vector_X_2 = np.exp(flow_density(output_DDSF_2, logdets_DDSF_2).float().cpu().numpy())
 
-    # Prob vector target
-    pred_distr_Y_1 = scipy.stats.gaussian_kde(samples_1.T)
-    prob_vector_Y_1 = pred_distr_Y_1(grid_1.T).T
-    pred_distr_Y_2 = scipy.stats.gaussian_kde(samples_2.T)
-    prob_vector_Y_2 = pred_distr_Y_2(grid_2.T).T
+        # Prob vector target
+        pred_distr_Y_1 = scipy.stats.gaussian_kde(samples_1.T)
+        prob_vector_Y_1 = pred_distr_Y_1(grid_1.T).T
+        pred_distr_Y_2 = scipy.stats.gaussian_kde(samples_2.T)
+        prob_vector_Y_2 = pred_distr_Y_2(grid_2.T).T
 
-    assert np.min(prob_vector_X_1) >= 0
-    assert np.min(prob_vector_X_2) >= 0
-    assert np.min(prob_vector_Y_1) >= 0
-    assert np.min(prob_vector_Y_2) >= 0
+        assert np.min(prob_vector_X_1) >= 0
+        assert np.min(prob_vector_X_2) >= 0
+        assert np.min(prob_vector_Y_1) >= 0
+        assert np.min(prob_vector_Y_2) >= 0
 
-    # Calculate JS Divergence
-    divergence_1 = js_divergence_grid(prob_vector_X_1, prob_vector_Y_1)
-    divergence_2 = js_divergence_grid(prob_vector_X_2, prob_vector_Y_2)
+        # Calculate JS Divergence
+        divergence_1 = js_divergence_grid(prob_vector_X_1, prob_vector_Y_1)
+        divergence_2 = js_divergence_grid(prob_vector_X_2, prob_vector_Y_2)
 
-    print('Marginal 1 Divergence: ', divergence_1)
-    print('Marginal 2 Divergence: ', divergence_2)
+        print('Marginal 1 Divergence: ', divergence_1)
+        print('Marginal 2 Divergence: ', divergence_2)
 
-    jsd_name = plotname + '_' + str(0)
-    if jsd_name in test_dict:
-        test_dict[jsd_name].append(divergence_1)
-    else:
-        test_dict[jsd_name] = [divergence_1]
+        jsd_name = plotname + '_' + str(0)
+        if jsd_name in test_dict:
+            test_dict[jsd_name].append(divergence_1)
+        else:
+            test_dict[jsd_name] = [divergence_1]
 
-    jsd_name = plotname + '_' + str(1)
-    if jsd_name in test_dict:
-        test_dict[jsd_name].append(divergence_2)
-    else:
-        test_dict[jsd_name] = [divergence_2]
+        jsd_name = plotname + '_' + str(1)
+        if jsd_name in test_dict:
+            test_dict[jsd_name].append(divergence_2)
+        else:
+            test_dict[jsd_name] = [divergence_2]
 
-    return test_dict
+        return test_dict

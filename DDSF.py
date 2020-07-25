@@ -100,7 +100,7 @@ def random_search(args):
                 'Best Epoch: ' + str(best_dict['best_validation_epoch']))
 
 
-def grid_search(args, flow_layers, hidden_layers, hidden_units,
+def grid_search(args, dataset, data_loaders, flow_layers, hidden_layers, hidden_units,
                 deep_sigm_dim, deep_sigm_layers):
     results_dict = {}
     best_loss = 1000
@@ -123,6 +123,8 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
                         try:
                             with HiddenPrints():
                                 current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                                     dataset,
+                                                                                                     data_loaders,
                                                                                                      disable_tqdm=True,
                                                                                                      grid_search=True)
                             current_hyperparams = (num_flows_layers_DDSF,
@@ -153,10 +155,7 @@ def grid_search(args, flow_layers, hidden_layers, hidden_units,
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, disable_tqdm=False, grid_search=False):
-    # Set up data loader
-    dataset, data_loaders = load_data(args)
-
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, save_name=None):
     # Build model and send to device
     model = build_model(args)
     model.state = dict()
@@ -172,7 +171,9 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
                                      data_loaders=data_loaders,
                                      dataset=dataset,
                                      disable_tqdm=disable_tqdm,
-                                     grid_search=grid_search)
+                                     grid_search=grid_search,
+                                     rvine=rvine,
+                                     save_name=save_name)
     return model, best_dict, test_dict
 
 
@@ -199,6 +200,10 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     random.seed(args.random_seed)
+
+    # Set up data loader
+    dataset, data_loaders = load_data(args)
+
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
@@ -214,6 +219,8 @@ if __name__ == '__main__':
 
         # Perform Grid Search
         model, best_dict, test_dict = grid_search(args,
+                                                  dataset,
+                                                  data_loaders,
                                                   flow_layers,
                                                   hidden_layers,
                                                   hidden_units,
@@ -221,7 +228,9 @@ if __name__ == '__main__':
                                                   deep_sigm_layers)
     else:
         # Train model
-        model, best_dict, test_dict = train_and_plot(args)
+        model, best_dict, test_dict = train_and_plot(args,
+                                                     dataset,
+                                                     data_loaders)
 
         model = load_model(model, args.experiment_saved_models, 'train_model',
                            best_dict['best_validation_epoch'])

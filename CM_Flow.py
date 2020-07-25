@@ -51,16 +51,16 @@ def visualize_DDSF_output(model, dataset, args):
         vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
         if args.cuda:
-            visualize_joint(vizdata.detach().cpu().numpy(), args, name='DDSF_output')
+            visualize_joint(vizdata, args, name='DDSF_output')
         else:
-            visualize_joint(vizdata.detach().numpy(), args, name='DDSF_output')
+            visualize_joint(vizdata, args, name='DDSF_output')
 
 
 def visualize_RealNVP_output(model, dataset, args):
     with torch.no_grad():
         # Visualize RealNVP outputs
         output_copula = model.sample_copula(num_samples=100000)
-        visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_RealNVP')
+        visualize_joint(output_copula, args, name='output_copula_RealNVP')
 
         # Visualize true copula
         dataset = datasets.distributions.Copula_Distr(args, transform=False)
@@ -73,9 +73,9 @@ def visualize_CM_Flow_output(model, dataset, args):
         output_copula = model.sample_copula(num_samples=100000)
         # Visualize the predicted copula
         if args.cuda:
-            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_cm')
+            visualize_joint(output_copula, args, name='output_copula_cm')
         else:
-            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_cm')
+            visualize_joint(output_copula, args, name='output_copula_cm')
 
         # Sample from the true copula and visualize it
         dataset = datasets.distributions.Copula_Distr(args, transform=False)
@@ -84,9 +84,9 @@ def visualize_CM_Flow_output(model, dataset, args):
         # Sample from the non-transformed copula (normal margins)
         output_copula = model.sample(num_samples=100000)
         if args.cuda:
-            visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula_normal_cm')
+            visualize_joint(output_copula, args, name='output_copula_normal_cm')
         else:
-            visualize_joint(output_copula.detach().numpy(), args, name='output_copula_normal_cm')
+            visualize_joint(output_copula, args, name='output_copula_normal_cm')
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False, rvine=False):

@@ -89,96 +89,98 @@ class FlowSequential(nn.Sequential):
     def jsd(self, args, inputs, cond_inputs=None, transform_fct='gaussian', obs=1000, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
-        # Define distributions
-        normal_distr = scipy.stats.norm(0, 1)
-        true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+        with torch.no_grad():
+            # Define distributions
+            normal_distr = scipy.stats.norm(0, 1)
+            true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
-        # Samples from both distributinos
-        if cm_flow is True:
-            samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
-        else:
-            samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
-        if transform_fct == 'sigmoid':
-            samples_target = torch.tensor(sigmoid(inputs))
+            # Samples from both distributinos
+            if cm_flow is True:
+                samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
+            else:
+                samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
+            if transform_fct == 'sigmoid':
+                samples_target = torch.tensor(sigmoid(inputs))
+                if args.conditional_copula:
+                    cond_inputs = torch.tensor(sigmoid(cond_inputs))
+            elif transform_fct == 'gaussian':
+                samples_target = torch.tensor(normal_distr.cdf(inputs.cpu())).float()
+                if args.conditional_copula:
+                    cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs.cpu())).float()
+            else:
+                samples_target = torch.tensor(inputs)
+                if args.conditional_copula:
+                    cond_inputs = torch.tensor(cond_inputs)
+
+            # Estimate Copula distr
+            # RealNVP outputs the density directly, but not the transformation to
+            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+
+            # Prob X in both distributions
+            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
             if args.conditional_copula:
-                cond_inputs = torch.tensor(sigmoid(cond_inputs))
-        elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs.detach().cpu())).float()
+                prob_X_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_pred.cpu().numpy()], axis=1))
+            else:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
+
+            # Prob Y in both distributions
             if args.conditional_copula:
-                cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs.detach().cpu())).float()
-        else:
-            samples_target = torch.tensor(inputs)
-            if args.conditional_copula:
-                cond_inputs = torch.tensor(cond_inputs)
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).T).T
 
-        # Estimate Copula distr
-        # RealNVP outputs the density directly, but not the transformation to
-        # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-        pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+            else:
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+                prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
-        # Prob X in both distributions
-        prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
-        if args.conditional_copula:
-            prob_X_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_pred.cpu().numpy()], axis=1))
-        else:
-            prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
+            if np.isnan(np.sum(prob_X_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
 
-        # Prob Y in both distributions
-        if args.conditional_copula:
-            prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
-            prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).T).T
+            if np.isnan(np.sum(prob_Y_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-        else:
-            prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
-            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            assert np.min(samples_pred.cpu().numpy()) >= 0
+            assert np.min(samples_target.cpu().numpy()) >= 0
+            assert np.min(prob_X_in_p) >= 0
+            assert np.min(prob_X_in_q) >= 0
+            assert np.min(prob_Y_in_p) >= 0
+            assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
 
-        if np.isnan(np.sum(prob_X_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-
-        if np.isnan(np.sum(prob_Y_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
-
-        assert np.min(samples_pred.cpu().numpy()) >= 0
-        assert np.min(samples_target.cpu().numpy()) >= 0
-        assert np.min(prob_X_in_p) >= 0
-        assert np.min(prob_X_in_q) >= 0
-        assert np.min(prob_Y_in_p) >= 0
-        assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
-
-        divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                   prob_X_in_q=prob_X_in_q,
-                                   prob_Y_in_p=prob_Y_in_p,
-                                   prob_Y_in_q=prob_Y_in_q)
-        return divergence
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q)
+            return divergence
 
     def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct='gaussian', intervals=25, cm_flow=False):
         """Returns evaluation metrics for the copula marginals.
         """
-        if cm_flow:
-            if args.conditional_copula:
-                samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs).detach().cpu().numpy()
+        with torch.no_grad():
+            if cm_flow:
+                if args.conditional_copula:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs).cpu().numpy()
+                else:
+                    samples = self.sample_copula(num_samples=num_samples).cpu().numpy()
             else:
-                samples = self.sample_copula(num_samples=num_samples).detach().cpu().numpy()
-        else:
+                if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct).cpu().numpy()
+                else:
+                    samples = self.sample(num_samples=num_samples, transform=transform_fct).cpu().numpy()
             if args.conditional_copula:
-                samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct).detach().cpu().numpy()
+                margin_x1 = cond_inputs
+                margin_x2 = samples
             else:
-                samples = self.sample(num_samples=num_samples, transform=transform_fct).detach().cpu().numpy()
-        if args.conditional_copula:
-            margin_x1 = cond_inputs
-            margin_x2 = samples
-        else:
-            margin_x1 = samples[:, 0]
-            margin_x2 = samples[:, 1]
-        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
-        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
-        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+                margin_x1 = samples[:, 0]
+                margin_x2 = samples[:, 1]
+            t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+            t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+            return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
 class CouplingLayer(nn.Module):
