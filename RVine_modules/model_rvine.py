@@ -4,6 +4,7 @@ import scipy.stats
 import numpy as np
 import torch
 import re
+import matplotlib.pyplot as plt
 
 from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
@@ -36,6 +37,20 @@ def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name)
 def flatten(nested_tuple):
     for i in nested_tuple:
         yield from [i] if not isinstance(i, tuple) else flatten(i)
+
+
+def assign_distr_to_nodes(edge, common_node, current_tree):
+    n0, n1 = edge
+    if n0 == common_node or n0 in common_node:
+        v0 = current_tree.nodes[n0]['cond_distr']
+        v1 = current_tree.nodes[n1]['cond_distr']
+        edge = n1, n0
+    elif n1 == common_node or n1 in common_node:
+        v0 = current_tree.nodes[n1]['cond_distr']
+        v1 = current_tree.nodes[n0]['cond_distr']
+    else:
+        raise ValueError('No common node found.')
+    return v0, v1, edge
 
 
 class RVine():
@@ -111,17 +126,11 @@ class RVine():
                     add_new_node(edge[0], edge, num_current_nodes)
 
         def add_new_node(common_node, edge, num_current_nodes):
-            n0, n1 = edge
-            if n0 == common_node:
-                v0 = self.current_tree.nodes[n0]['cond_distr']
-                v1 = self.current_tree.nodes[n1]['cond_distr']
-            else:
-                v0 = self.current_tree.nodes[n1]['cond_distr']
-                v1 = self.current_tree.nodes[n0]['cond_distr']
-                n1, n0 = n0, n1
+            v0, v1, edge = assign_distr_to_nodes(edge, common_node, self.current_tree)
+
             dataset, data_loaders = create_dataset(v0, v1, self.args)
 
-            print('Train CM Flow for tree {}, edge {}'.format(len(self.tree_list), edge))
+            print('Train unconditional CM Flow for tree {}, edge {}'.format(len(self.tree_list), edge))
 
             best_dict_uncon = train_copula_flow(self.args,
                                                 self.model_uncon,
@@ -131,6 +140,8 @@ class RVine():
                                                 num_current_nodes,
                                                 save_name=edge,
                                                 add_name='cop_uncon')
+            print(' common node' , common_node)
+            print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
             best_dict_con = train_copula_flow(self.args,
                                               self.model_con,
@@ -199,15 +210,18 @@ class RVine():
                     for edge in self.tree_list[ii - 1].edges():
                         # Estimate conditional distributions
                         n0, n1 = edge
-                        common_node = self.tree_list[ii].nodes[edge]['common_node']
+                        if edge in self.tree_list[ii].nodes:
+                            common_node = self.tree_list[ii].nodes[edge]['common_node']
+                        elif (n1, n0) in self.tree_list[ii].nodes:
+                            common_node = self.tree_list[ii].nodes[(n1, n0)]['common_node']
+                            edge = (n1, n0)
+                            n0, n1 = n1, n0
                         if n0 in common_node or ii == len(self.tree_list) - 1:
                             v0 = self.tree_list[ii - 1].nodes[n0]['cond_distr']
                             v1 = self.tree_list[ii - 1].nodes[n1]['cond_distr']
                         elif n1 in common_node:
                             v0 = self.tree_list[ii - 1].nodes[n1]['cond_distr']
                             v1 = self.tree_list[ii - 1].nodes[n0]['cond_distr']
-                            n1, n0 = n0, n1
-
                         else:
                             raise ValueError('No common node found.')
 
@@ -247,11 +261,10 @@ class RVine():
                     common_node = self.tree_list[ii].nodes[node]['common_node']
 
                     if n0 == common_node or n0 in common_node:
-                        v0 = self.tree_list[ii - 1].nodes[n0]['cond_distr']
-                    elif n1 == common_node or n1 in common_node:
-                        v0 = self.tree_list[ii - 1].nodes[n1]['cond_distr']
                         n1, n0 = n0, n1
-
+                        v0 = self.uniform_samples[:, next(flatten(node))].reshape(-1, 1)
+                    elif n1 == common_node or n1 in common_node:
+                        v0 = self.uniform_samples[:, next(flatten(node))].reshape(-1, 1)
                     else:
                         raise ValueError('No common node found.')
 
@@ -313,6 +326,39 @@ class RVine():
                                        prob_Y_in_p=prob_Y_in_p,
                                        prob_Y_in_q=prob_Y_in_q)
             return divergence
+
+    def plot(self, filename=""):
+        """ @Todo: change description
+        Plot the regular vine structure after sequential estimation
+        via function 'modeling'.
+
+        Parameter
+        ---------
+
+        ntrees : int, optional. The first ntrees of all the vine trees
+                 will be plotted. Default is `0', meaning plotting all
+                 the vine trees.
+
+        filename : string, optional. Default is an empty string
+                   indicating direct output to screen. The plot will
+                   output to the specified directory if a file name
+                   with extension is given.
+        """
+        num_trees = len(self.tree_list)
+        if num_trees == 1:
+            plt.title("Tree_1")
+            nx.draw(self.tree_list[0])
+            plt.savefig(filename)
+        else:
+            mfrow = (num_trees + 1) / 2
+            mfcol = 2
+
+            for i in range(num_trees):
+                if i < len(self.tree_list):
+                    plt.subplot(mfrow, mfcol, i + 1)
+                    plt.title("Tree_" + str(i + 1))
+                    nx.draw(self.tree_list[i])
+            plt.savefig(filename)
 
 
 class Rvine_data():

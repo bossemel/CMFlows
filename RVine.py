@@ -61,9 +61,9 @@ if __name__ == '__main__':
 
     assert len(rv.tree_list) > 0
     # Get density estimate
-    # rv.density(torch.randn(10, 4))
+    rv.density(torch.randn(10, 4))
 
-    # jsd_eval(args, dim, dataset, pv_cop, rv)
+    jsd_eval(args, dim, dataset, pv_cop, rv)
 
     # Simulate Distribution
     samples = rv.sample(num_samples=1000, num_inputs=3)
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     # # plot the R-vine structure for modeled object rv. All the vine trees will
     # # be plotted as default.
 
-    # rv.plot()
+    rv.plot()
 
     # # display the result of estimation on each edge. 'ndigits' controls number
     # # of decimal digits for result.

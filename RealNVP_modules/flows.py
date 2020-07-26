@@ -19,6 +19,8 @@ class FlowSequential(nn.Sequential):
             mode: to run direct computation or inverse
         """
         self.num_inputs = inputs.size(-1)
+        if self.num_inputs == 1:
+            inputs = inputs.reshape(-1, 1)
 
         if logdets is None:
             logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
