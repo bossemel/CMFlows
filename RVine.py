@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset, dim, pv_cop = gen_mv_copula(args)
-    #dataset = torch.randn(1000, 4)
+    # dataset = torch.randn(1000, 4)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset)
@@ -59,14 +59,16 @@ if __name__ == '__main__':
     else:
         load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
+    rv.plot()
+
     assert len(rv.tree_list) > 0
     # Get density estimate
-    rv.density(torch.randn(10, 4))
+    # rv.density(torch.randn(10, 4))
 
-    jsd_eval(args, dim, dataset, pv_cop, rv)
+    # jsd_eval(args, dim, dataset, pv_cop, rv)
 
     # Simulate Distribution
-    samples = rv.sample(num_samples=1000, num_inputs=3)
+    samples = rv.sample(num_samples=1000)
 
     paired_dims = combinations(list(range(samples.shape[1])), 2)
 
@@ -75,14 +77,13 @@ if __name__ == '__main__':
         vis_samples = normal_distr.cdf(samples[:, pair])
         visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair))
 
-    print(rv.jsd_vinecopula(args, rv, pv_cop, obs=1000))
+    rv.jsd_vinecopula(args, rv, pv_cop, obs=10000)
     # Sample Copula
     # rv.sample_multivariate_copula()
 
     # # plot the R-vine structure for modeled object rv. All the vine trees will
     # # be plotted as default.
 
-    rv.plot()
 
     # # display the result of estimation on each edge. 'ndigits' controls number
     # # of decimal digits for result.

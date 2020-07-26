@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import re
 import matplotlib.pyplot as plt
+import os
 
 from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
@@ -61,6 +62,7 @@ class RVine():
         self.data = data
         self.graph_list = []
         self.tree_list = []
+        self.num_inputs = data.shape[1]
         self.args.conditional_copula = False
         self.model_uncon = RealNVP_build_model(args)
         self.args.conditional_copula = True
@@ -79,11 +81,14 @@ class RVine():
             # create fully connected graph
             self.current_graph = nx.complete_graph(self.data.shape[1])
 
+            # get normal distribution for transformations
+            self.norm = scipy.stats.norm(loc=0, scale=1)
+
             # distribute data pairs onto edges of the first tree, compute tau
             # and weights for each edge
 
             for node in self.current_graph.nodes():
-                dataset, data_loaders = create_dataset_1dim(self.data[:, node].float().reshape(-1, 1), self.args)
+                dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
 
                 print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
                 if self.args.marginal != 'uniform':
@@ -95,10 +100,13 @@ class RVine():
                                                     add_name='marginal')
                     model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
                     with torch.no_grad():
-                        transformed_inputs = self.model_marg.transform(self.data[:, node].float().reshape(-1, 1))
+                        transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
                         self.current_graph.nodes[node]['best_dict'] = best_dict
+                elif self.args.marginal == 'uniform':
+                    transformed_inputs = torch.from_numpy(self.norm.ppf(self.data[:, node:node + 1])).float()
+                    # transformed_inputs = self.data[:, node].float().reshape(-1, 1)
                 else:
-                    transformed_inputs = self.data[:, node].float().reshape(-1, 1)
+                    raise ValueError('Unknown marginal type.')
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
 
             for edge in self.current_graph.edges():
@@ -115,12 +123,17 @@ class RVine():
             Created new graph from these edges as nodes.
             """
             self.new_graph = nx.Graph()
+            self.traversed_edges = []
             if num_current_nodes > 2:
                 for paired_edge in paired_tree_edges:
                     common_node = set(paired_edge[0]).intersection(paired_edge[1])
                     if len(common_node) == 1:
-                        add_new_node(common_node, paired_edge[0], num_current_nodes)
-                        add_new_node(common_node, paired_edge[1], num_current_nodes)
+                        if paired_edge[0] not in self.traversed_edges:
+                            add_new_node(common_node, paired_edge[0], num_current_nodes)
+                            self.traversed_edges.extend([paired_edge[0], tuple(reversed(paired_edge[0]))])
+                        if paired_edge[1] not in self.traversed_edges:
+                            add_new_node(common_node, paired_edge[1], num_current_nodes)
+                            self.traversed_edges.extend([paired_edge[1], tuple(reversed(paired_edge[1]))])
             if num_current_nodes == 2:
                 for edge in self.current_tree.edges:
                     add_new_node(edge[0], edge, num_current_nodes)
@@ -140,7 +153,6 @@ class RVine():
                                                 num_current_nodes,
                                                 save_name=edge,
                                                 add_name='cop_uncon')
-            print(' common node' , common_node)
             print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
             best_dict_con = train_copula_flow(self.args,
@@ -151,7 +163,6 @@ class RVine():
                                               num_current_nodes,
                                               save_name=edge,
                                               add_name='cop_con')
-            # Estimate F(u_1|u_2)? or c(u_1|u_2)?
 
             model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
@@ -163,9 +174,10 @@ class RVine():
                                         best_dict_uncon=best_dict_uncon,
                                         best_dict_con=best_dict_con,
                                         common_node=common_node)
-                if num_current_nodes == 2:
-                    cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
-                    visualize_joint(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1), self.args, name='output_last_copula')
+                cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
+                uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1))
+                edge_str = re.sub('[, ()]', '', str(edge))
+                visualize_joint(uniform_inputs, self.args, name='output_copula_{}'.format(edge_str))
 
         # initialize graph and transform marginals using marginal flows
         initialize_graph()
@@ -197,15 +209,15 @@ class RVine():
                         if self.args.marginal != 'uniform':
                             best_dict = self.tree_list[ii].nodes[node]['best_dict']
                             model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-                            transformed_input = self.model_marg.transform(inputs=inputs[:, node].float().reshape(-1, 1))
+                            transformed_input = self.model_marg.transform(inputs=inputs[:, node:node + 1].float())
                         else:
                             transformed_input = inputs[:, node].float().reshape(-1, 1)
 
                     for edge in self.tree_list[ii].edges():
                         # @Todo: add DDSF transformation
                         n0, n1 = edge
-                        self.tree_list[ii].nodes[n0]['cond_distr'] = inputs[:, n0].float()
-                        self.tree_list[ii].nodes[n1]['cond_distr'] = inputs[:, n1].float()
+                        self.tree_list[ii].nodes[n0]['cond_distr'] = inputs[:, n0:n0 + 1].float()
+                        self.tree_list[ii].nodes[n1]['cond_distr'] = inputs[:, n1+n1 + 1].float()
                 else:
                     for edge in self.tree_list[ii - 1].edges():
                         # Estimate conditional distributions
@@ -227,15 +239,15 @@ class RVine():
 
                         best_dict_con = self.tree_list[ii].nodes[edge]['best_dict_con']
                         model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
-                        transformed_input = self.model_con.transform(inputs=v1.reshape(-1, 1),
-                                                                     cond_inputs=v0.reshape(-1, 1))
+                        transformed_input = self.model_con.transform(inputs=v1,
+                                                                     cond_inputs=v0)
 
                         self.tree_list[ii].nodes[edge]['cond_distr'] = transformed_input
                     for node in self.tree_list[ii]:
                         # Estimate copula density for previous tree
                         n0, n1 = node
-                        v0 = self.tree_list[ii - 1].nodes[n0]['cond_distr'].reshape(-1, 1)
-                        v1 = self.tree_list[ii - 1].nodes[n1]['cond_distr'].reshape(-1, 1)
+                        v0 = self.tree_list[ii - 1].nodes[n0]['cond_distr'] #.reshape(-1, 1)
+                        v1 = self.tree_list[ii - 1].nodes[n1]['cond_distr'] #.reshape(-1, 1)
 
                         best_dict_uncon = self.tree_list[ii].nodes[edge]['best_dict_uncon']
                         model_loader(self.model_uncon, self.args, edge, best_dict_uncon['best_validation_epoch'], add_name='cop_uncon')
@@ -247,10 +259,10 @@ class RVine():
             assert torch.min(prob) >= 0
         return prob
 
-    def sample(self, num_samples=1000, num_inputs=3, transform=False):
+    def sample(self, num_samples=1000, transform=False):
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
-            self.uniform_samples = torch.Tensor(num_samples, num_inputs).normal_()
+            self.uniform_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
@@ -259,12 +271,13 @@ class RVine():
                 for node in self.tree_list[ii].nodes():
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
+                    independent_node = next(flatten(node))
 
                     if n0 == common_node or n0 in common_node:
                         n1, n0 = n0, n1
-                        v0 = self.uniform_samples[:, next(flatten(node))].reshape(-1, 1)
+                        v0 = self.uniform_samples[:, independent_node:independent_node + 1]
                     elif n1 == common_node or n1 in common_node:
-                        v0 = self.uniform_samples[:, next(flatten(node))].reshape(-1, 1)
+                        v0 = self.uniform_samples[:, independent_node:independent_node + 1]
                     else:
                         raise ValueError('No common node found.')
 
@@ -277,7 +290,7 @@ class RVine():
             self.uniform_samples = normal_distr.cdf(self.uniform_samples)
         return self.uniform_samples
 
-    def jsd_vinecopula(self, args, rvine_estimate, true_rvine, obs=1000):
+    def jsd_vinecopula(self, args, rvine_estimate, true_rvine, obs=100000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
@@ -293,6 +306,7 @@ class RVine():
             # RealNVP outputs the density directly, but not the transformation to
             # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
             pred_distr = scipy.stats.gaussian_kde(self.uniform_samples.cpu().numpy().T)
+            # Note, that uniform samples means the transformed samples
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr.pdf(self.uniform_samples.cpu().numpy().T).T
@@ -325,9 +339,11 @@ class RVine():
                                        prob_X_in_q=prob_X_in_q,
                                        prob_Y_in_p=prob_Y_in_p,
                                        prob_Y_in_q=prob_Y_in_q)
+
+            print('MC-JSD Vine Copula: {}'.format(divergence))
             return divergence
 
-    def plot(self, filename=""):
+    def plot(self, filename=None):
         """ @Todo: change description
         Plot the regular vine structure after sequential estimation
         via function 'modeling'.
@@ -344,21 +360,24 @@ class RVine():
                    output to the specified directory if a file name
                    with extension is given.
         """
+        save_path = os.path.join(self.args.figures_path, 'tree_structure' + '.pdf')
         num_trees = len(self.tree_list)
         if num_trees == 1:
             plt.title("Tree_1")
             nx.draw(self.tree_list[0])
-            plt.savefig(filename)
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
         else:
             mfrow = (num_trees + 1) / 2
             mfcol = 2
 
+            fig = plt.figure(figsize=(8, 6))
             for i in range(num_trees):
                 if i < len(self.tree_list):
                     plt.subplot(mfrow, mfcol, i + 1)
                     plt.title("Tree_" + str(i + 1))
-                    nx.draw(self.tree_list[i])
-            plt.savefig(filename)
+                    nx.draw(self.tree_list[i], with_labels=True)
+            fig.tight_layout()
+            fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
 
 class Rvine_data():
