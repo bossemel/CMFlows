@@ -2,7 +2,7 @@ set -e
 echo 'Begin Clayton Copula with best Hyperparameters'
 
 python RealNVP.py \
---exp_name clayton_besthyp_10000  \
+--exp_name clayton_besthyp  \
 --epochs 50 \
 --batch-size 100 \
 --copula clayton \
@@ -12,7 +12,7 @@ python RealNVP.py \
 echo 'Begin Frank Copula with best Hyperparameters'
 
 python RealNVP.py \
---exp_name frank_besthyp_10000  \
+--exp_name frank_besthyp  \
 --epochs 50 \
 --batch-size 100 \
 --copula frank \
@@ -22,7 +22,7 @@ python RealNVP.py \
 echo 'Begin Gumbel Copula with best Hyperparameters'
 
 python RealNVP.py \
---exp_name gumbel_besthyp_10000 \
+--exp_name gumbel_besthyp \
 --epochs 50 \
 --batch-size 100 \
 --copula gumbel \

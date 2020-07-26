@@ -20,12 +20,12 @@ eps = 0.0001
 
 def ddsf_1_forward(model, data, device):
     logdets, context = empty_logdets_context(data, device)
-    return model.model_DDSF_1.forward((data[:, 0].reshape(-1, 1), logdets, context))
+    return model.model_DDSF_1.forward((data[:, 0: 1], logdets, context))
 
 
 def ddsf_2_forward(model, data, device):
     logdets, context = empty_logdets_context(data, device)
-    return model.model_DDSF_2.forward((data[:, 1].reshape(-1, 1), logdets, context))
+    return model.model_DDSF_2.forward((data[:, 1:2], logdets, context))
 
 
 def cm_flow_forward(model, data, device):
@@ -68,7 +68,7 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
             loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
         else:
             if args.conditional_copula:
-                losses = model.loss(inputs=data[:, 0].reshape(-1, 1), cond_inputs=data[:, 1].reshape(-1, 1))
+                losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
             else:
                 losses = model.loss(data)
             loss = losses.mean()
@@ -170,8 +170,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 move_transformed_outputs(args, train_loader, device, model, data)
             else:
                 if args.conditional_copula:
-                    model(inputs=train_loader.dataset.tensors[0][:, 0].reshape(-1, 1).to(data.device),
-                          cond_inputs=train_loader.dataset.tensors[0][:, 1].reshape(-1, 1).to(data.device))
+                    model(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
+                          cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
                 else:
                     model(train_loader.dataset.tensors[0].to(data.device))
         elif model_name == 'CM_Flow':
@@ -392,7 +392,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args,
                                           best_dict['best_validation_epoch'],
                                           model,
-                                          dataset.tst[:, 1].reshape(-1, 1),
+                                          dataset.tst[:, 1: 2],
                                           data_loaders['test_loader'],
                                           test_dict=test_dict,
                                           num_samples=num_samples,
