@@ -389,11 +389,11 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                         test_dict=test_dict,
                                         cm_flow=args.RealNVP_part_of_CM_Flow)
             # Evaluate copula margins on test set
-            test_dict = margin_uniformity(args,
-                                          best_dict['best_validation_epoch'],
-                                          model,
-                                          dataset.tst[:, 1: 2],
-                                          data_loaders['test_loader'],
+            test_dict = margin_uniformity(args=args,
+                                          epoch=best_dict['best_validation_epoch'],
+                                          model=model,
+                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]),
+                                          transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
                                           cm_flow=args.RealNVP_part_of_CM_Flow)
@@ -454,11 +454,11 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # args.marginal = args.marginal_2
 
             # Evaluate copula margins on test set
-            test_dict = margin_uniformity(args,
-                                          best_dict['best_validation_epoch'],
-                                          model,
-                                          torch.from_numpy(dataset.tst[:, 1].reshape(-1, 1)),
-                                          data_loaders['test_loader'],
+            test_dict = margin_uniformity(args=args,
+                                          epoch=best_dict['best_validation_epoch'],
+                                          model=model,
+                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]),
+                                          transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples)
 

@@ -19,8 +19,7 @@ python RVine.py \
 --copula clayton \
 --marginal bimodal_gaussian \
 --obs 10000 \
---pretrain_models \
---mix
+--pretrain_models
 
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
@@ -31,8 +30,7 @@ python RVine.py \
 --copula frank \
 --marginal bimodal_gaussian \
 --obs 10000 \
---pretrain_models \
---mix
+--pretrain_models
 
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
@@ -43,5 +41,4 @@ python RVine.py \
 --copula gumbel \
 --marginal bimodal_gaussian \
 --obs 10000 \
---pretrain_models \
---mix
+--pretrain_models

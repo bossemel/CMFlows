@@ -75,10 +75,10 @@ class Joint_Distr():
         """
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
         assert not np.isnan(np.sum(copula_xx))
-        marginal_1 = marginal_transform(inputs=copula_xx[:, 0], marginal=args.marginal_1, args=args)
-        marginal_2 = marginal_transform(inputs=copula_xx[:, 1], marginal=args.marginal_2, args=args)
+        marginal_1 = marginal_transform(inputs=copula_xx[:, 0:1], marginal=args.marginal_1, args=args)
+        marginal_2 = marginal_transform(inputs=copula_xx[:, 1:2], marginal=args.marginal_2, args=args)
 
-        xx = np.concatenate([marginal_1.reshape(-1, 1), marginal_2.reshape(-1, 1)], axis=1)
+        xx = np.concatenate([marginal_1, marginal_2], axis=1)
         assert not np.isnan(np.sum(xx))
         assert not np.isnan(np.sum(normalize(xx)))
 

@@ -82,8 +82,6 @@ def js_divergence_grid(prob_vector_X, prob_vector_Y):
     mix = 0.5 * (prob_vector_Y + prob_vector_X)
     KL_X_mix = scipy.special.kl_div(prob_vector_X, mix).mean()
     KL_Y_mix = scipy.special.kl_div(prob_vector_Y, mix).mean()
-    print(KL_X_mix)
-    print(KL_Y_mix)
     return (KL_X_mix + KL_Y_mix) / 2
 
 
@@ -113,7 +111,6 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     KL_QM[np.isnan(KL_QM)] = 0
     KL_QM[np.isinf(KL_QM)] = 0
     KL_QM = KL_QM.mean()
-
     divergence = (KL_PM + KL_QM) / 2
     return divergence
 

@@ -25,8 +25,8 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             data = dataset.tst
             data = torch.tensor(data)
             if args.conditional_copula:
-                current_jsd = model.jsd(args=args, inputs=data[:, 0].reshape(-1, 1),
-                                        cond_inputs=data[:, 1].reshape(-1, 1),
+                current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
+                                        cond_inputs=data[:, 1:2],
                                         transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
             else:
                 current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
@@ -40,8 +40,8 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
                     data = data[0]
                 data = data.to(device)
                 if args.conditional_copula:
-                    current_jsd = model.jsd(args=args, inputs=data[:, 0].reshape(-1, 1),
-                                            cond_inputs=data[:, 1].reshape(-1, 1),
+                    current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
+                                            cond_inputs=data[:, 1:2],
                                             transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
                 else:
                     current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()

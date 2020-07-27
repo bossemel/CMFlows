@@ -14,11 +14,13 @@ from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as Rea
 from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
 
 
-def model_loader(model, args, edge, epoch, add_name):
+def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
     edge_str = re.sub('[, ()]', '', str(edge))
     model_load_name = 'best_epoch_model' + edge_str + add_name
     load_model(model, args.experiment_saved_models, model_load_name, epoch)
     model.eval()
+    if send_to_device:
+        model.to(args.device)
 
 
 def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, num_current_nodes, save_name, add_name):
@@ -68,6 +70,9 @@ class RVine():
         self.args.conditional_copula = True
         self.model_con = RealNVP_build_model(args)
         self.model_marg = DDSF_build_model(args)
+        self.model_uncon.to(args.device)
+        self.model_con.to(args.device)
+        self.model_marg.to(args.device)
 
     def estimate_rvine(self):
         """Sequentially estimates the best tree by minimum spanning algorithm
@@ -100,11 +105,12 @@ class RVine():
                                                     add_name='marginal')
                     model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
                     with torch.no_grad():
+                        self.data.to(self.args.device)
                         transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                        self.data.cpu()
                         self.current_graph.nodes[node]['best_dict'] = best_dict
                 elif self.args.marginal == 'uniform':
                     transformed_inputs = torch.from_numpy(self.norm.ppf(self.data[:, node:node + 1])).float()
-                    # transformed_inputs = self.data[:, node].float().reshape(-1, 1)
                 else:
                     raise ValueError('Unknown marginal type.')
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
@@ -112,8 +118,8 @@ class RVine():
             for edge in self.current_graph.edges():
                 n0, n1 = edge
 
-                ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'],
-                                                  self.current_graph.nodes[n1]['cond_distr'])
+                ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),
+                                                  self.current_graph.nodes[n1]['cond_distr'].cpu())
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
 
             self.graph_list.append(self.current_graph)
@@ -142,7 +148,6 @@ class RVine():
             v0, v1, edge = assign_distr_to_nodes(edge, common_node, self.current_tree)
 
             dataset, data_loaders = create_dataset(v0, v1, self.args)
-
             print('Train unconditional CM Flow for tree {}, edge {}'.format(len(self.tree_list), edge))
 
             best_dict_uncon = train_copula_flow(self.args,
@@ -175,7 +180,7 @@ class RVine():
                                         best_dict_con=best_dict_con,
                                         common_node=common_node)
                 cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
-                uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1))
+                uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
                 edge_str = re.sub('[, ()]', '', str(edge))
                 visualize_joint(uniform_inputs, self.args, name='output_copula_{}'.format(edge_str))
 
@@ -193,8 +198,8 @@ class RVine():
                 self.current_graph.add_edge(*e)
             for edge in self.current_graph.edges():
                 n0, n1 = edge
-                ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'],
-                                                  self.current_graph.nodes[n1]['cond_distr'])
+                ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),
+                                                  self.current_graph.nodes[n1]['cond_distr'].cpu())
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
             self.graph_list.append(self.current_graph)
 
@@ -282,8 +287,12 @@ class RVine():
                         raise ValueError('No common node found.')
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
-                    model_loader(self.model_con, self.args, node, best_dict_con['best_validation_epoch'], add_name='cop_con')
-                    transformed_marginal = self.model_con.sample(num_samples=num_samples, cond_inputs=v0)[:, 1]
+                    model_loader(self.model_con,
+                                 self.args, node,
+                                 best_dict_con['best_validation_epoch'],
+                                 add_name='cop_con',
+                                 send_to_device=True)
+                    transformed_marginal = self.model_con.sample(num_samples=num_samples, cond_inputs=v0, device=self.args.device)[:, 1]
                     self.uniform_samples[:, next(flatten(node))] = transformed_marginal
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -306,14 +315,17 @@ class RVine():
             # RealNVP outputs the density directly, but not the transformation to
             # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
             pred_distr = scipy.stats.gaussian_kde(self.uniform_samples.cpu().numpy().T)
+            true_distr = scipy.stats.gaussian_kde(samples_target.T)
             # Note, that uniform samples means the transformed samples
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr.pdf(self.uniform_samples.cpu().numpy().T).T
             prob_X_in_q = true_rvine.pdf(self.uniform_samples.cpu().numpy())
+            prob_X_in_q_2 = true_distr.pdf(self.uniform_samples.cpu().numpy().T).T
 
             # Prob Y in both distributions
             prob_Y_in_q = true_rvine.pdf(samples_target)
+            prob_Y_in_q_2 = true_distr.pdf(samples_target.T).T
             prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
             if np.isnan(np.sum(prob_X_in_q)):
@@ -341,6 +353,13 @@ class RVine():
                                        prob_Y_in_q=prob_Y_in_q)
 
             print('MC-JSD Vine Copula: {}'.format(divergence))
+
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q_2,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q_2)
+            print('MC-JSD Vine Copula 2: {}'.format(divergence))
+
             return divergence
 
     def plot(self, filename=None):
@@ -384,15 +403,15 @@ class Rvine_data():
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
     def __init__(self, dim1, dim2):
-        self.xx = np.concatenate([dim1.reshape(-1, 1), dim2.reshape(-1, 1)], axis=1)
+        self.xx = torch.cat([dim1.reshape(-1, 1), dim2.reshape(-1, 1)], axis=1)
         trn, val, tst = split_train_val_test(self.xx)
-        trn = torch.from_numpy(trn)
-        val = torch.from_numpy(val)
-        tst = torch.from_numpy(tst)
+        # trn = torch.from_numpy(trn)
+        # val = torch.from_numpy(val)
+        # tst = torch.from_numpy(tst)
 
-        self.trn = trn.float()
-        self.val = val.float()
-        self.tst = tst.float()
+        self.trn = trn.float().cpu()
+        self.val = val.float().cpu()
+        self.tst = tst.float().cpu()
 
 
 def create_dataset(dim1, dim2, args):

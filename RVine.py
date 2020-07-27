@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 import random
 from itertools import combinations
+import pandas as pd
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
@@ -44,8 +45,8 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset, dim, pv_cop = gen_mv_copula(args)
+
     # dataset = torch.randn(1000, 4)
 
     # Initialize R-vine

@@ -226,7 +226,7 @@ if __name__ == '__main__':
         # Sample from predicted copual and visualize it
         with torch.no_grad():
             if args.conditional_copula:
-                cond_inputs = torch.tensor(np.random.normal(size=100000)).float().reshape(-1, 1)
+                cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
                 output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct)
                 visualize_joint(output_copula, args, name='output_copula')
                 output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None)

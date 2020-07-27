@@ -47,8 +47,8 @@ def visualize_DDSF_output(model, dataset, args):
         n = vizdata.shape[0]
         context = torch.FloatTensor(n, 1).zero_().to(args.device)
         logdets = torch.FloatTensor(n).zero_().to(args.device)
-        vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0].reshape(-1, 1), logdets, context))
-        vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1].reshape(-1, 1), logdets, context))
+        vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0:1], logdets, context))
+        vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1:2], logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
         if args.cuda:
             visualize_joint(vizdata, args, name='DDSF_output')

@@ -35,4 +35,4 @@ def gen_mv_copula(args, cop_type='clayton'):
     print(copula)
     copula_samples = copula.simulate(n=args.obs)
     rvine_samples = normalize(marginal_transform(copula_samples, marginal=args.marginal, args=args))
-    return torch.tensor(rvine_samples), rvine_samples.shape[1], copula
+    return torch.from_numpy(rvine_samples), rvine_samples.shape[1], copula

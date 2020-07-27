@@ -53,7 +53,7 @@ class FlowSequential(nn.Sequential):
     def transform(self, inputs, cond_inputs):
         return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode='inverse')[0]
 
-    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False):
+    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation
         """
         if num_inputs is not None:
@@ -61,6 +61,9 @@ class FlowSequential(nn.Sequential):
         if cond_inputs is not None:
             num_samples = cond_inputs.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        if device is not None:
+            cond_inputs = cond_inputs.to(device)
+            noise = noise.to(device)
         samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
@@ -75,12 +78,16 @@ class FlowSequential(nn.Sequential):
             samples = normal_distr.cdf(samples)
         return samples
 
-    def sample_copula(self, num_samples=None, cond_inputs=None, num_inputs=None):
+    def sample_copula(self, num_samples=None, cond_inputs=None, num_inputs=None, device=None):
         """Returns the predicted copula (output sample with transformation)
         """
         if num_inputs is not None:
             self.num_inputs = num_inputs
+        print(self.device)
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        if device is not None:
+            noise.to(device)
+            cond_inputs.to(device)
         samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
@@ -152,7 +159,7 @@ class FlowSequential(nn.Sequential):
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
             assert np.min(prob_Y_in_p) >= 0
-            assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
+            assert np.min(prob_Y_in_q) >= 0
 
             divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                        prob_X_in_q=prob_X_in_q,
