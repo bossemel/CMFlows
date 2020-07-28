@@ -115,16 +115,20 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     return divergence
 
 
-def split_train_val_test(xx):
+def split_train_val_test(xx, only_val=False):
     """Splits data into train, val and test set, using 80/20/280 split.
     Params:
         xx: data to split
     Returns:
         train, val, test: train, val and test set
     """
-    train, testval = model_selection.train_test_split(xx, test_size=0.2)
-    val, test = model_selection.train_test_split(testval, test_size=0.5)
-    return train, val, test
+    if only_val:
+        train, val = model_selection.train_test_split(xx, test_size=0.2)
+        return train, val
+    else:
+        train, testval = model_selection.train_test_split(xx, test_size=0.2)
+        val, test = model_selection.train_test_split(testval, test_size=0.5)
+        return train, val, test
 
 
 def empty_logdets_context(inputs, device):

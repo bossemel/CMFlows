@@ -73,6 +73,7 @@ class RVine():
         self.model_uncon.to(args.device)
         self.model_con.to(args.device)
         self.model_marg.to(args.device)
+        self.results_dict = {}
 
     def estimate_rvine(self):
         """Sequentially estimates the best tree by minimum spanning algorithm
@@ -179,10 +180,10 @@ class RVine():
                                         best_dict_uncon=best_dict_uncon,
                                         best_dict_con=best_dict_con,
                                         common_node=common_node)
-                cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
+                # cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
                 uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
                 edge_str = re.sub('[, ()]', '', str(edge))
-                visualize_joint(uniform_inputs, self.args, name='output_copula_{}'.format(edge_str))
+                visualize_joint(uniform_inputs, self.args, name='rvine_copula_{}'.format(edge_str))
 
         # initialize graph and transform marginals using marginal flows
         initialize_graph()
@@ -267,24 +268,23 @@ class RVine():
     def sample(self, num_samples=1000, transform=False):
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
-            self.uniform_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
+            samples = torch.Tensor(num_samples, self.num_inputs).normal_()
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
+                print('tree number', ii)
                 # dim to be transformed: the one that has no common edge in the previous tree,
                 # the common edge is the condtional input
                 for node in self.tree_list[ii].nodes():
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
-                    independent_node = next(flatten(node))
+                    unconditioned_node = next(flatten(common_node))
+                    conditioned_node = next(flatten(node))
+                    print(' common node' , common_node)
+                    print(' conditioned node' , conditioned_node)
 
-                    if n0 == common_node or n0 in common_node:
-                        n1, n0 = n0, n1
-                        v0 = self.uniform_samples[:, independent_node:independent_node + 1]
-                    elif n1 == common_node or n1 in common_node:
-                        v0 = self.uniform_samples[:, independent_node:independent_node + 1]
-                    else:
-                        raise ValueError('No common node found.')
+                    v0 = samples[:, unconditioned_node:unconditioned_node + 1]
+                    v1 = samples[:, conditioned_node:conditioned_node + 1]
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.model_con,
@@ -292,12 +292,13 @@ class RVine():
                                  best_dict_con['best_validation_epoch'],
                                  add_name='cop_con',
                                  send_to_device=True)
-                    transformed_marginal = self.model_con.sample(num_samples=num_samples, cond_inputs=v0, device=self.args.device)[:, 1]
-                    self.uniform_samples[:, next(flatten(node))] = transformed_marginal
+                    # inverse H-function
+                    transformed_marginal = self.model_con.transform(inputs=v1, cond_inputs=v0, mode='inverse', device=self.args.device)
+                    samples[:, conditioned_node:conditioned_node + 1] = transformed_marginal
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
-            self.uniform_samples = normal_distr.cdf(self.uniform_samples)
-        return self.uniform_samples
+            samples = normal_distr.cdf(samples)
+        return samples
 
     def jsd_vinecopula(self, args, rvine_estimate, true_rvine, obs=100000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
@@ -308,24 +309,21 @@ class RVine():
             # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Samples from both distributinos
-            self.sample(num_samples=obs, transform=True)
+            samples_pred = self.sample(num_samples=obs, transform=True)
             samples_target = true_rvine.simulate(obs)
 
             # Estimate Copula distr
             # RealNVP outputs the density directly, but not the transformation to
             # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-            pred_distr = scipy.stats.gaussian_kde(self.uniform_samples.cpu().numpy().T)
-            true_distr = scipy.stats.gaussian_kde(samples_target.T)
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
             # Note, that uniform samples means the transformed samples
 
             # Prob X in both distributions
-            prob_X_in_p = pred_distr.pdf(self.uniform_samples.cpu().numpy().T).T
-            prob_X_in_q = true_rvine.pdf(self.uniform_samples.cpu().numpy())
-            prob_X_in_q_2 = true_distr.pdf(self.uniform_samples.cpu().numpy().T).T
+            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            prob_X_in_q = true_rvine.pdf(samples_pred.cpu().numpy())
 
             # Prob Y in both distributions
             prob_Y_in_q = true_rvine.pdf(samples_target)
-            prob_Y_in_q_2 = true_distr.pdf(samples_target.T).T
             prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
             if np.isnan(np.sum(prob_X_in_q)):
@@ -340,7 +338,7 @@ class RVine():
                 prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-            assert np.min(self.uniform_samples.cpu().numpy()) >= 0
+            assert np.min(samples_pred.cpu().numpy()) >= 0
             assert np.min(samples_target) >= 0
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
@@ -354,12 +352,7 @@ class RVine():
 
             print('MC-JSD Vine Copula: {}'.format(divergence))
 
-            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                       prob_X_in_q=prob_X_in_q_2,
-                                       prob_Y_in_p=prob_Y_in_p,
-                                       prob_Y_in_q=prob_Y_in_q_2)
-            print('MC-JSD Vine Copula 2: {}'.format(divergence))
-
+            self.results_dict['MC_JSD Vine Copula'] = divergence
             return divergence
 
     def plot(self, filename=None):
@@ -404,14 +397,14 @@ class Rvine_data():
     """
     def __init__(self, dim1, dim2):
         self.xx = torch.cat([dim1.reshape(-1, 1), dim2.reshape(-1, 1)], axis=1)
-        trn, val, tst = split_train_val_test(self.xx)
+        trn, val = split_train_val_test(self.xx, only_val=True)
         # trn = torch.from_numpy(trn)
         # val = torch.from_numpy(val)
         # tst = torch.from_numpy(tst)
 
         self.trn = trn.float().cpu()
         self.val = val.float().cpu()
-        self.tst = tst.float().cpu()
+        # self.tst = tst.float().cpu()
 
 
 def create_dataset(dim1, dim2, args):
@@ -425,7 +418,7 @@ def create_dataset(dim1, dim2, args):
     valid_dataset = torch.utils.data.TensorDataset(dataset.val)
 
     # test_tensor = torch.from_numpy(dataset.tst)
-    test_dataset = torch.utils.data.TensorDataset(dataset.tst)
+    # test_dataset = torch.utils.data.TensorDataset(dataset.tst)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
@@ -437,16 +430,16 @@ def create_dataset(dim1, dim2, args):
         drop_last=False,
         **kwargs)
 
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        drop_last=False,
-        **kwargs)
+    # test_loader = torch.utils.data.DataLoader(
+    #     test_dataset,
+    #     batch_size=args.batch_size,
+    #     shuffle=False,
+    #     drop_last=False,
+    #     **kwargs)
 
     data_loaders = {'train_loader': train_loader,
-                    'valid_loader': valid_loader,
-                    'test_loader': test_loader}
+                    'valid_loader': valid_loader}
+                    #'test_loader': test_loader}
     return dataset, data_loaders
 
 
@@ -455,11 +448,11 @@ class Rvine_data_1dim():
     """
     def __init__(self, inputs):
         self.xx = inputs
-        trn, val, tst = split_train_val_test(self.xx)
+        trn, val = split_train_val_test(self.xx, only_val=True)
 
         self.trn = trn.float()
         self.val = val.float()
-        self.tst = tst.float()
+        # self.tst = tst.float()
 
 
 def create_dataset_1dim(inputs, args):
@@ -473,7 +466,7 @@ def create_dataset_1dim(inputs, args):
     valid_dataset = torch.utils.data.TensorDataset(dataset.val)
 
     # test_tensor = torch.from_numpy(dataset.tst)
-    test_dataset = torch.utils.data.TensorDataset(dataset.tst)
+    # test_dataset = torch.utils.data.TensorDataset(dataset.tst)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
@@ -485,14 +478,14 @@ def create_dataset_1dim(inputs, args):
         drop_last=False,
         **kwargs)
 
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        drop_last=False,
-        **kwargs)
+    # test_loader = torch.utils.data.DataLoader(
+    #     test_dataset,
+    #     batch_size=args.batch_size,
+    #     shuffle=False,
+    #     drop_last=False,
+    #     **kwargs)
 
     data_loaders = {'train_loader': train_loader,
-                    'valid_loader': valid_loader,
-                    'test_loader': test_loader}
+                    'valid_loader': valid_loader}
+                    #'test_loader': test_loader}
     return dataset, data_loaders

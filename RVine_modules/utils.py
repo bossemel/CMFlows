@@ -20,7 +20,7 @@ def gen_mv_copula(args, cop_type='clayton'):
 
         # Specify pair-copulas
         bicop = pv.Bicop(family=pair_copula, parameters=[theta])
-        pcs = [[bicop, bicop], [bicop]]
+        pcs = [[bicop, bicop, bicop], [bicop, bicop], [bicop]]
     else:
         bicop_1 = pv.Bicop(family=pv.BicopFamily.clayton, parameters=[2])
         bicop_2 = pv.Bicop(family=pv.BicopFamily.frank, parameters=[5])

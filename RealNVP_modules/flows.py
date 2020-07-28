@@ -50,8 +50,11 @@ class FlowSequential(nn.Sequential):
         """
         return - self.log_density(inputs, cond_inputs)
 
-    def transform(self, inputs, cond_inputs):
-        return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode='inverse')[0]
+    def transform(self, inputs, cond_inputs, mode='direct', device=None):
+        if device is not None:
+            inputs = inputs.to(device)
+            cond_inputs = cond_inputs.to(device)
+        return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)[0]
 
     def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation
