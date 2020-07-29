@@ -48,8 +48,6 @@ if __name__ == '__main__':
     untransformed_samples = pv_cop.simulate(100000)
     # dataset_trn = torch.randn(1000, 4)
 
-    pv_cop.plot()
-    plt.show()
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)
 
