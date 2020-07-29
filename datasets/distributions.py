@@ -6,6 +6,17 @@ import sys
 import scipy
 
 
+class Rvine_Joint():
+    """Class for multivariate joint distributino with specified marginal and copula correlations
+    """
+    def __init__(args):
+        if args.single_copula_type is True:
+            pass
+        else:
+            pass
+        raise NotImplementedError
+
+
 def marginal_transform(inputs, marginal, args):
     """Transforms the uniform copula marginals into a different distribution.
 
@@ -51,30 +62,23 @@ def marginal_transform(inputs, marginal, args):
 class Joint_Distr():
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
-    class Data:
-        def __init__(self, data):
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args):
         self.xx = Joint_Distr.sampler(self, args)
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = self.trn.x.shape[1]
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
     def sampler(self, args, obs=None):
         """Returns copula samples.
         """
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
         assert not np.isnan(np.sum(copula_xx))
-        marginal_1 = marginal_transform(inputs=copula_xx[:, 0], marginal=args.marginal_1, args=args)
-        marginal_2 = marginal_transform(inputs=copula_xx[:, 1], marginal=args.marginal_2, args=args)
+        marginal_1 = marginal_transform(inputs=copula_xx[:, 0:1], marginal=args.marginal_1, args=args)
+        marginal_2 = marginal_transform(inputs=copula_xx[:, 1:2], marginal=args.marginal_2, args=args)
 
-        xx = np.concatenate([marginal_1.reshape(-1, 1), marginal_2.reshape(-1, 1)], axis=1)
+        xx = np.concatenate([marginal_1, marginal_2], axis=1)
         assert not np.isnan(np.sum(xx))
         assert not np.isnan(np.sum(normalize(xx)))
 
@@ -84,22 +88,14 @@ class Joint_Distr():
 class Marginals():
     """Class for univariate samples
     """
-    class Data:
-        def __init__(self, data):
-
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args):
         self.xx = Marginals.sampler(self, args)
 
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = args.obs
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
     def sampler(self, args, obs=None):
         """Returns marginal samples.
@@ -179,23 +175,14 @@ class Marginals():
 
 
 class Copula_Distr:
-    class Data:
-        def __init__(self, data):
-
-            self.x = data.astype(np.float32)
-            self.N = self.x.shape[0]
-
     def __init__(self, args, transform=True):
 
         self.xx = Copula_Distr.sampler(args, transform)
-
         trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = self.Data(trn)
-        self.val = self.Data(val)
-        self.tst = self.Data(tst)
-
-        self.n_dims = self.trn.x.shape[1]
+        self.trn = trn.astype(np.float32)
+        self.val = val.astype(np.float32)
+        self.tst = tst.astype(np.float32)
 
         self.copula = args.copula
         self.theta = args.theta
@@ -443,21 +430,6 @@ def gumbel_cdf(theta, uu, vv):
         h = -np.power(h, 1.0 / theta)
         cdfs = np.exp(h)
         return cdfs
-
-
-# class copula_distr():
-#     def __init__(self, copula, theta):
-#         self.copula = copula
-#         self.theta = theta
-
-#     def pdf(self, xx):
-#         uu = xx[:, 0]
-#         vv = xx[:, 1]
-#         copula_pdf_samples = copula_pdf(self.copula, self.theta, uu, vv)
-#         assert not np.isnan(np.sum(copula_pdf_samples))
-#         print(copula_pdf_samples[:10])
-#         copula_pdf_samples = copula_pdf_samples[~np.isnan(copula_pdf_samples)]
-#         return copula_pdf_samples
 
 
 def copula_pdf(copula, theta, uu, vv):

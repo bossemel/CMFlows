@@ -40,4 +40,4 @@ if __name__ == '__main__':
 
     print(pred_density_ddsf.mean())
     print(pred_density_realnvp.mean())
-    print(pred_density_realnvp.mean()-0.5)
+    print(pred_density_realnvp.mean() - 0.5)

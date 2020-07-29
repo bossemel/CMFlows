@@ -63,9 +63,6 @@ def get_mask_from_ranks(r1, r2):
 
 
 def get_masks_all(ds, fixed_order=False, derank=1):
-    # ds: list of dimensions dx, d1, d2, ... dh, dx,
-    #                       (2 in/output + h hidden layers)
-    # derank only used for self connection, dim > 1
     dx = ds[0]
     ms = list()
     rx = get_rank(dx, dx)
@@ -94,9 +91,6 @@ def get_masks(dim, dh, num_layers, num_outlayers, fixed_order=False, derank=1):
     ml = ms[-1]
     ml_ = (ml.transpose(1, 0)[:, :, None] * (np.ones(int(num_outlayers)))).reshape(
         dh, int(dim * num_outlayers)).transpose(1, 0)
-    # ml_ = (ml.transpose(1,0)[:,:,None]*([np.cast['float32'](1),] *\
-    #                        num_outlayers)).reshape(
-    #                        dh, dim*num_outlayers).transpose(1,0)
     ms[-1] = ml_
     return ms, rx
 

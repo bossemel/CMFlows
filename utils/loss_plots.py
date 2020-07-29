@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
+def collect_experiment_dicts(target_dir, test_flag=False, model_type=''):
     """Collects evaluation metrics from saved files.
 
     Params:
@@ -19,11 +19,11 @@ def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
         for file in files:
             filepath = None
             if not test_flag:
-                if file == 'summary_{}.csv'.format(model_name):
+                if file == 'summary_{}.csv'.format(model_type):
                     filepath = os.path.join(subdir, file)
 
             elif test_flag:
-                if file == 'test_summary_{}.csv'.format(model_name):
+                if file == 'test_summary_{}.csv'.format(model_type):
                     filepath = os.path.join(subdir, file)
 
             if filepath is not None:
@@ -43,7 +43,7 @@ def collect_experiment_dicts(target_dir, test_flag=False, model_name=''):
     return experiment_dicts
 
 
-def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True, current_model_name=''):
+def plot_result_graphs(figures_path, model_name, plot_name, stats, model_type=''):
     """Plots training and validation set loss.
     """
     fig_1 = plt.figure(figsize=(8, 4))
@@ -58,7 +58,7 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, notebook=True
     ax_1.set_ylabel('Loss', fontsize=16)
     ax_1.set_xlabel('Epoch', fontsize=16)
 
-    path = os.path.join(figures_path, '{}_{}_loss_performance.pdf'.format(current_model_name, plot_name))
+    path = os.path.join(figures_path, '{}_{}_loss_performance.pdf'.format(model_name, plot_name))
     fig_1.savefig(path, dpi=300, facecolor='w', edgecolor='w',
                   orientation='portrait', papertype=None, format='pdf',
                   transparent=False, bbox_inches='tight', pad_inches=0.1)

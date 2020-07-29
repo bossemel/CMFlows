@@ -13,16 +13,54 @@ class TrainOptions():
     def initialize(self, parser):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
+
+        # CM Options
+
+        # Architecture
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training (default: 128)')
+            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
+        parser.add_argument(
+            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+
+        # Training options
+        parser.add_argument(
+            '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
+            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--obs', type=int, default=10000, help='How many data samples to generate')
+            '--random_seed', type=int, default=58093, help='random seed')
+        parser.add_argument(
+            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
+        parser.add_argument(
+            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
+        parser.add_argument(
+            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+
+        # Dataset options
+        parser.add_argument(
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
+        parser.add_argument(
+            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
+        parser.add_argument(
+            '--mix', action='store_true', help='whether to create mixture R-vine as input')
+        parser.add_argument(
+            '--obs', type=int, default=3000, help='How many data samples to generate')
+
+        # Options RealNVP
+        parser.add_argument(
+            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
+        parser.add_argument(
+            '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
+        parser.add_argument(
+            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+
+        # Options DDSF
         parser.add_argument(
             '--num_flow_layers_DDSF', type=int, default=5)
         parser.add_argument(
@@ -34,44 +72,25 @@ class TrainOptions():
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
-            '--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
-        parser.add_argument(
-            '--var', type=float, required=False, help='Variance of the Gaussian Distribution')
-        parser.add_argument(
-            '--alpha', type=float, required=False, help='Parameter for the Gamma distribution')
-        parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
-        parser.add_argument(
-            '--exp_name', type=str, default='default_name_ddsf', help='experiment name to store plots and logs')
-        parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
-        parser.add_argument(
-            '--experiment_saved_models', type=str, default='saved_models')
-        parser.add_argument(
-            '--lr', type=float, default=0.0001)
-        parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
             '--beta1', type=float, default=0.9)
         parser.add_argument(
             '--beta2', type=float, default=0.999)
-        #@Todo: remove plot frequency
         parser.add_argument(
-            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
+            '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
         parser.add_argument(
-            '--low', type=float, required=False)
+            '--var', type=float, required=False, help='var for marginal gaussian distribution')
+
+        # Save options
         parser.add_argument(
-            '--high', type=float, required=False)
+            '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--early_stopping', action='store_true', help='stops training if validation stops improving')
+            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--grid_search', action='store_true', help='grid search over hyperparameters')
+            '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
-            '--random_search', action='store_true', help='random search over hyperparameters')
-        parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
-        parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+            '--load_model', action='store_true', help='loads saved model under experiment name')
 
         self.initialized = True
         return parser

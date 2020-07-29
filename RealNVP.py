@@ -12,7 +12,7 @@ import RealNVP_modules.utils as utils
 from RealNVP_modules.options import TrainOptions
 
 from utils.visualizer import visualize_joint
-from utils.save_statistics import save_statistics
+from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
 import datasets.distributions
 
@@ -28,8 +28,13 @@ def build_model(args):
     Returns: RealNVP model
     """
     num_hidden = {args.copula: args.num_hidden_RealNVP}[args.copula]
-    num_inputs = 2
     modules = []
+    if args.conditional_copula:
+        num_inputs = 1
+        num_cond_inputs = 1
+    else:
+        num_inputs = 2
+        num_cond_inputs = 0
 
     mask = torch.arange(0, num_inputs) % 2
     mask = mask.to(args.device).float()
@@ -37,7 +42,7 @@ def build_model(args):
     for _ in range(args.num_blocks):
         modules += [
             fnn.CouplingLayer(
-                num_inputs, num_hidden, mask,
+                num_inputs, num_hidden, mask, num_cond_inputs,
                 s_act='tanh', t_act='relu'),
             fnn.BatchNormFlow(num_inputs)
         ]
@@ -53,10 +58,50 @@ def build_model(args):
     return model
 
 
-def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, weight_decay_adam):
+def random_search(args):
+    results_dict = {}
+    tested_combinations = []
+    best_loss = 1000
+    ii = 0
+    while ii < 30:
+        args.transform_fct = np.random.choice(['gaussian', 'sigmoid'])
+        pot_num_blocks = np.random.choice(range(7))
+        args.num_blocks = 2**pot_num_blocks
+        args.num_hidden = 2**np.random.choice(range(pot_num_blocks, 10))
+        current_hyperparams = (args.transform_fct, args.num_blocks, args.num_hidden)
+        if current_hyperparams not in tested_combinations:
+            print('Transformation function: {}, Num. Invertible Blocks: {}, Num. Hidden Units: {}'.format(
+                args.transform_fct, args.num_blocks, args.num_hidden))
+            with HiddenPrints():
+                __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                          dataset=dataset,
+                                                                          data_loaders=data_loaders,
+                                                                          disable_tqdm=True,
+                                                                          grid_search=True)
+            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                 current_best_dict['best_validation_loss'])
+            print(results_dict[current_hyperparams])
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                f.write(str(results_dict))
+            if current_best_dict['best_validation_loss'] < best_loss:
+                best_loss = current_best_dict['best_validation_loss']
+                best_hyperparams = current_hyperparams
+                best_dict = current_best_dict
+            tested_combinations.append(current_hyperparams)
+            ii += 1
+    print('Random search complete for {}'.format(args.copula))
+    print('Best hyperparams: {}'.format(best_hyperparams))
+    print('Lowest Val Loss: {}'.format(best_loss))
+    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
+    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+
+
+def grid_search(args, dataset, data_loaders, transform_functions, num_inv_blocks, num_hidden_units):
     results_dict = {}
     best_loss = 1000
-    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units, weight_decay')
+    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units')
     for transform_fct in transform_functions:
         args.transform_fct = transform_fct
         for num_blocks in num_inv_blocks:
@@ -64,27 +109,27 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
             for num_hidden in num_hidden_units:
                 if num_hidden > num_blocks:
                     args.num_hidden = num_hidden
-                    for weight_decay in weight_decay_adam:
-                        args.weight_decay = weight_decay
-                        print(' transform_fct:', transform_fct,
-                              ' num_blocks:', num_blocks,
-                              ' num_hidden:', num_hidden, ' weight decay:', weight_decay)
-                        with HiddenPrints():
-                            current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                                 disable_tqdm=True,
-                                                                                                 grid_search=True)
-                        current_hyperparams = (transform_fct, num_blocks, num_hidden, weight_decay)
-                        results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                             current_best_dict['best_validation_loss'])
-                        print(results_dict[current_hyperparams])
-                        with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-                            f.write(str(results_dict))
-                        if current_best_dict['best_validation_loss'] < best_loss:
-                            best_loss = current_best_dict['best_validation_loss']
-                            best_hyperparams = current_hyperparams
-                            model = current_model
-                            best_dict = current_best_dict
-                            test_dict = current_test_dict
+                    print(' transform_fct:', transform_fct,
+                          ' num_blocks:', num_blocks,
+                          ' num_hidden:', num_hidden)
+                    with HiddenPrints():
+                        current_model, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                                             dataset=dataset,
+                                                                                             data_loaders=data_loaders,
+                                                                                             disable_tqdm=True,
+                                                                                             grid_search=True)
+                    current_hyperparams = (transform_fct, num_blocks, num_hidden)
+                    results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                         current_best_dict['best_validation_loss'])
+                    print(results_dict[current_hyperparams])
+                    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
+                        f.write(str(results_dict))
+                    if current_best_dict['best_validation_loss'] < best_loss:
+                        best_loss = current_best_dict['best_validation_loss']
+                        best_hyperparams = current_hyperparams
+                        model = current_model
+                        best_dict = current_best_dict
+                        test_dict = current_test_dict
     print('Grid search complete for ', args.copula)
     print('Best hyperparams: ', best_hyperparams)
     print('Lowest Val Loss: ', best_loss)
@@ -95,10 +140,9 @@ def grid_search(args, transform_functions, num_inv_blocks, num_hidden_units, wei
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, disable_tqdm=False, grid_search=False):
-    # Set up data loader
-    dataset, data_loaders = utils.load_data(args)
-    visualize_joint(dataset.trn.x, args, name='input_dataset')
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, save_name=None):
+    if not grid_search and not rvine:
+        visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)
@@ -109,14 +153,16 @@ def train_and_plot(args, disable_tqdm=False, grid_search=False):
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
 
     # Train
-    model, best_dict, test_dict = train_val(current_model=model,
-                                            model_name='RealNVP',
-                                            args=args,
-                                            data_loaders=data_loaders,
-                                            dataset=dataset,
-                                            transform_inputs=False,
-                                            disable_tqdm=disable_tqdm,
-                                            grid_search=grid_search)
+    best_dict, test_dict = train_val(model=model,
+                                     model_name='RealNVP',
+                                     args=args,
+                                     data_loaders=data_loaders,
+                                     dataset=dataset,
+                                     transform_inputs=False,
+                                     disable_tqdm=disable_tqdm,
+                                     grid_search=grid_search,
+                                     rvine=rvine,
+                                     save_name=save_name)
 
     return model, best_dict, test_dict
 
@@ -150,32 +196,52 @@ if __name__ == '__main__':
     # Specify, that this RealNVP is not part of a CM_Flow
     args.RealNVP_part_of_CM_Flow = False
 
-    if args.grid_search:
+    # Set up data loader
+    dataset, data_loaders = utils.load_data(args)
+
+    if args.random_search:
+        random_search(args=args)
+    elif args.grid_search:
         # Hyperparameter options:
         transform_functions = ['gaussian', 'sigmoid']
         num_inv_blocks = [4, 8, 16]
         num_hidden_units = [32, 64, 128]
-        weight_decay = [0, 0.000001]
-        model, best_dict, test_dict = grid_search(args=args,
-                                                  transform_functions=transform_functions,
-                                                  num_inv_blocks=num_inv_blocks,
-                                                  num_hidden_units=num_hidden_units,
-                                                  weight_decay_adam=weight_decay)
+        grid_search(args=args,
+                    dataset=dataset,
+                    data_loaders=data_loaders,
+                    transform_functions=transform_functions,
+                    num_inv_blocks=num_inv_blocks,
+                    num_hidden_units=num_hidden_units)
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args=args,
+                                                     dataset=dataset,
+                                                     data_loaders=data_loaders,
                                                      disable_tqdm=False,
                                                      grid_search=False)
 
+        model = load_model(model, args.experiment_saved_models, 'train_model',
+                           best_dict['best_validation_epoch'])
+
         # Sample from predicted copual and visualize it
-        output_copula = model.sample_copula(num_samples=100000, transform=args.transform_fct)
-        visualize_joint(output_copula.detach().cpu().numpy(), args, name='output_copula')
+        with torch.no_grad():
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct)
+                visualize_joint(output_copula, args, name='output_copula')
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None)
+                visualize_joint(output_copula, args, name='output_copula_untransformed')
+            else:
+                output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
+                visualize_joint(output_copula, args, name='output_copula')
+                output_copula = model.sample(num_samples=100000, transform=None)
+                visualize_joint(output_copula, args, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it
         obs = args.obs
         args.obs = 100000
         dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
-        visualize_joint(dataset.trn.x, args, name='true_{}_copula_cm'.format(args.copula))
+        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
         args.obs = obs
 
         # Gather test losses and save statistics

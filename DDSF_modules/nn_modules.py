@@ -14,7 +14,6 @@ N_ = None
 
 
 def softplus(x, delta=1e-6):
-    # @TODO: find out why nn.Softplus() doesn't work
     return softplus_(x) + delta
 
 

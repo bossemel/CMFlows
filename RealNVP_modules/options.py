@@ -24,7 +24,7 @@ class TrainOptions():
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--num-blocks', type=int, default=8, help='number of invertible blocks')
+            '--num-blocks', type=int, default=4, help='number of invertible blocks')
         parser.add_argument(
             '--obs', type=int, default=3000, help='How many data samples to generate')
         parser.add_argument(
@@ -32,7 +32,7 @@ class TrainOptions():
         parser.add_argument(
             '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=512, help='number of hidden units')
         parser.add_argument(
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
@@ -50,11 +50,15 @@ class TrainOptions():
         parser.add_argument(
             '--grid_search', action='store_true', help='grid search over hyperparameters')
         parser.add_argument(
+            '--random_search', action='store_true', help='random search over hyperparameters')
+        parser.add_argument(
             '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
         parser.add_argument(
             '--beta1', type=float, default=0.9)
         parser.add_argument(
             '--beta2', type=float, default=0.999)
+        parser.add_argument(
+            '--conditional_copula', action='store_true')
 
         self.initialized = True
         return parser

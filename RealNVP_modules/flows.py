@@ -4,6 +4,7 @@ import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import datasets
 import numpy as np
+import math
 
 
 class FlowSequential(nn.Sequential):
@@ -12,15 +13,15 @@ class FlowSequential(nn.Sequential):
     computes log jacobians.
     """
 
-    def forward(self, inputs, mode='direct', logdets=None):
+    def forward(self, inputs, cond_inputs=None, mode='direct', logdets=None):
         """ Performs a forward or backward pass for flow modules.
         Args:
             inputs: a tuple of inputs and logdets
             mode: to run direct computation or inverse
         """
-        if isinstance(inputs, tuple):
-            inputs, __, __ = inputs
         self.num_inputs = inputs.size(-1)
+        if self.num_inputs == 1:
+            inputs = inputs.reshape(-1, 1)
 
         if logdets is None:
             logdets = torch.zeros(inputs.size(0), 1, device=inputs.device)
@@ -28,119 +29,188 @@ class FlowSequential(nn.Sequential):
         assert mode in ['direct', 'inverse']
         if mode == 'direct':
             for module in self._modules.values():
-                inputs, logdet = module(inputs, mode)
+                inputs, logdet = module(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
                 logdets += logdet
 
         else:
             for module in reversed(self._modules.values()):
-                inputs, logdet = module(inputs, mode)
+                inputs, logdet = module(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
                 logdets += logdet
 
         return inputs, logdets
 
-    def log_density(self, inputs):
+    def log_density(self, inputs, cond_inputs=None):
         """Calculates log density of the flow
         """
-        outputs, log_jacob = self(inputs=inputs)
+        outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
         density = flow_density(outputs, log_jacob)
         return density
 
-    def loss(self, inputs):
+    # def log_density_uniform(self, inputs, cond_inputs=None):
+    #     """Calculates log density of the flow
+    #     """
+    #     outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
+    #     density = flow_density(outputs, log_jacob)
+    #     #density = transform_to_uniform(density)
+    #     return density
+
+    def loss(self, inputs, cond_inputs=None):
         """Return negative log likelihood/density
         """
-        return - self.log_density(inputs)
+        return - self.log_density(inputs, cond_inputs)
 
-    def sample(self, num_samples=None, noise=None):
+    def transform(self, inputs, cond_inputs, mode='direct', device=None):
+        if device is not None:
+            inputs = inputs.to(device)
+            cond_inputs = cond_inputs.to(device)
+        return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)[0]
+
+    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation
         """
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        return samples
-
-    def sample_copula(self, num_samples=None, noise=None, transform='gaussian'):
-        """Returns the predicted copula (output sample with transformation)
-        """
-        if noise is None:
-            noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        device = next(self.parameters()).device
-        noise = noise.to(device)
-        samples = self.forward(noise, mode='inverse')[0]
-        if transform == 'sigmoid':
-            samples = sigmoid(samples)
-        elif transform == 'gaussian':
+        if num_inputs is not None:
+            self.num_inputs = num_inputs
+        if cond_inputs is not None:
+            num_samples = cond_inputs.shape[0]
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        if device is not None:
+            cond_inputs = cond_inputs.to(device)
+            noise = noise.to(device)
+        samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
+        if cond_inputs is not None:
+            samples = torch.cat([cond_inputs, samples], axis=1)
+        if not copula:
+            if transform == 'sigmoid':
+                samples = sigmoid(samples)
+            elif transform == 'gaussian':
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                samples = normal_distr.cdf(samples)
+        else:
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
+    def sample_copula(self, num_samples=None, cond_inputs=None, num_inputs=None, device=None):
+        """Returns the predicted copula (output sample with transformation)
+        """
+        if num_inputs is not None:
+            self.num_inputs = num_inputs
+        noise = torch.Tensor(num_samples, self.num_inputs).normal_()
+        if device is not None:
+            noise = noise.to(device)
+            if cond_inputs is not None:
+                cond_inputs = cond_inputs.to(device)
+        samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
+        if cond_inputs is not None:
+            samples = torch.cat([cond_inputs, samples], axis=1)
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        samples = normal_distr.cdf(samples)
+        return samples
+
+    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
-        # Define distributions
-        normal_distr = scipy.stats.norm(0, 1)
-        true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-
-        # Samples from both distributinos
-        samples_pred = self.sample_copula(num_samples=inputs.shape[0], noise=None, transform=transform_fct)
-        if transform_fct == 'sigmoid':
-            samples_target = torch.tensor(sigmoid(inputs))
-        elif transform_fct == 'gaussian':
-            samples_target = torch.tensor(normal_distr.cdf(inputs.detach().cpu())).float()
-        else:
+        with torch.no_grad():
             samples_target = torch.tensor(inputs)
+            # Define distributions
+            normal_distr = scipy.stats.norm(0, 1)
+            true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            # true_marg_distr = datasets.distributions.Marginals(args=args, transform=False)
 
-        # Estimate Copula distr
-        # RealNVP outputs the density directly, but not the transformation to
-        # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-        pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+            # Samples from both distributinos
+            if cm_flow is True:
+                samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
+            else:
+                samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
 
-        # Prob X in both distributions
-        prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
-        prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
+            if not cm_flow:
+                if transform_fct == 'sigmoid':
+                    samples_target = sigmoid(inputs)
+                elif transform_fct == 'gaussian':
+                    normal_distr = torch.distributions.normal.Normal(0, 1)
+                    samples_target = normal_distr.cdf(inputs)
+            else:
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                samples_target = normal_distr.cdf(inputs)
 
-        # Prob Y in both distributions
-        prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
-        prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(cond_inputs)
 
-        if np.isnan(np.sum(prob_X_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            assert np.max(samples_target.cpu().numpy()) <= 1
+            assert np.min(samples_target.cpu().numpy()) >= 0
+            assert np.max(samples_pred.cpu().numpy()) <= 1
+            assert np.min(samples_pred.cpu().numpy()) >= 0
+            # Prob X in both distributions
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
-        if np.isnan(np.sum(prob_Y_in_q)):
-            prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-            prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-            prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+            # prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            # torch.exp(self.log_density_uniform(samples_pred_norm)).numpy()
+            if args.conditional_copula:
+                prob_X_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_pred.cpu().numpy()], axis=1))
+            else:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
 
-        assert np.min(samples_pred.cpu().numpy()) >= 0
-        assert np.min(samples_target.cpu().numpy()) >= 0
-        assert np.min(prob_X_in_p) >= 0
-        assert np.min(prob_X_in_q) >= 0
-        assert np.min(prob_Y_in_p) >= 0
-        assert np.min(prob_Y_in_q) >= 0, '%r' % (np.min(prob_Y_in_q))
+            # Prob Y in both distributions
+            if args.conditional_copula:
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T).T
+                # torch.exp(self.log_density_uniform(samples_target_norm, cond_inputs=cond_inputs)).numpy()
 
-        divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                   prob_X_in_q=prob_X_in_q,
-                                   prob_Y_in_p=prob_Y_in_p,
-                                   prob_Y_in_q=prob_Y_in_q)
-        return divergence
+            else:
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+                prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
+                # torch.exp(self.log_density_uniform(samples_target_norm)).numpy()
 
-    def t_metric_eval(self, num_samples, transform_fct, intervals=25, cm_flow=False):
+            if np.isnan(np.sum(prob_X_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+
+            if np.isnan(np.sum(prob_Y_in_q)):
+                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+
+            # assert np.min(samples_pred.cpu().numpy()) >= 0
+            # assert np.min(samples_target.cpu().numpy()) >= 0
+            assert np.min(prob_X_in_p) >= 0
+            assert np.min(prob_X_in_q) >= 0
+            assert np.min(prob_Y_in_p) >= 0
+            assert np.min(prob_Y_in_q) >= 0
+
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p.reshape(-1,),
+                                       prob_X_in_q=prob_X_in_q.reshape(-1,),
+                                       prob_Y_in_p=prob_Y_in_p.reshape(-1,),
+                                       prob_Y_in_q=prob_Y_in_q.reshape(-1,))
+
+            return divergence
+
+    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False):
         """Returns evaluation metrics for the copula marginals.
         """
-        if cm_flow:
-            samples = self.sample_copula(num_samples=num_samples, noise=None).detach().cpu().numpy()
-        else:
-            samples = self.sample(num_samples=num_samples, noise=None, transform=transform_fct).detach().cpu().numpy()
-        margin_x1 = samples[:, 0]
-        margin_x2 = samples[:, 1]
-        t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
-        t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
-        return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+        with torch.no_grad():
+            if cm_flow:
+                if args.conditional_copula:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs).cpu().numpy()
+                else:
+                    samples = self.sample_copula(num_samples=num_samples).cpu().numpy()
+            else:
+                if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct).cpu().numpy()
+                else:
+                    samples = self.sample(num_samples=num_samples, transform=transform_fct).cpu().numpy()
+            if args.conditional_copula:
+                margin_x1 = cond_inputs
+                margin_x2 = samples
+            else:
+                margin_x1 = samples[:, 0]
+                margin_x2 = samples[:, 1]
+            t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
+            t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
+            return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
 class CouplingLayer(nn.Module):
@@ -152,8 +222,10 @@ class CouplingLayer(nn.Module):
                  num_inputs,
                  num_hidden,
                  mask,
+                 num_cond_inputs=None,
                  s_act='tanh',
                  t_act='relu'):
+        assert True, 'coupling layer initialized'
         super(CouplingLayer, self).__init__()
 
         self.num_inputs = num_inputs
@@ -163,10 +235,10 @@ class CouplingLayer(nn.Module):
         s_act_func = activations[s_act]
         t_act_func = activations[t_act]
 
-        # if num_cond_inputs is not None:
-        #     total_inputs = num_inputs + num_cond_inputs
-        # else:
-        total_inputs = num_inputs
+        if num_cond_inputs is not None:
+            total_inputs = num_inputs + num_cond_inputs
+        else:
+            total_inputs = num_inputs
 
         self.scale_net = nn.Sequential(
             nn.Linear(total_inputs, num_hidden), s_act_func(),
@@ -182,14 +254,12 @@ class CouplingLayer(nn.Module):
                 m.bias.data.fill_(0)
                 nn.init.orthogonal_(m.weight.data)
 
-    def forward(self, inputs, mode='direct'):
-        # inputs = torch.log(inputs / (1 - inputs))
-        # inputs = scipy.special.logit(inputs)
+    def forward(self, inputs, cond_inputs=None, mode='direct'):
         mask = self.mask
 
         masked_inputs = inputs * mask
-        # if cond_inputs is not None:
-        #     masked_inputs = torch.cat([masked_inputs, cond_inputs], -1)
+        if cond_inputs is not None:
+            masked_inputs = torch.cat([masked_inputs, cond_inputs], -1)
 
         if mode == 'direct':
             log_s = self.scale_net(masked_inputs) * (1 - mask)
@@ -220,7 +290,7 @@ class BatchNormFlow(nn.Module):
         self.register_buffer('running_mean', torch.zeros(num_inputs))
         self.register_buffer('running_var', torch.ones(num_inputs))
 
-    def forward(self, inputs, mode='direct'):
+    def forward(self, inputs, cond_inputs=None, mode='direct'):
         if mode == 'direct':
             if self.training:
                 self.batch_mean = inputs.mean(0)
