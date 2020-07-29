@@ -80,8 +80,8 @@ def js_divergence_grid(prob_vector_X, prob_vector_Y):
         pointwise JS-Divergence
     """
     mix = 0.5 * (prob_vector_Y + prob_vector_X)
-    KL_X_mix = scipy.special.kl_div(prob_vector_X, mix).mean()
-    KL_Y_mix = scipy.special.kl_div(prob_vector_Y, mix).mean()
+    KL_X_mix = scipy.special.rel_entr(prob_vector_X, mix).mean()
+    KL_Y_mix = scipy.special.rel_entr(prob_vector_Y, mix).mean()
     return (KL_X_mix + KL_Y_mix) / 2
 
 
@@ -96,22 +96,42 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     Returns:
         divergence: int, JS-Divergence
     """
-    mix_X = np.logaddexp(prob_X_in_p, prob_X_in_q)
-    mix_Y = np.logaddexp(prob_Y_in_p, prob_Y_in_q)
+
+    mix_X = np.logaddexp(prob_X_in_p.reshape(-1,), prob_X_in_q.reshape(-1,)) / 2
+    #np.logaddexp(prob_X_in_p.reshape(-1,), prob_X_in_q.reshape(-1,))
+    mix_Y = np.logaddexp(prob_Y_in_p.reshape(-1,), prob_Y_in_q.reshape(-1,)) / 2
+    #np.logaddexp(prob_Y_in_p.reshape(-1,), prob_Y_in_q.reshape(-1,))
+
+    # mix_X = mix_X / np.sum(mix_X)
+    # mix_Y = mix_Y / np.sum(mix_Y)
+    # prob_X_in_p = prob_X_in_p / np.sum(prob_X_in_p)
+    # prob_Y_in_q = prob_Y_in_q / np.sum(prob_Y_in_q)
 
     assert np.min(mix_X) >= 0
     assert np.min(mix_Y) >= 0
 
-    KL_PM = np.log(2) + np.log(prob_X_in_p).mean() - np.log(mix_X)
-    KL_PM[np.isnan(KL_PM)] = 0
-    KL_PM[np.isinf(KL_PM)] = 0
-    KL_PM = KL_PM.mean()
+    prob_X_in_p[mix_X == 0] = 0
+    prob_Y_in_q[mix_Y == 0] = 0
 
-    KL_QM = np.log(2) + np.log(prob_Y_in_q).mean() - np.log(mix_Y)
-    KL_QM[np.isnan(KL_QM)] = 0
-    KL_QM[np.isinf(KL_QM)] = 0
+    KL_PM = np.log2(prob_X_in_p) - np.log2(mix_X)
+    # KL_PM[np.isnan(KL_PM)] = 0
+    # KL_PM[np.isinf(KL_PM)] = 0
+    KL_PM = KL_PM.mean()
+    # KL_PM_2 = scipy.special.kl_div(prob_X_in_p, mix_X).mean()
+    # KL_PM_4 = scipy.special.rel_entr(prob_X_in_p, mix_X).mean()
+
+    KL_QM = np.log2(prob_Y_in_q) - np.log2(mix_Y)
+    # KL_QM[np.isnan(KL_QM)] = 0
+    # KL_QM[np.isinf(KL_QM)] = 0
     KL_QM = KL_QM.mean()
+    # KL_QM_2 = scipy.special.kl_div(prob_Y_in_q, mix_Y).mean()
+    # KL_QM_4 = scipy.special.rel_entr(prob_Y_in_q, mix_Y).mean()
+
     divergence = (KL_PM + KL_QM) / 2
+    # divergence_2 = (KL_PM_2 + KL_QM_2) / 2
+    # divergence_4 = (KL_PM_4 + KL_QM_4) / 2
+    # print('divergence scipy kl div function', divergence_2)
+    # print('divergence scipy rel entropy function', divergence_4)
     return divergence
 
 

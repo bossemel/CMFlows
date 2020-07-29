@@ -18,9 +18,9 @@ def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
     edge_str = re.sub('[, ()]', '', str(edge))
     model_load_name = 'best_epoch_model' + edge_str + add_name
     load_model(model, args.experiment_saved_models, model_load_name, epoch)
-    model.eval()
     if send_to_device:
         model.to(args.device)
+    model.eval()
 
 
 def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, num_current_nodes, save_name, add_name):
@@ -99,7 +99,7 @@ class RVine():
                 print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
                 if self.args.marginal != 'uniform':
                     best_dict = train_marginal_flow(self.args,
-                                                    self.model_uncon,
+                                                    self.model_marg,
                                                     dataset,
                                                     data_loaders,
                                                     save_name=node,
@@ -172,7 +172,6 @@ class RVine():
 
             model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
-            self.model_con.eval()
             with torch.no_grad():
                 cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
                 self.new_graph.add_node(edge,
@@ -183,13 +182,21 @@ class RVine():
                 # cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
                 uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
                 edge_str = re.sub('[, ()]', '', str(edge))
-                visualize_joint(uniform_inputs, self.args, name='rvine_copula_{}'.format(edge_str))
+                visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
+
+                con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
+                visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
+
+                model_loader(self.model_uncon, self.args, edge, best_dict_uncon['best_validation_epoch'], add_name='cop_uncon')
+
+                uncon_samples = self.model_uncon.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
+                visualize_joint(uncon_samples.cpu(), self.args, name='rvine_uncon_copula_{}'.format(edge_str))
 
         # initialize graph and transform marginals using marginal flows
         initialize_graph()
 
         while len(self.current_graph.nodes()) >= 1:
-            self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight')
+            self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight', algorithm='prim')
             self.tree_list.append(self.current_tree)
             paired_tree_edges = combinations(list(self.current_tree.edges), 2)
             cm_flow_estimation(len(self.current_graph.nodes()))

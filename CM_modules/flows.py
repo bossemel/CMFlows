@@ -1,11 +1,11 @@
 import torch.nn as nn
 import torch
-import scipy
 from utils import t_m_metric_eval, js_divergence, flow_density
 import datasets
 import numpy as np
 from RealNVP import build_model as build_model_RealNVP
 from DDSF import build_model as build_model_DDSF
+import scipy.stats
 eps = 0.0001
 
 
@@ -94,14 +94,14 @@ class CMFlow(nn.Module):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
         with torch.no_grad():
+            samples_target = inputs.cpu().numpy()
             # Samples from both distributinos
-            samples_pred = self.sample_copula(num_samples=inputs.shape[0])
-            samples_pred = samples_pred.cpu().numpy()
+            samples_pred = self.sample_copula(num_samples=samples_target.shape[0]).cpu().numpy()
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
             assert np.min(samples_pred) >= 0
             assert np.max(samples_pred) <= 1
-
-            samples_target = inputs.cpu().numpy()
+            # samples_target = inputs.cpu().numpy()
             samples_target[samples_target == 1] = 1 - eps
             samples_target[samples_target == 0] = 0 + eps
             samples_pred[samples_pred == 0] = 0 + eps
@@ -112,20 +112,20 @@ class CMFlow(nn.Module):
             assert np.min(samples_pred) > 0
             assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
 
-            samples_target = torch.as_tensor(inputs)
+            #samples_target = torch.from_numpy(inputs)
 
             # Define distributions
             true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-            # Estimate Copula distr
-            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
             # Prob X in both distributions
-            prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+            prob_X_in_p = pred_distr(samples_pred.T).T
+            # torch.exp(self.log_density_RealNVP(samples_pred)).numpy()
             prob_X_in_q = true_cop_distr.pdf(samples_pred)
 
             # Prob Y in both distributions
-            prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
-            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            prob_Y_in_q = true_cop_distr.pdf(samples_target)
+            prob_Y_in_p = pred_distr(samples_target.T).T
+            # torch.exp(self.log_density_RealNVP(samples_target)).numpy()
 
             if np.isnan(np.sum(prob_X_in_q)):
                 prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
@@ -139,20 +139,20 @@ class CMFlow(nn.Module):
                 prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-            prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
-            prob_X_in_p[prob_X_in_q == 0] = 0 + eps
-            prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
-            prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
+            # prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
+            # prob_X_in_p[prob_X_in_q == 0] = 0 + eps
+            # prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
+            # prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
 
             assert not np.isnan(np.sum(prob_X_in_p))
             assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
             assert not np.isnan(np.sum(prob_Y_in_p))
             assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
 
-            assert np.min(prob_X_in_p) > 0
-            assert np.min(prob_X_in_q) > 0, '%r' % np.min(prob_X_in_q)
-            assert np.min(prob_Y_in_p) > 0
-            assert np.min(prob_Y_in_q) > 0
+            assert np.min(prob_X_in_p) >= 0
+            assert np.min(prob_X_in_q) >= 0, '%r' % np.min(prob_X_in_q)
+            assert np.min(prob_Y_in_p) >= 0
+            assert np.min(prob_Y_in_q) >= 0
 
             divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                        prob_X_in_q=prob_X_in_q,

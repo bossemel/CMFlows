@@ -49,7 +49,7 @@ def visualize_DDSF_output(model, dataset, args):
         logdets = torch.FloatTensor(n).zero_().to(args.device)
         vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0:1], logdets, context))
         vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1:2], logdets, context))
-        vizdata = torch.cat((vizdata_1, vizdata_2), dim=1)
+        vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
         if args.cuda:
             visualize_joint(vizdata, args, name='DDSF_output')
         else:
@@ -59,7 +59,7 @@ def visualize_DDSF_output(model, dataset, args):
 def visualize_RealNVP_output(model, dataset, args):
     with torch.no_grad():
         # Visualize RealNVP outputs
-        output_copula = model.sample_copula(num_samples=100000)
+        output_copula = model.sample_copula(num_samples=100000).cpu()
         visualize_joint(output_copula, args, name='output_copula_RealNVP')
 
         # Visualize true copula
@@ -70,7 +70,7 @@ def visualize_RealNVP_output(model, dataset, args):
 def visualize_CM_Flow_output(model, dataset, args):
     with torch.no_grad():
         # Sample from the predicted copula
-        output_copula = model.sample_copula(num_samples=100000)
+        output_copula = model.sample_copula(num_samples=100000).cpu()
         # Visualize the predicted copula
         if args.cuda:
             visualize_joint(output_copula, args, name='output_copula_cm')
@@ -82,7 +82,7 @@ def visualize_CM_Flow_output(model, dataset, args):
         visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
 
         # Sample from the non-transformed copula (normal margins)
-        output_copula = model.sample(num_samples=100000)
+        output_copula = model.sample(num_samples=100000).cpu()
         if args.cuda:
             visualize_joint(output_copula, args, name='output_copula_normal_cm')
         else:

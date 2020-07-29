@@ -23,23 +23,23 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000):
         fig = plt.figure(figsize=(8, 6))
 
         data = marginal_distr.sampler(args=args, obs=obs)
-        sns.distplot(data, bins=100, kde=False, label='Test Set Samples', norm_hist=True, color='orange')
+        sns.distplot(data, bins=100, kde=False, label='Test Samples', norm_hist=True, color='orange')
 
         res = obs
         xx = torch.linspace(np.min(data), np.max(data), res).reshape(-1, 1)
 
         Z = model.log_density(xx).data.detach().cpu().numpy()
 
-        plt.plot(xx.numpy(), np.exp(Z), label='Predicted Distribution', color='royalblue', linewidth=3.0)
-        plt.xlabel('x', fontsize=16)
-        plt.ylabel('Probability', fontsize=16)
-        plt.xticks(fontsize=14)
-        plt.yticks(fontsize=14)
+        plt.plot(xx.numpy(), np.exp(Z), label='Predicted PDF', color='royalblue', linewidth=3.0)
+        plt.xlabel('x', fontsize=20)
+        plt.ylabel('Probability', fontsize=20)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
 
-        if args.marginal == 'bimodal_gaussian':
-            fig.legend(bbox_to_anchor=(0, 0, 0.445, 0.97), fontsize=12)
-        else:
-            fig.legend(bbox_to_anchor=(0, 0, 0.97, 0.97), fontsize=12)
+        # if args.marginal == 'bimodal_gaussian':
+        #     fig.legend(bbox_to_anchor=(0, 0, 0.445, 0.97), fontsize=20)
+        # else:
+        fig.legend(bbox_to_anchor=(0, 0, 0.97, 0.97), fontsize=20)
         fig.tight_layout()
 
         if not best_val:

@@ -4,6 +4,7 @@ import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import datasets
 import numpy as np
+import math
 
 
 class FlowSequential(nn.Sequential):
@@ -44,6 +45,14 @@ class FlowSequential(nn.Sequential):
         outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
         density = flow_density(outputs, log_jacob)
         return density
+
+    # def log_density_uniform(self, inputs, cond_inputs=None):
+    #     """Calculates log density of the flow
+    #     """
+    #     outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
+    #     density = flow_density(outputs, log_jacob)
+    #     #density = transform_to_uniform(density)
+    #     return density
 
     def loss(self, inputs, cond_inputs=None):
         """Return negative log likelihood/density
@@ -86,11 +95,11 @@ class FlowSequential(nn.Sequential):
         """
         if num_inputs is not None:
             self.num_inputs = num_inputs
-        print(self.device)
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
-            noise.to(device)
-            cond_inputs.to(device)
+            noise = noise.to(device)
+            if cond_inputs is not None:
+                cond_inputs = cond_inputs.to(device)
         samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
@@ -98,39 +107,45 @@ class FlowSequential(nn.Sequential):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, cond_inputs=None, transform_fct='gaussian', obs=1000, cm_flow=False):
+    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
+            samples_target = torch.tensor(inputs)
             # Define distributions
             normal_distr = scipy.stats.norm(0, 1)
             true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            # true_marg_distr = datasets.distributions.Marginals(args=args, transform=False)
 
             # Samples from both distributinos
             if cm_flow is True:
                 samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
             else:
                 samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
-            if transform_fct == 'sigmoid':
-                samples_target = torch.tensor(sigmoid(inputs))
-                if args.conditional_copula:
-                    cond_inputs = torch.tensor(sigmoid(cond_inputs))
-            elif transform_fct == 'gaussian':
-                samples_target = torch.tensor(normal_distr.cdf(inputs.cpu())).float()
-                if args.conditional_copula:
-                    cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs.cpu())).float()
+
+            if not cm_flow:
+                if transform_fct == 'sigmoid':
+                    samples_target = sigmoid(inputs)
+                elif transform_fct == 'gaussian':
+                    normal_distr = torch.distributions.normal.Normal(0, 1)
+                    samples_target = normal_distr.cdf(inputs)
             else:
-                samples_target = torch.tensor(inputs)
-                if args.conditional_copula:
-                    cond_inputs = torch.tensor(cond_inputs)
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                samples_target = normal_distr.cdf(inputs)
 
-            # Estimate Copula distr
-            # RealNVP outputs the density directly, but not the transformation to
-            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-            pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(cond_inputs)
 
+            assert np.max(samples_target.cpu().numpy()) <= 1
+            assert np.min(samples_target.cpu().numpy()) >= 0
+            assert np.max(samples_pred.cpu().numpy()) <= 1
+            assert np.min(samples_pred.cpu().numpy()) >= 0
             # Prob X in both distributions
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+
+            # prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
             prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            # torch.exp(self.log_density_uniform(samples_pred_norm)).numpy()
             if args.conditional_copula:
                 prob_X_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_pred.cpu().numpy()], axis=1))
             else:
@@ -139,11 +154,13 @@ class FlowSequential(nn.Sequential):
             # Prob Y in both distributions
             if args.conditional_copula:
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
-                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T).T
+                # torch.exp(self.log_density_uniform(samples_target_norm, cond_inputs=cond_inputs)).numpy()
 
             else:
                 prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
-                prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+                prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
+                # torch.exp(self.log_density_uniform(samples_target_norm)).numpy()
 
             if np.isnan(np.sum(prob_X_in_q)):
                 prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
@@ -157,20 +174,21 @@ class FlowSequential(nn.Sequential):
                 prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-            assert np.min(samples_pred.cpu().numpy()) >= 0
-            assert np.min(samples_target.cpu().numpy()) >= 0
+            # assert np.min(samples_pred.cpu().numpy()) >= 0
+            # assert np.min(samples_target.cpu().numpy()) >= 0
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
             assert np.min(prob_Y_in_p) >= 0
             assert np.min(prob_Y_in_q) >= 0
 
-            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                       prob_X_in_q=prob_X_in_q,
-                                       prob_Y_in_p=prob_Y_in_p,
-                                       prob_Y_in_q=prob_Y_in_q)
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p.reshape(-1,),
+                                       prob_X_in_q=prob_X_in_q.reshape(-1,),
+                                       prob_Y_in_p=prob_Y_in_p.reshape(-1,),
+                                       prob_Y_in_q=prob_Y_in_q.reshape(-1,))
+
             return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct='gaussian', intervals=25, cm_flow=False):
+    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
