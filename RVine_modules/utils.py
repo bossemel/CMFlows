@@ -6,15 +6,15 @@ from datasets.distributions import marginal_transform
 from utils import normalize
 
 
-def gen_mv_copula(args, cop_type='clayton'):
+def gen_mv_copula(args):
     if args.mix is False:
-        if cop_type == 'clayton':
+        if args.copula == 'clayton':
             pair_copula = pv.BicopFamily.clayton
             theta = 2
-        elif cop_type == 'frank':
+        elif args.copula == 'frank':
             pair_copula = pv.BicopFamily.frank
             theta = 5
-        elif cop_type == 'gumbel':
+        elif args.copula == 'gumbel':
             pair_copula = pv.BicopFamily.gumbel
             theta = 5
 

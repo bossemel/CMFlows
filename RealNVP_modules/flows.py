@@ -134,7 +134,7 @@ class FlowSequential(nn.Sequential):
                 samples_target = normal_distr.cdf(inputs)
 
             if args.conditional_copula:
-                cond_inputs = torch.tensor(cond_inputs)
+                cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs))
 
             assert np.max(samples_target.cpu().numpy()) <= 1
             assert np.min(samples_target.cpu().numpy()) >= 0

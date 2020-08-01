@@ -75,7 +75,7 @@ class RVine():
         self.model_marg.to(args.device)
         self.results_dict = {}
 
-    def estimate_rvine(self):
+    def estimate_rvine(self, plots=True):
         """Sequentially estimates the best tree by minimum spanning algorithm
         and estimates the copula between nodes using CM Flows.
         """
@@ -95,34 +95,34 @@ class RVine():
 
             for node in self.current_graph.nodes():
                 dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
+                assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
                 print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-                if self.args.marginal != 'uniform':
-                    best_dict = train_marginal_flow(self.args,
-                                                    self.model_marg,
-                                                    dataset,
-                                                    data_loaders,
-                                                    save_name=node,
-                                                    add_name='marginal')
-                    model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-                    with torch.no_grad():
-                        self.data.to(self.args.device)
-                        transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
-                        self.data.cpu()
-                        self.current_graph.nodes[node]['best_dict'] = best_dict
-                elif self.args.marginal == 'uniform':
-                    transformed_inputs = torch.from_numpy(self.norm.ppf(self.data[:, node:node + 1])).float()
-                else:
-                    raise ValueError('Unknown marginal type.')
+                best_dict = train_marginal_flow(self.args,
+                                                self.model_marg,
+                                                dataset,
+                                                data_loaders,
+                                                save_name=node,
+                                                add_name='marginal')
+                model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+                with torch.no_grad():
+                    self.data = self.data.to(self.args.device)
+                    transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                    self.data = self.data.cpu()
+                    self.current_graph.nodes[node]['best_dict'] = best_dict
+
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
+
+                assert not np.isnan(torch.sum(transformed_inputs).cpu()), '{}'.format(transformed_inputs[:10])
 
             for edge in self.current_graph.edges():
                 n0, n1 = edge
 
                 ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),
                                                   self.current_graph.nodes[n1]['cond_distr'].cpu())
+                assert not np.isnan(ktau), '{}'.format(ktau)
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
-
+                print('ktau', n0, n1, np.abs(ktau))
             self.graph_list.append(self.current_graph)
 
         def cm_flow_estimation(num_current_nodes):
@@ -180,17 +180,18 @@ class RVine():
                                         best_dict_con=best_dict_con,
                                         common_node=common_node)
                 # cond_distr = self.model_con.transform(inputs=v1.reshape(-1, 1), cond_inputs=v0.reshape(-1, 1))
-                uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
-                edge_str = re.sub('[, ()]', '', str(edge))
-                visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
+                if plots:
+                    uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
+                    edge_str = re.sub('[, ()]', '', str(edge))
+                    visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
 
-                con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
-                visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
+                    con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
+                    visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
 
-                model_loader(self.model_uncon, self.args, edge, best_dict_uncon['best_validation_epoch'], add_name='cop_uncon')
+                    model_loader(self.model_uncon, self.args, edge, best_dict_uncon['best_validation_epoch'], add_name='cop_uncon')
 
-                uncon_samples = self.model_uncon.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
-                visualize_joint(uncon_samples.cpu(), self.args, name='rvine_uncon_copula_{}'.format(edge_str))
+                    uncon_samples = self.model_uncon.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
+                    visualize_joint(uncon_samples.cpu(), self.args, name='rvine_uncon_copula_{}'.format(edge_str))
 
         # initialize graph and transform marginals using marginal flows
         initialize_graph()
@@ -287,8 +288,8 @@ class RVine():
                     common_node = self.tree_list[ii].nodes[node]['common_node']
                     unconditioned_node = next(flatten(common_node))
                     conditioned_node = next(flatten(node))
-                    print(' common node' , common_node)
-                    print(' conditioned node' , conditioned_node)
+                    print('common node', common_node)
+                    print('conditioned node', conditioned_node)
 
                     v0 = samples[:, unconditioned_node:unconditioned_node + 1]
                     v1 = samples[:, conditioned_node:conditioned_node + 1]

@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 import random
 from itertools import combinations
+import csv
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
@@ -14,7 +15,7 @@ from RVine_modules.eval import jsd_eval
 from RVine_modules.utils import gen_mv_copula
 
 from utils.visualizer import visualize_joint
-from utils.load_and_save import save_statistics
+from utils.load_and_save import save_statistics, load_statistics
 
 if __name__ == '__main__':
 
@@ -52,53 +53,65 @@ if __name__ == '__main__':
     rv = RVine(args=args, data=dataset_trn)
 
     # Estimate R-vine
-    if not args.load_model:
-        rv.estimate_rvine()
-        save_rvine(args.experiment_saved_models, 'rvine_object', rv)
-    else:
-        load_rvine(args.experiment_saved_models, 'rvine_object', rv)
+    if not args.error_bars:
+        if not args.load_model:
+            rv.estimate_rvine()
+            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
+        else:
+            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
-    rv.plot()
+        rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+        # Save results
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       rv.results_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=args.error_bars, test_epoch=None)
+    else:
+        rv = RVine(args=args, data=dataset_trn)
+        rv.estimate_rvine()
+        rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+
+        test_losses = {key: [np.mean(value)] for key, value in
+                       rv.results_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=None)
+        for ii in range(1, 11):
+            rv = RVine(args=args, data=dataset_trn)
+            rv.estimate_rvine(plots=False)
+            rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+
+            test_losses = {key: [np.mean(value)] for key, value in
+                           rv.results_dict.items()}  # save test set metrics in dict format
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=None)
+        stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
+        with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
+            writer = csv.writer(f)
+            for key in stats_dict.keys():
+                if key != 'epoch':
+                    float_list = np.array([float(xx) for xx in stats_dict[key]])
+                    line = [key, np.mean(float_list), np.std(float_list)]
+                    writer.writerow(line)
+
+    if not args.error_bars:
+        rv.plot()
 
     assert len(rv.tree_list) > 0
-    # Get density estimate
-    # rv.density(torch.randn(10, 4))
-
-    # jsd_eval(args, dim, dataset_trn, pv_cop, rv)
 
     # Simulate Distribution
-    samples = rv.sample(num_samples=100000)
+    if not args.error_bars:
+        samples = rv.sample(num_samples=100000)
 
-    paired_dims = combinations(list(range(samples.shape[1])), 2)
+        paired_dims = combinations(list(range(samples.shape[1])), 2)
 
-    normal_distr = torch.distributions.normal.Normal(0, 1)
-    for pair in paired_dims:
-        vis_samples = normal_distr.cdf(samples[:, pair])
-        visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair))
-        visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-        visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair))
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        for pair in paired_dims:
+            vis_samples = normal_distr.cdf(samples[:, pair])
+            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair))
+            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
+            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair))
 
-    rv.jsd_vinecopula(args, rv, pv_cop, obs=10000)
-
-    # Save results
-    # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
-                   rv.results_dict.items()}  # save test set metrics in dict format
-    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=None)
-
-    # Sample Copula
-    # rv.sample_multivariate_copula()
-
-    # # plot the R-vine structure for modeled object rv. All the vine trees will
-    # # be plotted as default.
-
-    # # display the result of estimation on each edge. 'ndigits' controls number
-    # # of decimal digits for result.
-
-    # rv.res(ndigits=3)
-
-    # # testing
-
-    # rv.test()

@@ -9,7 +9,7 @@ python CM_Flow.py \
 --marginal_1 bimodal_gaussian \
 --marginal_2 bimodal_gaussian \
 --theta 2 \
---obs 100000 \
+--obs 1000 \
 --pretrain_models
 
 # echo 'Begin Copula: Clayton, Marginal: bimodal_gaussian, CM Flow only'
@@ -22,7 +22,7 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 2 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow
 
 # echo 'Begin Copula: Clayton, Marginal: bimodal_gaussian, Pretrain and CM Flow'
@@ -35,7 +35,7 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 2 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow \
 # --pretrain_models
 
@@ -49,7 +49,7 @@ python CM_Flow.py \
 --marginal_1 bimodal_gaussian \
 --marginal_2 bimodal_gaussian \
 --theta 5 \
---obs 100000 \
+--obs 1000 \
 --pretrain_models
 
 # echo 'Begin Copula: frank, Marginal: bimodal_gaussian, CM Flow only'
@@ -62,7 +62,7 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 5 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow
 
 # echo 'Begin Copula: frank, Marginal: bimodal_gaussian, Pretrain and CM Flow'
@@ -75,7 +75,7 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 5 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow \
 # --pretrain_models
 
@@ -89,7 +89,7 @@ python CM_Flow.py \
 --marginal_1 bimodal_gaussian \
 --marginal_2 bimodal_gaussian \
 --theta 5 \
---obs 100000 \
+--obs 1000 \
 --pretrain_models
 
 # echo 'Begin Copula: gumbel, Marginal: bimodal_gaussian, CM Flow only'
@@ -102,7 +102,7 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 5 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow
 
 # echo 'Begin Copula: gumbel, Marginal: bimodal_gaussian, Pretrain and CM Flow'
@@ -115,6 +115,6 @@ python CM_Flow.py \
 # --marginal_1 bimodal_gaussian \
 # --marginal_2 bimodal_gaussian \
 # --theta 5 \
-# --obs 100000 \
+# --obs 1000 \
 # --train_cm_flow \
 # --pretrain_models
