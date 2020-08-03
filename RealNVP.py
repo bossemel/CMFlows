@@ -227,14 +227,14 @@ if __name__ == '__main__':
         with torch.no_grad():
             if args.conditional_copula:
                 cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct)
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
                 visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None)
+                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
                 visualize_joint(output_copula, args, name='output_copula_untransformed')
             else:
-                output_copula = model.sample(num_samples=100000, transform=args.transform_fct)
+                output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
                 visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, transform=None)
+                output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
                 visualize_joint(output_copula, args, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it

@@ -62,13 +62,18 @@ def marginal_transform(inputs, marginal, args):
 class Joint_Distr():
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
-    def __init__(self, args):
+    def __init__(self, args, no_val=False):
         self.xx = Joint_Distr.sampler(self, args)
-        trn, val, tst = split_train_val_test(self.xx)
 
-        self.trn = trn.astype(np.float32)
-        self.val = val.astype(np.float32)
-        self.tst = tst.astype(np.float32)
+        if no_val:
+            trn, tst = split_train_val_test(self.xx, only_val=no_val)
+            self.trn = trn.astype(np.float32)
+            self.tst = tst.astype(np.float32)
+        else:
+            trn, val, tst = split_train_val_test(self.xx)
+            self.trn = trn.astype(np.float32)
+            self.val = val.astype(np.float32)
+            self.tst = tst.astype(np.float32)
 
     def sampler(self, args, obs=None):
         """Returns copula samples.

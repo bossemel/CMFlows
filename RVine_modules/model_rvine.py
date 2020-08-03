@@ -324,6 +324,7 @@ class RVine():
             # RealNVP outputs the density directly, but not the transformation to
             # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
             pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+            true_rvine = scipy.stats.gaussian_kde(samples_target.cpu().numpy().T)
             # Note, that uniform samples means the transformed samples
 
             # Prob X in both distributions

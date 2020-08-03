@@ -74,7 +74,8 @@ class FlowSequential(nn.Sequential):
             num_samples = cond_inputs.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
-            cond_inputs = cond_inputs.to(device)
+            if cond_inputs is not None:
+                cond_inputs = cond_inputs.to(device)
             noise = noise.to(device)
         samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
@@ -114,14 +115,13 @@ class FlowSequential(nn.Sequential):
             samples_target = torch.tensor(inputs)
             # Define distributions
             normal_distr = scipy.stats.norm(0, 1)
-            true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-            # true_marg_distr = datasets.distributions.Marginals(args=args, transform=False)
+            # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Samples from both distributinos
             if cm_flow is True:
                 samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
             else:
-                samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct)
+                samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
 
             if not cm_flow:
                 if transform_fct == 'sigmoid':
@@ -141,26 +141,28 @@ class FlowSequential(nn.Sequential):
             assert np.max(samples_pred.cpu().numpy()) <= 1
             assert np.min(samples_pred.cpu().numpy()) >= 0
             # Prob X in both distributions
-            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu())
 
-            # prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
-            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
-            # torch.exp(self.log_density_uniform(samples_pred_norm)).numpy()
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_pred.cpu().numpy()], axis=1))
+                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T)
             else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
+                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
+
+            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+
+            if args.conditional_copula:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.T.cpu()).T
+            else:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy().T).T
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.numpy()], axis=1))
-                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T).T
-                # torch.exp(self.log_density_uniform(samples_target_norm, cond_inputs=cond_inputs)).numpy()
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.cpu().numpy()], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target.cpu()], axis=1).cpu().numpy().T).T
 
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.numpy())
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
-                # torch.exp(self.log_density_uniform(samples_target_norm)).numpy()
 
             if np.isnan(np.sum(prob_X_in_q)):
                 prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
@@ -174,8 +176,6 @@ class FlowSequential(nn.Sequential):
                 prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
-            # assert np.min(samples_pred.cpu().numpy()) >= 0
-            # assert np.min(samples_target.cpu().numpy()) >= 0
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
             assert np.min(prob_Y_in_p) >= 0
@@ -194,14 +194,14 @@ class FlowSequential(nn.Sequential):
         with torch.no_grad():
             if cm_flow:
                 if args.conditional_copula:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs).cpu().numpy()
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=args.device).cpu().numpy()
                 else:
-                    samples = self.sample_copula(num_samples=num_samples).cpu().numpy()
+                    samples = self.sample_copula(num_samples=num_samples, device=args.device).cpu().numpy()
             else:
                 if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct).cpu().numpy()
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=args.device).cpu().numpy()
                 else:
-                    samples = self.sample(num_samples=num_samples, transform=transform_fct).cpu().numpy()
+                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=args.device).cpu().numpy()
             if args.conditional_copula:
                 margin_x1 = cond_inputs
                 margin_x2 = samples

@@ -52,7 +52,7 @@ class TrainOptions():
         parser.add_argument(
             '--marginal_2', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
         parser.add_argument(
-            '--obs', type=int, default=3000, help='How many data samples to generate')
+            '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(

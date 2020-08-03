@@ -112,18 +112,17 @@ class CMFlow(nn.Module):
             assert np.min(samples_pred) > 0
             assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
 
-            #samples_target = torch.from_numpy(inputs)
-
             # Define distributions
-            true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr(samples_pred.T).T
             # torch.exp(self.log_density_RealNVP(samples_pred)).numpy()
-            prob_X_in_q = true_cop_distr.pdf(samples_pred)
+            prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
 
             # Prob Y in both distributions
-            prob_Y_in_q = true_cop_distr.pdf(samples_target)
+            prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
             prob_Y_in_p = pred_distr(samples_target.T).T
             # torch.exp(self.log_density_RealNVP(samples_target)).numpy()
 
@@ -138,11 +137,6 @@ class CMFlow(nn.Module):
                 prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
                 prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
-
-            # prob_Y_in_p[prob_Y_in_p == 0] = 0 + eps
-            # prob_X_in_p[prob_X_in_q == 0] = 0 + eps
-            # prob_X_in_p[prob_Y_in_p == 0] = 0 + eps
-            # prob_X_in_p[prob_Y_in_q == 0] = 0 + eps
 
             assert not np.isnan(np.sum(prob_X_in_p))
             assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
