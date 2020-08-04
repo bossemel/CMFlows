@@ -1,20 +1,20 @@
-#import pycopula
-#from pycopula.copula import ArchimedeanCopula
 import copulae
 import os
 import numpy as np
 import random
 from pathlib import Path
 import scipy.stats
+import csv
 
 from Parametric_modules.options import TrainOptions
 from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
+from utils.load_and_save import save_statistics, load_statistics
 eps = 0.0001
 
 
-def calc_jsd(copula_pred, samples_pred, samples_target):
+def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     # Samples from both distributinos
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     normal_distr = scipy.stats.norm(0, 1)
@@ -49,7 +49,22 @@ def calc_jsd(copula_pred, samples_pred, samples_target):
                                prob_X_in_q=prob_X_in_q,
                                prob_Y_in_p=prob_Y_in_p,
                                prob_Y_in_q=prob_Y_in_q)
-    return divergence
+    test_dict['js_divergence'] = divergence
+    print('JS-Divergence: {}'.format(divergence))
+    return test_dict
+
+
+def fit_copula(args, data):
+    if args.assumed_copula == 'clayton':
+        cop = copulae.archimedean.ClaytonCopula(dim=2)
+    elif args.assumed_copula == 'frank':
+        cop = copulae.archimedean.FrankCopula(dim=2)
+    elif args.assumed_copula == 'gumbel':
+        cop = copulae.archimedean.GumbelCopula(dim=2)
+    else:
+        raise ValueError('Assumed copula not in list')
+    cop.fit(dataset.trn)
+    return cop
 
 
 if __name__ == '__main__':
@@ -75,17 +90,57 @@ if __name__ == '__main__':
     # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset = datasets.distributions.Joint_Distr(args)
 
-    cop = copulae.archimedean.GumbelCopula(dim=2)
-    cop.fit(dataset.trn)
-
-    samples = cop.random(1000)  # simulate random number
-
-    # Create Samples
-    print(samples.shape)
-
-    # Visualize samples
-    visualize_joint(samples, args, name='archmidean_samples')
-
     # Calculate JSD
-    divergence = calc_jsd(copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
-    print(divergence)
+    if args.error_bars:
+        cop = fit_copula(args, dataset.trn)
+
+        samples = cop.random(1000)  # simulate random number
+
+        test_dict = {}
+        test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
+        for ii in range(1, 10):
+            cop = fit_copula(args, dataset.trn)
+
+            samples = cop.random(1000)  # simulate random number
+
+            test_dict = {}
+            test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+
+            # Gather test losses and save statistics
+            test_losses = {key: [np.mean(value)] for key, value in
+                           test_dict.items()}  # save test set metrics in dict format
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=0)
+        stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
+        with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
+            writer = csv.writer(f)
+            for key in stats_dict.keys():
+                if key != 'epoch':
+                    float_list = np.array([float(xx) for xx in stats_dict[key]])
+                    line = [key, np.mean(float_list), np.std(float_list)]
+                    writer.writerow(line)
+    else:
+        cop = fit_copula(args, dataset.trn)
+
+        samples = cop.random(1000)  # simulate random number
+
+        # Visualize samples
+        visualize_joint(samples, args, name='archmidean_samples')
+
+        test_dict = {}
+        test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)

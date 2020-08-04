@@ -14,9 +14,15 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
+        # Training Options
+        parser.add_argument(
+            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+
         # Dataset options
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
+        parser.add_argument(
+            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
             '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
         parser.add_argument(

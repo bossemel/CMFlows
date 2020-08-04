@@ -2,7 +2,7 @@ set -e
 echo 'Begin Copula: Clayton Marginal: bimodal_gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_bimodal_gaussian_pretr_only \
+--exp_name CM_Flow_Clayton_bimodal_gaussian_1000 \
 --epochs 50 \
 --batch-size 100 \
 --copula clayton \
@@ -42,7 +42,7 @@ python CM_Flow.py \
 echo 'Begin Copula: frank Marginal: bimodal_gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_frank_bimodal_gaussian_pretr_only \
+--exp_name CM_Flow_frank_bimodal_gaussian_1000 \
 --epochs 50 \
 --batch-size 100 \
 --copula frank \
@@ -82,7 +82,7 @@ python CM_Flow.py \
 echo 'Begin Copula: gumbel Marginal: bimodal_gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_gumbel_bimodal_gaussian_pretr_only \
+--exp_name CM_Flow_gumbel_bimodal_gaussian_1000 \
 --epochs 50 \
 --batch-size 100 \
 --copula gumbel \
