@@ -1,12 +1,12 @@
 set -e
-# echo 'Bimodal Gaussian'
+echo 'Bimodal Gaussian'
 
-# python DDSF.py \
-# --exp_name DDSF_bimodal_gaussian_besthyp \
-# --epochs 50 \
-# --marginal bimodal_gaussian \
-# --batch-size 100 \
-# --obs 10000
+python DDSF.py \
+--exp_name DDSF_bimodal_gaussian_besthyp \
+--epochs 50 \
+--marginal bimodal_gaussian \
+--batch-size 100 \
+--obs 10000
 
 echo 'Gaussian'
 

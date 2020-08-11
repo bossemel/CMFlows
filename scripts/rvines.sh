@@ -1,25 +1,25 @@
 set -e
-# echo 'Begin Mix Copula Rvine: RVine_mix'
-
-# python RVine.py \
-# --exp_name RVine_mix \
-# --epochs 50 \
-# --batch-size 100 \
-# --marginal bimodal_gaussian \
-# --obs 10000 \
-# --pretrain_models \
-# --mix
-
-echo 'Begin Clayton Copula Rvine: RVine_clayton'
+echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_clayton \
+--exp_name RVine_mix \
 --epochs 50 \
 --batch-size 100 \
---copula clayton \
 --marginal bimodal_gaussian \
 --obs 10000 \
---pretrain_models
+--pretrain_models \
+--mix
+
+# echo 'Begin Clayton Copula Rvine: RVine_clayton'
+
+# python RVine.py \
+# --exp_name RVine_clayton \
+# --epochs 50 \
+# --batch-size 100 \
+# --copula clayton \
+# --marginal bimodal_gaussian \
+# --obs 10000 \
+# --pretrain_models
 
 # echo 'Begin Frank Copula Rvine: RVine_frank'
 
