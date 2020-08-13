@@ -11,7 +11,6 @@ import csv
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
 from RVine_modules.load_and_save import save_rvine, load_rvine
-from RVine_modules.eval import jsd_eval
 from RVine_modules.utils import gen_mv_copula
 
 from utils.visualizer import visualize_joint

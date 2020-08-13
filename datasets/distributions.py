@@ -46,14 +46,20 @@ def marginal_transform(inputs, marginal, args):
         gamma = scipy.stats.gamma(args.alpha)
         inputs = gamma.ppf(inputs)
     elif marginal == 'bimodal_gaussian':
-        inputs_split = np.split(inputs, 2)
-        inputs_1 = inputs_split[0]
-        inputs_2 = inputs_split[1]
+        for ii in range(len(inputs)):
+            which_normal = np.random.randint(0,2)
+            if which_normal == 0:
+                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=2, scale=2)
+            else:
+                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=12, scale=2)
+        # inputs_split = np.split(inputs, 2)
+        # inputs_1 = inputs_split[0]
+        # inputs_2 = inputs_split[1]
 
-        samples_1 = scipy.stats.norm.ppf(q=inputs_1, loc=2, scale=2)
-        samples_2 = scipy.stats.norm.ppf(q=inputs_2, loc=12, scale=2)
+        # samples_1 = scipy.stats.norm.ppf(q=inputs_1, loc=2, scale=2)
+        # samples_2 = scipy.stats.norm.ppf(q=inputs_2, loc=12, scale=2)
 
-        inputs = np.concatenate([samples_1, samples_2])
+        # inputs = np.concatenate([samples_1, samples_2])
     else:
         raise NotImplementedError
     return inputs

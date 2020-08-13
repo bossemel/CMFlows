@@ -50,10 +50,14 @@ def visualize_DDSF_output(model, dataset, args):
         vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0:1], logdets, context))
         vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1:2], logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        vizdata_uniform = normal_distr.cdf(vizdata)
         if args.cuda:
             visualize_joint(vizdata, args, name='DDSF_output')
+            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
         else:
             visualize_joint(vizdata, args, name='DDSF_output')
+            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
 
 
 def visualize_RealNVP_output(model, dataset, args):

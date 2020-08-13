@@ -151,6 +151,9 @@ class RVine():
             dataset, data_loaders = create_dataset(v0, v1, self.args)
             print('Train unconditional CM Flow for tree {}, edge {}'.format(len(self.tree_list), edge))
 
+            edge_str = re.sub('[, ()]', '', str(edge))
+            visualize_joint(dataset.trn, self.args, name='rvine_input_dataset_{}'.format(edge_str))
+
             best_dict_uncon = train_copula_flow(self.args,
                                                 self.model_uncon,
                                                 dataset,

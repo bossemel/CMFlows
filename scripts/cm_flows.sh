@@ -6,9 +6,10 @@ python CM_Flow.py \
 --epochs 50 \
 --batch-size 100 \
 --copula clayton \
---marginal_1 bimodal_gaussian \
---marginal_2 bimodal_gaussian \
+--marginal_1 gamma \
+--marginal_2 gamma \
 --theta 2 \
+--alpha 5 \
 --obs 10000 \
 --pretrain_models
 
