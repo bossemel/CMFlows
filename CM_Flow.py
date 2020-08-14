@@ -201,6 +201,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         if not error_bars and not rvine:
             visualize_CM_Flow_output(model, dataset, args)
 
+        # Visualize DDFS transformations
+        if not error_bars and not rvine:
+            visualize_DDSF_output(model, dataset, args)
+
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
                        test_dict.items()}  # save test set metrics in dict format
