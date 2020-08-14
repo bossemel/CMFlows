@@ -14,14 +14,6 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
-        # CM Options
-
-        # Architecture
-        parser.add_argument(
-            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
-        parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
-
         # Training options
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')

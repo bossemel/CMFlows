@@ -7,7 +7,6 @@ python RVine.py \
 --batch-size 100 \
 --marginal bimodal_gaussian \
 --obs 10000 \
---train_cm_flow \
 --mix \
 --error_bars
 
@@ -20,7 +19,6 @@ python RVine.py \
 --copula clayton \
 --marginal bimodal_gaussian \
 --obs 10000 \
---train_cm_flow \
 --error_bars
 
 echo 'Begin Frank Copula Rvine: RVine_frank'
@@ -32,7 +30,6 @@ python RVine.py \
 --copula frank \
 --marginal bimodal_gaussian \
 --obs 10000 \
---train_cm_flow \
 --error_bars
 
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
@@ -44,5 +41,4 @@ python RVine.py \
 --copula gumbel \
 --marginal bimodal_gaussian \
 --obs 10000 \
---train_cm_flow \
 --error_bars

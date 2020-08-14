@@ -188,7 +188,8 @@ class RVine():
                     edge_str = re.sub('[, ()]', '', str(edge))
                     visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
 
-                    con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=2, device=self.args.device)
+                    cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+                    con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
                     visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
 
                     model_loader(self.model_uncon, self.args, edge, best_dict_uncon['best_validation_epoch'], add_name='cop_uncon')
