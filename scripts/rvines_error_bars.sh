@@ -2,7 +2,7 @@ set -e
 # echo 'Begin Mix Copula Rvine: RVine_mix'
 
 # python RVine.py \
-# --exp_name RVine_mix \
+# --exp_name RVine_mix_error_bars \
 # --epochs 50 \
 # --batch-size 100 \
 # --marginal bimodal_gaussian \
@@ -13,7 +13,7 @@ set -e
 # echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 # python RVine.py \
-# --exp_name RVine_clayton \
+# --exp_name RVine_clayton_error_bars \
 # --epochs 50 \
 # --batch-size 100 \
 # --copula clayton \
@@ -24,7 +24,7 @@ set -e
 # echo 'Begin Frank Copula Rvine: RVine_frank'
 
 # python RVine.py \
-# --exp_name RVine_frank \
+# --exp_name RVine_frank_error_bars \
 # --epochs 50 \
 # --batch-size 100 \
 # --copula frank \
