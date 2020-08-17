@@ -18,7 +18,7 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
+            '--marginal', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -34,11 +34,11 @@ class TrainOptions():
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
-            '--mu', type=float, required=False, help='Mean of the Gaussian Distribution')
+            '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
         parser.add_argument(
-            '--var', type=float, required=False, help='Variance of the Gaussian Distribution')
+            '--var', type=float, default=1, help='Variance of the Gaussian Distribution')
         parser.add_argument(
-            '--alpha', type=float, required=False, help='Parameter for the Gamma distribution')
+            '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
         parser.add_argument(
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(

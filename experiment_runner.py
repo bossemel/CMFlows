@@ -42,7 +42,9 @@ def cm_flow_forward(model, data, device):
     loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
     loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
     loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
-
+    assert loss_RealNVP >= 0
+    assert loss_DDSF_1 >= 0
+    assert loss_DDSF_2 >= 0
     loss = loss_RealNVP + loss_DDSF_1 + loss_DDSF_2
     return model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP
 

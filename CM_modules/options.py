@@ -48,19 +48,19 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--marginal_1', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
+            '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
         parser.add_argument(
-            '--marginal_2', default='gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
+            '--marginal_2', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, required=False, help='theta for copula sampling')
+            '--theta', type=float, default=2, help='theta for copula sampling')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
-            '--alpha', type=float, required=False, help='alpha for gamma distribution')
+            '--alpha', type=float, default=5, help='alpha for gamma distribution')
 
         # Options RealNVP
         parser.add_argument(
@@ -88,9 +88,9 @@ class TrainOptions():
         parser.add_argument(
             '--beta2', type=float, default=0.999)
         parser.add_argument(
-            '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
+            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
-            '--var', type=float, required=False, help='var for marginal gaussian distribution')
+            '--var', type=float, default=1, help='var for marginal gaussian distribution')
 
         # Save options
         parser.add_argument(

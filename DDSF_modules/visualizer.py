@@ -36,9 +36,6 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000):
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
 
-        # if args.marginal == 'bimodal_gaussian':
-        #     fig.legend(bbox_to_anchor=(0, 0, 0.445, 0.97), fontsize=20)
-        # else:
         fig.legend(bbox_to_anchor=(0, 0, 0.97, 0.97), fontsize=20)
         fig.tight_layout()
 

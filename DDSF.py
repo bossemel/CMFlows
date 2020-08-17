@@ -6,6 +6,8 @@ import torch.nn as nn
 from pathlib import Path
 import random
 import torch.optim as optim
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from DDSF_modules import nn_modules as nn_, flows
 from DDSF_modules.utils import load_data
@@ -47,6 +49,34 @@ def build_model(args):
     model = MAF(args, *sequels)
     return model
 
+
+def visualize_DDSF_output(model, dataset, args):
+    with torch.no_grad():
+        vizdata = torch.tensor(dataset.trn)
+        n = vizdata.shape[0]
+        context = torch.FloatTensor(n, 1).zero_().to(args.device)
+        logdets = torch.FloatTensor(n).zero_().to(args.device)
+        vizdata, __, __ = model.forward((vizdata, logdets, context))
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        vizdata_uniform = normal_distr.cdf(vizdata)
+        fig = plt.figure(figsize=(8, 6))
+
+        sns.distplot(vizdata)
+        plt.xlabel('x', fontsize=20)
+        plt.ylabel('Probability', fontsize=20)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        fig.savefig(os.path.join(args.figures_path, 'DDSF_output' + '.pdf'), dpi=300, bbox_inches='tight')
+        fig = plt.figure(figsize=(8, 6))
+
+        sns.distplot(vizdata_uniform)
+        plt.xlabel('x', fontsize=20)
+        plt.ylabel('Probability', fontsize=20)
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        fig.savefig(os.path.join(args.figures_path, 'DDSF_output_uniform' + '.pdf'), dpi=300, bbox_inches='tight')
+        #visualize_joint(vizdata, args, name='DDSF_output')
+        #visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
 
 def random_search(args):
     results_dict = {}
@@ -235,6 +265,7 @@ if __name__ == '__main__':
         model = load_model(model, args.experiment_saved_models, 'train_model',
                            best_dict['best_validation_epoch'])
 
+        visualize_DDSF_output(model, dataset, args)
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
                        test_dict.items()}  # save test set metrics in dict format

@@ -26,11 +26,11 @@ class TrainOptions():
         parser.add_argument(
             '--num-blocks', type=int, default=4, help='number of invertible blocks')
         parser.add_argument(
-            '--obs', type=int, default=3000, help='How many data samples to generate')
+            '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, required=False, help='theta for copula sampling')
+            '--theta', type=float, default=2, help='theta for copula sampling')
         parser.add_argument(
             '--num_hidden_RealNVP', type=int, default=512, help='number of hidden units')
         parser.add_argument(

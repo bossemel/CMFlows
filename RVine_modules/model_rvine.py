@@ -307,6 +307,7 @@ class RVine():
                     # inverse H-function
                     transformed_marginal = self.model_con.transform(inputs=v1, cond_inputs=v0, mode='inverse', device=self.args.device)
                     samples[:, conditioned_node:conditioned_node + 1] = transformed_marginal
+
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
