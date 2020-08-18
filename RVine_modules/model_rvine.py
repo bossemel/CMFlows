@@ -97,19 +97,22 @@ class RVine():
                 dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
                 assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
-                print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-                best_dict = train_marginal_flow(self.args,
-                                                self.model_marg,
-                                                dataset,
-                                                data_loaders,
-                                                save_name=node,
-                                                add_name='marginal')
-                model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-                with torch.no_grad():
-                    self.data = self.data.to(self.args.device)
-                    transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
-                    self.data = self.data.cpu()
-                    self.current_graph.nodes[node]['best_dict'] = best_dict
+                if not self.args.marginal == 'uniform':
+                    print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
+                    best_dict = train_marginal_flow(self.args,
+                                                    self.model_marg,
+                                                    dataset,
+                                                    data_loaders,
+                                                    save_name=node,
+                                                    add_name='marginal')
+                    model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+                    with torch.no_grad():
+                        self.data = self.data.to(self.args.device)
+                        transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                        self.data = self.data.cpu()
+                        self.current_graph.nodes[node]['best_dict'] = best_dict
+                else:
+                    transformed_inputs = self.data[:, node:node + 1].float().cpu()
 
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
 
@@ -206,9 +209,10 @@ class RVine():
             paired_tree_edges = combinations(list(self.current_tree.edges), 2)
             cm_flow_estimation(len(self.current_graph.nodes()))
             self.current_graph = self.new_graph
-            paired_nodes = combinations(list(self.current_graph.nodes), 2)
-            for e in paired_nodes:
-                self.current_graph.add_edge(*e)
+            # paired_nodes = combinations(list(self.current_graph.nodes), 2)
+            # @Todo: this is the problem!
+            # for e in paired_nodes:
+            #     self.current_graph.add_edge(*e)
             for edge in self.current_graph.edges():
                 n0, n1 = edge
                 ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),

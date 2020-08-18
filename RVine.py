@@ -112,5 +112,5 @@ if __name__ == '__main__':
             vis_samples = normal_distr.cdf(samples[:, pair])
             visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]+1), axis_2_name='X{}'.format(pair[1]+1))
             visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair))
+            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]+1), axis_2_name='X{}'.format(pair[1]+1))
 
