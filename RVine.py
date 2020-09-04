@@ -43,10 +43,12 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
+    # Set number of obs for visualizations
+    args.viz_obs = 100000
+
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
-    untransformed_samples = pv_cop.simulate(100000)
-    # dataset_trn = torch.randn(1000, 4)
+    untransformed_samples = pv_cop.simulate(args.viz_obs)
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)
@@ -59,7 +61,7 @@ if __name__ == '__main__':
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
-        rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+        rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
         # Save results
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -70,7 +72,7 @@ if __name__ == '__main__':
     else:
         rv = RVine(args=args, data=dataset_trn)
         rv.estimate_rvine()
-        rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+        rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
 
         test_losses = {key: [np.mean(value)] for key, value in
                        rv.results_dict.items()}  # save test set metrics in dict format
@@ -80,7 +82,7 @@ if __name__ == '__main__':
         for ii in range(1, 11):
             rv = RVine(args=args, data=dataset_trn)
             rv.estimate_rvine(plots=False)
-            rv.jsd_vinecopula(args, rv, pv_cop, obs=100000)
+            rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
 
             test_losses = {key: [np.mean(value)] for key, value in
                            rv.results_dict.items()}  # save test set metrics in dict format
@@ -103,14 +105,13 @@ if __name__ == '__main__':
 
     # Simulate Distribution
     if not args.error_bars:
-        samples = rv.sample(num_samples=100000)
+        samples = rv.sample(num_samples=args.viz_obs)
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
         normal_distr = torch.distributions.normal.Normal(0, 1)
         for pair in paired_dims:
             vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]+1), axis_2_name='X{}'.format(pair[1]+1))
+            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
             visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]+1), axis_2_name='X{}'.format(pair[1]+1))
-
+            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))

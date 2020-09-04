@@ -1,4 +1,4 @@
-# Copula and Marginal Generative Flows
+# CM Flows - Copula Density Estimation With Normalizing Flows
 
 ## Installation
 
@@ -8,6 +8,12 @@ python3 -m venv .env
 source .env/bin/activate
 pip3 install -r requirements.txt
 pip3 install -e .
+```
+
+On some systems, the package ```pyvinecopulib``` has to be installed using:
+
+```
+pip3 install --user --no-binary 'pyvinecopulib' pyvinecopulib
 ```
 
 ## To run the copula flow:

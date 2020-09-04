@@ -28,7 +28,6 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
 
     # Prob X in both distributions
     prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-    # torch.exp(self.log_density_RealNVP(samples_pred)).numpy()
     prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
 
     # Prob Y in both distributions

@@ -75,8 +75,7 @@ def visualize_DDSF_output(model, dataset, args):
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         fig.savefig(os.path.join(args.figures_path, 'DDSF_output_uniform' + '.pdf'), dpi=300, bbox_inches='tight')
-        #visualize_joint(vizdata, args, name='DDSF_output')
-        #visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
+
 
 def random_search(args):
     results_dict = {}

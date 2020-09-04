@@ -54,7 +54,6 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, model_type=''
                   item, label='{}'.format(k))
 
     ax_1.legend(loc=0)
-    # plt.set_title('Copula Flow Training', fontsize=16)
     ax_1.set_ylabel('Loss', fontsize=16)
     ax_1.set_xlabel('Epoch', fontsize=16)
 

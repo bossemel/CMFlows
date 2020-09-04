@@ -112,7 +112,9 @@ class RVine():
                         self.data = self.data.cpu()
                         self.current_graph.nodes[node]['best_dict'] = best_dict
                 else:
-                    transformed_inputs = self.data[:, node:node + 1].float().cpu()
+                    self.data = self.data.to(self.args.device)
+                    transformed_inputs = self.data[:, node:node + 1].float().to(self.args.device)
+                    self.data = self.data.cpu()
 
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
 
@@ -416,13 +418,9 @@ class Rvine_data():
     def __init__(self, dim1, dim2):
         self.xx = torch.cat([dim1.reshape(-1, 1), dim2.reshape(-1, 1)], axis=1)
         trn, val = split_train_val_test(self.xx, only_val=True)
-        # trn = torch.from_numpy(trn)
-        # val = torch.from_numpy(val)
-        # tst = torch.from_numpy(tst)
 
         self.trn = trn.float().cpu()
         self.val = val.float().cpu()
-        # self.tst = tst.float().cpu()
 
 
 def create_dataset(dim1, dim2, args):
@@ -448,16 +446,8 @@ def create_dataset(dim1, dim2, args):
         drop_last=False,
         **kwargs)
 
-    # test_loader = torch.utils.data.DataLoader(
-    #     test_dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     drop_last=False,
-    #     **kwargs)
-
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader}
-                    #'test_loader': test_loader}
     return dataset, data_loaders
 
 
@@ -470,21 +460,15 @@ class Rvine_data_1dim():
 
         self.trn = trn.float()
         self.val = val.float()
-        # self.tst = tst.float()
 
 
 def create_dataset_1dim(inputs, args):
     dataset = Rvine_data_1dim(inputs)
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    # train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(dataset.trn)
 
-    # valid_tensor = torch.from_numpy(dataset.val)
     valid_dataset = torch.utils.data.TensorDataset(dataset.val)
-
-    # test_tensor = torch.from_numpy(dataset.tst)
-    # test_dataset = torch.utils.data.TensorDataset(dataset.tst)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
@@ -496,14 +480,6 @@ def create_dataset_1dim(inputs, args):
         drop_last=False,
         **kwargs)
 
-    # test_loader = torch.utils.data.DataLoader(
-    #     test_dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     drop_last=False,
-    #     **kwargs)
-
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader}
-                    #'test_loader': test_loader}
     return dataset, data_loaders

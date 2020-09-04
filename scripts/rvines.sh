@@ -1,13 +1,13 @@
 set -e
-echo 'Begin Mix Copula Rvine: RVine_mix'
+# echo 'Begin Mix Copula Rvine: RVine_mix'
 
-python RVine.py \
---exp_name RVine_mix \
---epochs 50 \
---batch-size 100 \
---marginal bimodal_gaussian \
---obs 10000 \
---mix
+# python RVine.py \
+# --exp_name RVine_mix \
+# --epochs 50 \
+# --batch-size 100 \
+# --marginal bimodal_gaussian \
+# --obs 10000 \
+# --mix
 
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
@@ -19,22 +19,22 @@ python RVine.py \
 --marginal bimodal_gaussian \
 --obs 10000
 
-echo 'Begin Frank Copula Rvine: RVine_frank'
+# echo 'Begin Frank Copula Rvine: RVine_frank'
 
-python RVine.py \
---exp_name RVine_frank \
---epochs 50 \
---batch-size 100 \
---copula frank \
---marginal bimodal_gaussian \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_frank \
+# --epochs 50 \
+# --batch-size 100 \
+# --copula frank \
+# --marginal bimodal_gaussian \
+# --obs 10000
 
-echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
+# echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
-python RVine.py \
---exp_name RVine_gumbel \
---epochs 50 \
---batch-size 100 \
---copula gumbel \
---marginal bimodal_gaussian \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_gumbel \
+# --epochs 50 \
+# --batch-size 100 \
+# --copula gumbel \
+# --marginal bimodal_gaussian \
+# --obs 10000

@@ -46,14 +46,6 @@ class FlowSequential(nn.Sequential):
         density = flow_density(outputs, log_jacob)
         return density
 
-    # def log_density_uniform(self, inputs, cond_inputs=None):
-    #     """Calculates log density of the flow
-    #     """
-    #     outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
-    #     density = flow_density(outputs, log_jacob)
-    #     #density = transform_to_uniform(density)
-    #     return density
-
     def loss(self, inputs, cond_inputs=None):
         """Return negative log likelihood/density
         """

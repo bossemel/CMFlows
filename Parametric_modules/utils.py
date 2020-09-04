@@ -1,5 +1,5 @@
-import torch
 import datasets.distributions
+
 
 def load_data(args):
     """Data Loader
@@ -13,17 +13,7 @@ def load_data(args):
         num_inputs: dimensions of data
         data_loaders: dictionary containing train, val and test set loader
     """
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     dataset = datasets.distributions.Joint_Distr(args, no_val=True)
-
-    # train_tensor = torch.from_numpy(dataset.trn)
-    # train_dataset = torch.utils.data.TensorDataset(train_tensor)
-
-    # valid_tensor = torch.from_numpy(dataset.val)
-    # valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
-
-    # test_tensor = torch.from_numpy(dataset.tst)
-    # test_dataset = torch.utils.data.TensorDataset(test_tensor)
 
     return dataset

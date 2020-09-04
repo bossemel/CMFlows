@@ -1,5 +1,5 @@
 import scipy.stats
-from utils import js_divergence, js_divergence_grid
+from utils import js_divergence
 
 
 if __name__ == '__main__':
@@ -34,9 +34,9 @@ if __name__ == '__main__':
     print('Should be bigger:')
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
 
-    # 2nd case:
+    # 3rd case:
     mv_gaussian_2 = mvnorm = scipy.stats.multivariate_normal(mean=[10000, 10000], cov=[[10000., 0.5],
-                                                                               [0.5, 10000.]])
+                                                                                       [0.5, 10000.]])
     samples_2 = mv_gaussian_2.rvs(100000)
 
     X_in_p = mv_gaussian.pdf(samples)
@@ -46,10 +46,3 @@ if __name__ == '__main__':
 
     print('Should be even bigger:')
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
-
-
-
-    # print("should be different:")
-    # print(distributions_js_stackoverflow(scipy.stats.norm(loc=10000), scipy.stats.norm(loc=0)))
-    # print("should be same:")
-    # print(distributions_js_stackoverflow(scipy.stats.norm(loc=0), scipy.stats.norm(loc=0)))
