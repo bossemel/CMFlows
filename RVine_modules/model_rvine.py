@@ -32,6 +32,8 @@ def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, nu
 
 
 def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name):
+    """ Trains marginal flow and saved the results with the given save_name.
+    """
     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
     __, best_dict, __ = DDSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
     return best_dict
@@ -65,14 +67,22 @@ class RVine():
         self.graph_list = []
         self.tree_list = []
         self.num_inputs = data.shape[1]
+
+        # Initialize unconditional copula Flow
         self.args.conditional_copula = False
         self.model_uncon = RealNVP_build_model(args)
+        self.model_uncon.to(args.device)
+
+        # Initialize conditional copula Flow
         self.args.conditional_copula = True
         self.model_con = RealNVP_build_model(args)
-        self.model_marg = DDSF_build_model(args)
-        self.model_uncon.to(args.device)
         self.model_con.to(args.device)
+
+        # Initialize marginal flow
+        self.model_marg = DDSF_build_model(args)
         self.model_marg.to(args.device)
+
+        # Initialize empty results dictionary
         self.results_dict = {}
 
     def estimate_rvine(self, plots=True):
@@ -87,47 +97,60 @@ class RVine():
             # create fully connected graph
             self.current_graph = nx.complete_graph(self.data.shape[1])
 
-            # get normal distribution for transformations
-            self.norm = scipy.stats.norm(loc=0, scale=1)
-
             # distribute data pairs onto edges of the first tree, compute tau
             # and weights for each edge
 
             for node in self.current_graph.nodes():
+                # Prepare dataset for node
                 dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
+
                 assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
-                if not self.args.marginal == 'uniform':
+                # Unless marginal flows are disables, transform distributions using the marginal flow
+                if not self.args.disable_marginal:
+
                     print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-                    best_dict = train_marginal_flow(self.args,
-                                                    self.model_marg,
-                                                    dataset,
-                                                    data_loaders,
+
+                    # Train marginal flow
+                    best_dict = train_marginal_flow(args=self.args,
+                                                    model=self.model_marg,
+                                                    dataset=dataset,
+                                                    data_loaders=data_loaders,
                                                     save_name=node,
                                                     add_name='marginal')
+
+                    # Load best model for marginal flow
                     model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+
+                    # Transform inputs using the trained marginal flow
                     with torch.no_grad():
                         self.data = self.data.to(self.args.device)
                         transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
                         self.data = self.data.cpu()
-                        self.current_graph.nodes[node]['best_dict'] = best_dict
+                        self.current_graph.nodes[node]['best_dict'] = best_dict # @Todo: am i using this?
+
+                # if marginal flows are disabled, do not transform the inputs
                 else:
                     self.data = self.data.to(self.args.device)
                     transformed_inputs = self.data[:, node:node + 1].float().to(self.args.device)
                     self.data = self.data.cpu()
 
+                # save transformed inputs in graph node
                 self.current_graph.nodes[node]['cond_distr'] = transformed_inputs
 
                 assert not np.isnan(torch.sum(transformed_inputs).cpu()), '{}'.format(transformed_inputs[:10])
 
+            # for each node pair, compute kendalls tau between the transformed inputs
             for edge in self.current_graph.edges():
                 n0, n1 = edge
 
                 ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),
                                                   self.current_graph.nodes[n1]['cond_distr'].cpu())
+
                 assert not np.isnan(ktau), '{}'.format(ktau)
+
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
-                print('ktau', n0, n1, np.abs(ktau))
+
             self.graph_list.append(self.current_graph)
 
         def cm_flow_estimation(num_current_nodes):
@@ -205,16 +228,36 @@ class RVine():
         # initialize graph and transform marginals using marginal flows
         initialize_graph()
 
+        # get normal distribution for transformations
+        self.norm = scipy.stats.norm(loc=0, scale=1)
+
+        # create new tree as long as current graph has 1 or more nodes
         while len(self.current_graph.nodes()) >= 1:
+
+            # calculate the tree which maximizes the k-tau dependency of the graph
             self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight', algorithm='prim')
+
             self.tree_list.append(self.current_tree)
-            paired_tree_edges = combinations(list(self.current_tree.edges), 2)
+
+            # create a list of all edges which share a node
+            paired_tree_edges = []
+            for node in self.current_tree.nodes:
+                edges = list(self.current_tree.edges(nbunch=node, data=False))
+                print(edges)
+                if len(edges) == 2:
+                    paired_tree_edges.append(tuple(edges))
+                elif len(edges) > 2:
+                    paired_tree_edges.extend(combinations(edges, 2))
+
+            print(paired_tree_edges)
+
+            # estimate the copulas on the edges
             cm_flow_estimation(len(self.current_graph.nodes()))
             self.current_graph = self.new_graph
-            # paired_nodes = combinations(list(self.current_graph.nodes), 2)
+            paired_nodes = combinations(list(self.current_graph.nodes), 2)
             # @Todo: this is the problem!
-            # for e in paired_nodes:
-            #     self.current_graph.add_edge(*e)
+            for e in paired_nodes:
+                self.current_graph.add_edge(*e)
             for edge in self.current_graph.edges():
                 n0, n1 = edge
                 ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['cond_distr'].cpu(),

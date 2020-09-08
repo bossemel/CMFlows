@@ -33,6 +33,8 @@ class TrainOptions():
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+        parser.add_argument(
+            '--disable_marginal', action='store_true', default=False, help='disables marginal flow projection')
 
         # Dataset options
         parser.add_argument(
