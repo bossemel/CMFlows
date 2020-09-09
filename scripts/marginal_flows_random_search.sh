@@ -3,7 +3,7 @@ echo 'Bimodal Gaussian - random Search'
 
 python DDSF.py \
 --exp_name DDSF_bimodal_gaussian_random_search \
---epochs 50 \
+--epochs 100 \
 --marginal bimodal_gaussian \
 --batch-size 100 \
 --obs 10000 \

@@ -77,6 +77,7 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
     else:
         losses = model.loss(data)
         loss = losses.mean()
+        del losses
 
     return model, loss
 
@@ -131,15 +132,22 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss_DDSF_2.backward(retain_graph=True)
             loss_RealNVP.backward()
 
-            model.clip_grad_norm()
+            # @Todo: if args.?
+            if args.clip_grad_norm:
+                model.clip_grad_norm()
 
         else:
-            model, loss = single_model_forward(args,
-                                               model,
-                                               model_name,
-                                               data,
-                                               transform_inputs,
-                                               device)
+            if model_name in ['DDSF_1', 'DDSF_2', 'RealNVP']:
+                model, loss = single_model_forward(args,
+                                                   model,
+                                                   model_name,
+                                                   data,
+                                                   transform_inputs,
+                                                   device)
+
+            else:
+                losses = model.loss(data)
+                loss = losses.mean()
 
             if 'train_loss' in current_epoch_losses:
                 current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
