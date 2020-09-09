@@ -101,25 +101,27 @@ def random_search(args):
                                                                     args.dimh_DDSF,
                                                                     args.num_ds_dim,
                                                                     args.num_ds_layers))
-            try:
-                with HiddenPrints():
-                    __, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                              disable_tqdm=True,
-                                                                              grid_search=True)
-                results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                     current_best_dict['best_validation_loss'])
-                print(results_dict[current_hyperparams])
-                with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                    f.write(str(results_dict))
-                if current_best_dict['best_validation_loss'] < best_loss:
-                    best_loss = current_best_dict['best_validation_loss']
-                    best_hyperparams = current_hyperparams
-                    best_dict = current_best_dict
-                tested_combinations.append(current_hyperparams)
-                ii += 1
-            except:
-                print('Error for {}'.format(current_hyperparams))
-                ii += 1
+            # try:
+            with HiddenPrints():
+                __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                          dataset=dataset,
+                                                                          data_loaders=data_loaders,
+                                                                          disable_tqdm=True,
+                                                                          grid_search=True)
+            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                 current_best_dict['best_validation_loss'])
+            print(results_dict[current_hyperparams])
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                f.write(str(results_dict))
+            if current_best_dict['best_validation_loss'] < best_loss:
+                best_loss = current_best_dict['best_validation_loss']
+                best_hyperparams = current_hyperparams
+                best_dict = current_best_dict
+            tested_combinations.append(current_hyperparams)
+            ii += 1
+            # except:
+            #     print('Error for {}'.format(current_hyperparams))
+            #     ii += 1
     print('Random search complete for {}'.format(args.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))

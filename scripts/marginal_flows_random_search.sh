@@ -7,8 +7,7 @@ python DDSF.py \
 --marginal bimodal_gaussian \
 --batch-size 100 \
 --obs 10000 \
---random_search \
---early_stopping
+--random_search
 
 # echo 'Gaussian - random Search'
 
