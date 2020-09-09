@@ -6,7 +6,7 @@ python DDSF.py \
 --epochs 100 \
 --marginal bimodal_gaussian \
 --batch-size 100 \
---obs 10000
+--obs 100000
 
 # echo 'Gaussian'
 
