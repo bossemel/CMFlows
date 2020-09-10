@@ -83,10 +83,10 @@ def random_search(args):
     best_loss = 1000
     ii = 0
     while ii < 50:
-        args.num_flow_layers_DDSF = np.random.choice(range(1, 11)) # 2**np.random.choice(range(5))
-        args.num_hid_layers_DDSF = np.random.choice(range(1, 11)) #2**np.random.choice(range(5))
+        args.num_flow_layers_DDSF = np.random.choice(range(1, 5)) # 2**np.random.choice(range(5))
+        args.num_hid_layers_DDSF = np.random.choice(range(1, 5)) #2**np.random.choice(range(5))
         args.dimh_DDSF = 2**np.random.choice(range(5))
-        args.num_ds_dim = np.random.choice(range(1, 11)) # 2**np.random.choice(range(10))
+        args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
         args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
         args.weight_decay = 1 / 10**(np.random.choice(range(5)))
         args.clip_grad_norm = np.random.choice([True, False])
