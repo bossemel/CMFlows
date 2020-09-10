@@ -88,9 +88,10 @@ def random_search(args):
         args.dimh_DDSF = 2**np.random.choice(range(5))
         args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
         args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
-        args.weight_decay = 1 / 10**(np.random.choice(range(5)))
         args.clip_grad_norm = np.random.choice([True, False])
-        args.lr = 1 / 10**(np.random.choice(range(2, 10)))
+        lr_number = np.random.choice(range(2, 10))
+        args.lr = 1 / 10**lr_number
+        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 5)))
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
