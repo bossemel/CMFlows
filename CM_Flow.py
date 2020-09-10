@@ -52,12 +52,8 @@ def visualize_DDSF_output(model, dataset, args):
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
         normal_distr = torch.distributions.normal.Normal(0, 1)
         vizdata_uniform = normal_distr.cdf(vizdata)
-        if args.cuda:
-            visualize_joint(vizdata, args, name='DDSF_output')
-            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
-        else:
-            visualize_joint(vizdata, args, name='DDSF_output')
-            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
+        visualize_joint(vizdata, args, name='DDSF_output')
+        visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
 
 
 def visualize_RealNVP_output(model, dataset, args):
