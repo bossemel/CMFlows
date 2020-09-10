@@ -9,8 +9,7 @@ python CM_Flow.py \
 --marginal_1 bimodal_gaussian \
 --marginal_2 bimodal_gaussian \
 --theta 2 \
---alpha 5 \
---obs 100000 \
+--obs 10000 \
 --pretrain_models
 
 # echo 'Begin Copula: Clayton, Marginal: bimodal_gaussian, CM Flow only'

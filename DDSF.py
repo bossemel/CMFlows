@@ -90,6 +90,7 @@ def random_search(args):
         args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
         args.weight_decay = 1 / 10**(np.random.choice(range(5)))
         args.clip_grad_norm = np.random.choice([True, False])
+        args.lr = 1 / 10**(np.random.choice(range(2, 10)))
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
@@ -97,17 +98,19 @@ def random_search(args):
                                args.num_ds_dim,
                                args.num_ds_layers,
                                args.weight_decay,
-                               args.clip_grad_norm)
+                               args.clip_grad_norm,
+                               args.lr)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
-                Weight Decay: {}, Gradient clipping: {}'.format(args.num_flow_layers_DDSF,
-                                                                args.num_hid_layers_DDSF,
-                                                                args.dimh_DDSF,
-                                                                args.num_ds_dim,
-                                                                args.num_ds_layers,
-                                                                args.weight_decay,
-                                                                args.clip_grad_norm))
+                Weight Decay: {}, Gradient clipping: {}, Learning Rate: {}'.format(args.num_flow_layers_DDSF,
+                                                                                   args.num_hid_layers_DDSF,
+                                                                                   args.dimh_DDSF,
+                                                                                   args.num_ds_dim,
+                                                                                   args.num_ds_layers,
+                                                                                   args.weight_decay,
+                                                                                   args.clip_grad_norm,
+                                                                                   args.lr))
             # try:
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,

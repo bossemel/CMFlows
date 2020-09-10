@@ -38,7 +38,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -72,15 +72,15 @@ class TrainOptions():
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=5)
+            '--num_flow_layers_DDSF', type=int, default=1)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=1)
+            '--num_hid_layers_DDSF', type=int, default=4)
         parser.add_argument(
-            '--num_ds_dim', type=int, default=16)
+            '--num_ds_dim', type=int, default=4)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=2)
+            '--num_ds_layers', type=int, default=4)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=128)
+            '--dimh_DDSF', type=int, default=4)
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
