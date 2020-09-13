@@ -6,7 +6,7 @@ import datasets
 import seaborn as sns
 
 
-def visualize1D(model, epoch, args, best_val=False, obs=10000):
+def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
     """Visualizes the true and predicted marginals.
 
     Params:
@@ -40,6 +40,6 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000):
         fig.tight_layout()
 
         if not best_val:
-            fig.savefig(os.path.join(args.figures_path, 'epoch_{}.pdf'.format(epoch)), dpi=300, bbox_inches='tight')
+            fig.savefig(os.path.join(args.figures_path, 'epoch_{}_{}.pdf'.format(epoch, name)), dpi=300, bbox_inches='tight')
         else:
-            fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(epoch)), dpi=300, bbox_inches='tight')
+            fig.savefig(os.path.join(args.figures_path, 'epoch_{}_{}_bestval.pdf'.format(epoch, name)), dpi=300, bbox_inches='tight')

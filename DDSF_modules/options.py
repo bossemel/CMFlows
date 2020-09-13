@@ -48,7 +48,7 @@ class TrainOptions():
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
-            '--lr', type=float, default=0.0001)
+            '--lr', type=float, default=1e-05)
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
@@ -69,9 +69,11 @@ class TrainOptions():
         parser.add_argument(
             '--random_search', action='store_true', help='random search over hyperparameters')
         parser.add_argument(
-            '--weight_decay', type=int, default=0.01, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         self.initialized = True
         return parser

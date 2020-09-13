@@ -484,8 +484,6 @@ def train_val(model, model_name, args, data_loaders, dataset,
         if not error_bars and not grid_search and not rvine:
             if model_name == 'DDSF':
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
-            elif model_name == 'RealNVP':
-                plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
 
