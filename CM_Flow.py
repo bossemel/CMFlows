@@ -114,7 +114,11 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        print(model.model_DDSF_1.parameters())
+
+        for param in model.model_DDSF_2.parameters():
+            param.requires_grad = False
+        for param in model.model_RealNVP.parameters():
+            param.requires_grad = False
         best_dict_DDSF_1, test_dict = train_val(model=model,
                                                 model_name='DDSF_1',
                                                 args=args,
@@ -134,6 +138,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                     name='DDSF_1')
         for param in model.model_DDSF_1.parameters():
             param.requires_grad = False
+        for param in model.model_DDSF_2.parameters():
+            param.requires_grad = True
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_dict_DDSF_2, test_dict = train_val(model=model,
                                                 model_name='DDSF_2',
@@ -158,6 +164,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         for param in model.model_DDSF_2.parameters():
             param.requires_grad = False
+        for param in model.model_RealNVP.parameters():
+            param.requires_grad = True
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_dict_RealNVP, test_dict = train_val(model,

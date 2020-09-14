@@ -91,6 +91,10 @@ class TrainOptions():
             '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
             '--var', type=float, default=1, help='var for marginal gaussian distribution')
+        parser.add_argument(
+            '--low', type=float, default=0, help='lower bound for uniform distribution')
+        parser.add_argument(
+            '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
         # Save options
         parser.add_argument(
