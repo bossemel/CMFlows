@@ -35,6 +35,8 @@ class TrainOptions():
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
         parser.add_argument(
             '--disable_marginal', action='store_true', default=False, help='disables marginal flow projection')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         # Dataset options
         parser.add_argument(
@@ -45,6 +47,8 @@ class TrainOptions():
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
+        parser.add_argument(
+            '--alpha', type=float, default=5, help='alpha for gamma distribution')
 
         # Options RealNVP
         parser.add_argument(
@@ -56,15 +60,15 @@ class TrainOptions():
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=5)
+            '--num_flow_layers_DDSF', type=int, default=3)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=1)
+            '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
             '--num_ds_dim', type=int, default=16)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=2)
+            '--num_ds_layers', type=int, default=4)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=128)
+            '--dimh_DDSF', type=int, default=8)
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
@@ -72,9 +76,13 @@ class TrainOptions():
         parser.add_argument(
             '--beta2', type=float, default=0.999)
         parser.add_argument(
-            '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
+            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
-            '--var', type=float, required=False, help='var for marginal gaussian distribution')
+            '--var', type=float, default=1, help='var for marginal gaussian distribution')
+        parser.add_argument(
+            '--low', type=float, default=0, help='lower bound for uniform distribution')
+        parser.add_argument(
+            '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
         # Save options
         parser.add_argument(

@@ -95,6 +95,8 @@ class TrainOptions():
             '--low', type=float, default=0, help='lower bound for uniform distribution')
         parser.add_argument(
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         # Save options
         parser.add_argument(
