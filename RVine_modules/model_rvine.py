@@ -15,6 +15,15 @@ from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_buil
 
 
 def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
+    """Loads model weights of a given epoch.
+
+    Params:
+        model: the model to load
+        args: parsed arguments
+        edge: edge for which the model was trained
+        add_name: additional name, usually 'uncon' or 'con'
+        send_to_device: whether to send the model to the device (Cuda or CPU)
+    """
     edge_str = re.sub('[, ()]', '', str(edge))
     model_load_name = 'best_epoch_model' + edge_str + add_name
     load_model(model, args.experiment_saved_models, model_load_name, epoch)
@@ -23,16 +32,36 @@ def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
     model.eval()
 
 
-def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, num_current_nodes, save_name, add_name):
+def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, save_name, add_name):
+    """Trains the copula flow and returns a dicitionary with the best epoch.
+
+    Params:
+        args: passed arguments
+        model: the model to train
+        dataset: current dataset
+        data_loaders: train, val and test set data loaders
+        conditional_copula: boolean indicating whether unconditional und conditional copula flow is trained
+        save_name: name under which to save the model (edge name)
+        add_name: additional name to save the model under (usually 'uncon' or 'con')
+
+    Returns:
+        best_dict: dictionary indicating the best validation epoch
+    """
     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
     args.conditional_copula = conditional_copula
-    # rvine = True if num_current_nodes > 2 else False
     __, best_dict, __ = RealNVP_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
     return best_dict
 
 
 def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name):
     """ Trains marginal flow and saved the results with the given save_name.
+
+    Params:
+        args: passed arguments
+        model: model to train
+        dataset, dataloaders: current data set, with train/val/test set data loaders
+        save_name: name under which to save the model
+        add_name: additional name, usually 'uncon' or 'con'
     """
     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
     __, best_dict, __ = DDSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
@@ -40,6 +69,8 @@ def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name)
 
 
 def flatten(nested_tuple):
+    """Flattens a touble.
+    """
     for i in nested_tuple:
         yield from [i] if not isinstance(i, tuple) else flatten(i)
 
@@ -81,7 +112,7 @@ def initialize_graph(self):
                 self.data = self.data.to(self.args.device)
                 transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
                 self.data = self.data.cpu()
-                self.current_graph.nodes[node]['best_dict'] = best_dict # @Todo: am i using this?
+                # self.current_graph.nodes[node]['best_dict'] = best_dict # @Todo: am i using this?
 
         # if marginal flows are disabled, do not transform the inputs
         else:
@@ -113,6 +144,10 @@ def initialize_graph(self):
 def cm_flow_estimation(self, num_current_nodes, plots):
     """Adds attributes 'trained_cm_model' (or name of saved model) and 'copula' to each edge of the current tree.
     Created new graph from these edges as nodes.
+
+    Params:
+        num_current_nodes: size of the current tree
+        plots: boolean to indicate whether plots should be created
     """
     self.new_graph = nx.Graph()
     self.traversed_edges = []
@@ -121,18 +156,25 @@ def cm_flow_estimation(self, num_current_nodes, plots):
             common_node = set(paired_edge[0]).intersection(paired_edge[1])
             if len(common_node) == 1:
                 if paired_edge[0] not in self.traversed_edges:
-                    self = add_new_node(self, common_node, paired_edge[0], num_current_nodes, plots)
+                    self = add_new_node(self, common_node, paired_edge[0], plots)
                     self.traversed_edges.extend([paired_edge[0], tuple(reversed(paired_edge[0]))])
                 if paired_edge[1] not in self.traversed_edges:
-                    self = add_new_node(self, common_node, paired_edge[1], num_current_nodes, plots)
+                    self = add_new_node(self, common_node, paired_edge[1], plots)
                     self.traversed_edges.extend([paired_edge[1], tuple(reversed(paired_edge[1]))])
     if num_current_nodes == 2:
         for edge in self.current_tree.edges:
-            self = add_new_node(self, edge[0], edge, num_current_nodes, plots)
+            self = add_new_node(self, edge[0], edge, plots)
     return self
 
 
-def add_new_node(self, common_node, edge, num_current_nodes, plots):
+def add_new_node(self, common_node, edge, plots):
+    """Trains copula flow betweens two nodes and transforms inputs to create new node.
+
+    Params:
+        common_node: number of the common node, which is unconditional
+        edge: edge to train flow for
+        plots: boolean indicating whether to create plots
+    """
     v0, v1, edge = assign_distr_to_nodes(edge, common_node, self.current_tree)
 
     dataset, data_loaders = create_dataset(v0, v1, self.args)
@@ -147,7 +189,6 @@ def add_new_node(self, common_node, edge, num_current_nodes, plots):
                                       dataset,
                                       data_loaders,
                                       True,
-                                      num_current_nodes,
                                       save_name=edge,
                                       add_name='cop_con')
 
@@ -172,6 +213,17 @@ def add_new_node(self, common_node, edge, num_current_nodes, plots):
 
 
 def assign_distr_to_nodes(edge, common_node, current_tree):
+    """Gives the appropriate data given the edge and the common node
+
+    Params:
+        edge: edge tuple
+        common_node: node of the edge tuple which is unconditional
+        current_tree: current tree
+
+    Returns:
+        v0, v1: data for both edges, v0 being the common node
+        edge: edge, possible switched around to allow the very first entry to be the conditional
+    """
     n0, n1 = edge
     if n0 == common_node or n0 in common_node:
         v0 = current_tree.nodes[n0]['cond_distr']
@@ -239,7 +291,6 @@ class RVine():
             self = cm_flow_estimation(self, len(self.current_graph.nodes()), plots)
             self.current_graph = self.new_graph
             paired_nodes = combinations(list(self.current_graph.nodes), 2)
-            # @Todo: this is the problem!
             for e in paired_nodes:
                 self.current_graph.add_edge(*e)
             for edge in self.current_graph.edges():
@@ -250,6 +301,15 @@ class RVine():
             self.graph_list.append(self.current_graph)
 
     def sample(self, num_samples=1000, transform=False):
+        """Samples from the trained R-Vine.
+
+        Params:
+            num_sampels: how many samples to create
+            transform: whether to transform the outputs using the normal distr. cdf
+
+        Returns:
+            samples
+        """
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             samples = torch.Tensor(num_samples, self.num_inputs).normal_()
@@ -285,8 +345,16 @@ class RVine():
             samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd_vinecopula(self, args, rvine_estimate, true_rvine, obs=100000):
-        """Returns JS-Divergence of the predicted Copula and the true Copula
+    def jsd_vinecopula(self, args, true_rvine, obs=100000):
+        """Returns JS-Divergence of the predicted Copula and the true Copula.
+
+        Params:
+            args: passsed arguments
+            true_rvine: rvine from which the dataset was created
+            obs: how many observations to create
+
+        Returns:
+            divergence: estimated JS-divergence
         """
         with torch.no_grad():
             # Define distributions
@@ -341,22 +409,8 @@ class RVine():
             self.results_dict['MC_JSD Vine Copula'] = divergence
             return divergence
 
-    def plot(self, filename=None):
-        """ @Todo: change description
-        Plot the regular vine structure after sequential estimation
-        via function 'modeling'.
-
-        Parameter
-        ---------
-
-        ntrees : int, optional. The first ntrees of all the vine trees
-                 will be plotted. Default is `0', meaning plotting all
-                 the vine trees.
-
-        filename : string, optional. Default is an empty string
-                   indicating direct output to screen. The plot will
-                   output to the specified directory if a file name
-                   with extension is given.
+    def plot(self):
+        """Plot the regular vine structure after sequential estimation.
         """
         save_path = os.path.join(self.args.figures_path, 'tree_structure' + '.pdf')
         num_trees = len(self.tree_list)
@@ -390,6 +444,17 @@ class Rvine_data():
 
 
 def create_dataset(dim1, dim2, args):
+    """Creates a two dimensional dataset as needed for CM Flows given the data from each edge.
+
+    Params:
+        dim1: data from first dimension
+        dim2: data from second dimension
+        args: passed arguments
+
+    Returns:
+        dataset: full dataset
+        data_loaders: train and validation set data loaders. Test set is not needed at this stage.
+    """
     dataset = Rvine_data(dim1, dim2)
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
@@ -429,6 +494,16 @@ class Rvine_data_1dim():
 
 
 def create_dataset_1dim(inputs, args):
+    """Creates a one dimensional dataset as needed for CM Flows given the data from each edge.
+
+    Params:
+        inputs: inputs data
+        args: passed arguments
+
+    Returns:
+        dataset: full dataset
+        data_loaders: train and validation set data loaders. Test set is not needed at this stage.
+    """
     dataset = Rvine_data_1dim(inputs)
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 

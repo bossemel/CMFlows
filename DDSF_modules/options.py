@@ -55,9 +55,6 @@ class TrainOptions():
             '--beta1', type=float, default=0.9)
         parser.add_argument(
             '--beta2', type=float, default=0.999)
-        #@Todo: remove plot frequency
-        parser.add_argument(
-            '--plot_frequ', type=int, default=10, help='save plots every x epochs')
         parser.add_argument(
             '--low', type=float, required=False)
         parser.add_argument(
