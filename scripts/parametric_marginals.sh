@@ -7,6 +7,7 @@ python parametric.py \
 --assumed_copula gumbel \
 --marginal_1 gamma \
 --marginal_2 gamma \
+--alpha 5 \
 --theta 2 \
 --obs 10000 \
 --error_bars
@@ -17,8 +18,10 @@ python parametric.py \
 --exp_name parametric_frank \
 --copula frank \
 --assumed_copula clayton \
---marginal_1 bimodal_gaussian \
---marginal_2 bimodal_gaussian \
+--marginal_1 gamma \
+--marginal_2 gamma \
+--mu 0 \
+--var 1 \
 --theta 5 \
 --obs 10000 \
 --error_bars
@@ -29,8 +32,10 @@ python parametric.py \
 --exp_name parametric_gumbel \
 --copula gumbel \
 --assumed_copula clayton \
---marginal_1 bimodal_gaussian \
---marginal_2 bimodal_gaussian \
+--marginal_1 gamma \
+--marginal_2 gamma \
+--mu 0 \
+--var 1 \
 --theta 5 \
 --obs 10000 \
 --error_bars

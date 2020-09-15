@@ -35,6 +35,12 @@ class TrainOptions():
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
             '--theta', type=int, required=False)
+        parser.add_argument(
+            '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
+        parser.add_argument(
+            '--var', type=float, default=1, help='Variance of the Gaussian Distribution')
+        parser.add_argument(
+            '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
 
         # Save options
         parser.add_argument(

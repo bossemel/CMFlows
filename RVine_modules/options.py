@@ -20,7 +20,7 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=1e-05, help='learning rate (default: 1e-05)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -28,7 +28,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -60,15 +60,15 @@ class TrainOptions():
 
         # Options DDSF
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=3)
+            '--num_flow_layers_DDSF', type=int, default=5)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=2)
+            '--num_hid_layers_DDSF', type=int, default=1)
         parser.add_argument(
             '--num_ds_dim', type=int, default=16)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=4)
+            '--num_ds_layers', type=int, default=2)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=8)
+            '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
