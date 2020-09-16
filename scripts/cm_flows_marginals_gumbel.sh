@@ -1,37 +1,37 @@
 set -e
-echo 'Begin Copula: gumbel Marginal: uniform Pretrain only'
+# echo 'Begin Copula: gumbel Marginal: uniform Pretrain only'
 
-python CM_Flow.py \
---exp_name CM_Flow_gumbel_uniform_pretr_only \
---epochs 100 \
---batch-size 100 \
---copula gumbel \
---marginal_1 uniform \
---marginal_2 uniform \
---alpha 5 \
---low 0 \
---high 1 \
---theta 2 \
---obs 10000 \
---pretrain_models \
---error_bars
+# python CM_Flow.py \
+# --exp_name CM_Flow_gumbel_uniform_pretr_only \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula gumbel \
+# --marginal_1 uniform \
+# --marginal_2 uniform \
+# --alpha 5 \
+# --low 0 \
+# --high 1 \
+# --theta 2 \
+# --obs 10000 \
+# --pretrain_models \
+# --error_bars
 
 
-echo 'Begin Copula: gumbel Marginal: gaussian Pretrain only'
+# echo 'Begin Copula: gumbel Marginal: gaussian Pretrain only'
 
-python CM_Flow.py \
---exp_name CM_Flow_gumbel_gaussian_pretr_only \
---epochs 100 \
---batch-size 100 \
---copula gumbel \
---marginal_1 gaussian \
---marginal_2 gaussian \
---mu 0 \
---var 1 \
---theta 5 \
---obs 10000 \
---pretrain_models \
---error_bars
+# python CM_Flow.py \
+# --exp_name CM_Flow_gumbel_gaussian_pretr_only \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula gumbel \
+# --marginal_1 gaussian \
+# --marginal_2 gaussian \
+# --mu 0 \
+# --var 1 \
+# --theta 5 \
+# --obs 10000 \
+# --pretrain_models \
+# --error_bars
 
 
 echo 'Begin Copula: gumbel Marginal: gamma Pretrain only'

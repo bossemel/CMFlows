@@ -90,7 +90,7 @@ class CMFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, transform_fct, obs=1000, cm_flow=False):
+    def jsd(self, args, inputs, cond_inputs=None, transform_fct='gaussian', obs=1000, cm_flow=False):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
         with torch.no_grad():

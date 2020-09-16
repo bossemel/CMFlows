@@ -22,7 +22,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
+            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'gaussian'])
         parser.add_argument(
             '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
         parser.add_argument(
