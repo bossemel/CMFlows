@@ -60,6 +60,8 @@ def fit_copula(args, data):
         cop = copulae.archimedean.FrankCopula(dim=2)
     elif args.assumed_copula == 'gumbel':
         cop = copulae.archimedean.GumbelCopula(dim=2)
+    elif args.assumed_copula == 'gaussian':
+        cop = copulae.elliptical.GaussianCopula(dim=2)
     else:
         raise ValueError('Assumed copula not in list')
     cop.fit(dataset.trn)

@@ -30,15 +30,15 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=1e-05, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
+            '--random_seed', type=int, default=58094, help='random seed')
         parser.add_argument(
-            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -91,6 +91,12 @@ class TrainOptions():
             '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
             '--var', type=float, default=1, help='var for marginal gaussian distribution')
+        parser.add_argument(
+            '--low', type=float, default=0, help='lower bound for uniform distribution')
+        parser.add_argument(
+            '--high', type=float, default=1, help='upper bound for uniform distirbution')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         # Save options
         parser.add_argument(

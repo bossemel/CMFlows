@@ -20,7 +20,7 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=1e-05, help='learning rate (default: 1e-05)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -28,11 +28,15 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+        parser.add_argument(
+            '--disable_marginal', action='store_true', default=False, help='disables marginal flow projection')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         # Dataset options
         parser.add_argument(
@@ -43,6 +47,8 @@ class TrainOptions():
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
+        parser.add_argument(
+            '--alpha', type=float, default=5, help='alpha for gamma distribution')
 
         # Options RealNVP
         parser.add_argument(
@@ -70,9 +76,13 @@ class TrainOptions():
         parser.add_argument(
             '--beta2', type=float, default=0.999)
         parser.add_argument(
-            '--mu', type=float, required=False, help='mu for marginal gaussian distribution')
+            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
-            '--var', type=float, required=False, help='var for marginal gaussian distribution')
+            '--var', type=float, default=1, help='var for marginal gaussian distribution')
+        parser.add_argument(
+            '--low', type=float, default=0, help='lower bound for uniform distribution')
+        parser.add_argument(
+            '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
         # Save options
         parser.add_argument(

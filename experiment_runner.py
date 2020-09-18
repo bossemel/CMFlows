@@ -77,6 +77,7 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
     else:
         losses = model.loss(data)
         loss = losses.mean()
+        del losses
 
     return model, loss
 
@@ -114,6 +115,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         if isinstance(data, list):
             data = data[0]
         data = data.to(device)
+        assert not torch.isnan(torch.sum(data))
 
         if model_name == 'CM_Flow':
             model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
@@ -131,15 +133,21 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss_DDSF_2.backward(retain_graph=True)
             loss_RealNVP.backward()
 
-            model.clip_grad_norm()
+            if args.clip_grad_norm:
+                model.clip_grad_norm()
 
         else:
-            model, loss = single_model_forward(args,
-                                               model,
-                                               model_name,
-                                               data,
-                                               transform_inputs,
-                                               device)
+            if model_name in ['DDSF_1', 'DDSF_2', 'RealNVP']:
+                model, loss = single_model_forward(args,
+                                                   model,
+                                                   model_name,
+                                                   data,
+                                                   transform_inputs,
+                                                   device)
+
+            else:
+                losses = model.loss(data)
+                loss = losses.mean()
 
             if 'train_loss' in current_epoch_losses:
                 current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
@@ -476,8 +484,6 @@ def train_val(model, model_name, args, data_loaders, dataset,
         if not error_bars and not grid_search and not rvine:
             if model_name == 'DDSF':
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
-            elif model_name == 'RealNVP':
-                plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
 

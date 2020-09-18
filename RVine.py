@@ -44,7 +44,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set number of obs for visualizations
-    args.viz_obs = 100000
+    args.viz_obs = 1000
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
@@ -61,7 +61,7 @@ if __name__ == '__main__':
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
-        rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
+        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
         # Save results
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     else:
         rv = RVine(args=args, data=dataset_trn)
         rv.estimate_rvine()
-        rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
+        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
 
         test_losses = {key: [np.mean(value)] for key, value in
                        rv.results_dict.items()}  # save test set metrics in dict format
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         for ii in range(1, 11):
             rv = RVine(args=args, data=dataset_trn)
             rv.estimate_rvine(plots=False)
-            rv.jsd_vinecopula(args, rv, pv_cop, obs=args.viz_obs)
+            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
 
             test_losses = {key: [np.mean(value)] for key, value in
                            rv.results_dict.items()}  # save test set metrics in dict format

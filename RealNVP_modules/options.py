@@ -59,6 +59,8 @@ class TrainOptions():
             '--beta2', type=float, default=0.999)
         parser.add_argument(
             '--conditional_copula', action='store_true')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         self.initialized = True
         return parser

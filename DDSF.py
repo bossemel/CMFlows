@@ -83,43 +83,56 @@ def random_search(args):
     best_loss = 1000
     ii = 0
     while ii < 50:
-        args.num_flow_layers_DDSF = 2**np.random.choice(range(5))
-        args.num_hid_layers_DDSF = 2**np.random.choice(range(5))
-        args.dimh_DDSF = 2**np.random.choice(range(10))
-        args.num_ds_dim = 2**np.random.choice(range(10))
-        args.num_ds_layers = 2**np.random.choice(range(5))
+        args.num_flow_layers_DDSF = np.random.choice(range(1, 5)) # 2**np.random.choice(range(5))
+        args.num_hid_layers_DDSF = np.random.choice(range(1, 5)) #2**np.random.choice(range(5))
+        args.dimh_DDSF = 2**np.random.choice(range(5))
+        args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
+        args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
+        args.clip_grad_norm = np.random.choice([True, False])
+        lr_number = np.random.choice(range(2, 10))
+        args.lr = 1 / 10**lr_number
+        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
                                args.dimh_DDSF,
                                args.num_ds_dim,
-                               args.num_ds_layers)
+                               args.num_ds_layers,
+                               args.weight_decay,
+                               args.clip_grad_norm,
+                               args.lr)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
-                Num. Sigm. Units: {}, Num. Sigm. Layers: {}'.format(args.num_flow_layers_DDSF,
-                                                                    args.num_hid_layers_DDSF,
-                                                                    args.dimh_DDSF,
-                                                                    args.num_ds_dim,
-                                                                    args.num_ds_layers))
-            try:
-                with HiddenPrints():
-                    __, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                              disable_tqdm=True,
-                                                                              grid_search=True)
-                results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                     current_best_dict['best_validation_loss'])
-                print(results_dict[current_hyperparams])
-                with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                    f.write(str(results_dict))
-                if current_best_dict['best_validation_loss'] < best_loss:
-                    best_loss = current_best_dict['best_validation_loss']
-                    best_hyperparams = current_hyperparams
-                    best_dict = current_best_dict
-                tested_combinations.append(current_hyperparams)
-                ii += 1
-            except:
-                print('Error for {}'.format(current_hyperparams))
-                ii += 1
+                Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
+                Weight Decay: {}, Gradient clipping: {}, Learning Rate: {}'.format(args.num_flow_layers_DDSF,
+                                                                                   args.num_hid_layers_DDSF,
+                                                                                   args.dimh_DDSF,
+                                                                                   args.num_ds_dim,
+                                                                                   args.num_ds_layers,
+                                                                                   args.weight_decay,
+                                                                                   args.clip_grad_norm,
+                                                                                   args.lr))
+            # try:
+            with HiddenPrints():
+                __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                          dataset=dataset,
+                                                                          data_loaders=data_loaders,
+                                                                          disable_tqdm=True,
+                                                                          grid_search=True)
+            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                 current_best_dict['best_validation_loss'])
+            print(results_dict[current_hyperparams])
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                f.write(str(results_dict))
+            if current_best_dict['best_validation_loss'] < best_loss:
+                best_loss = current_best_dict['best_validation_loss']
+                best_hyperparams = current_hyperparams
+                best_dict = current_best_dict
+            tested_combinations.append(current_hyperparams)
+            ii += 1
+            # except:
+            #     print('Error for {}'.format(current_hyperparams))
+            #     ii += 1
     print('Random search complete for {}'.format(args.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))
@@ -191,7 +204,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
     model.to(args.device)
 
     # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay, amsgrad=args.amsgrad)
 
     # Train
     best_dict, test_dict = train_val(model=model,

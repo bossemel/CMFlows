@@ -12,6 +12,8 @@ from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
+from DDSF_modules.visualizer import visualize1D
+
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics, load_model
 import datasets.distributions
@@ -52,12 +54,8 @@ def visualize_DDSF_output(model, dataset, args):
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
         normal_distr = torch.distributions.normal.Normal(0, 1)
         vizdata_uniform = normal_distr.cdf(vizdata)
-        if args.cuda:
-            visualize_joint(vizdata, args, name='DDSF_output')
-            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
-        else:
-            visualize_joint(vizdata, args, name='DDSF_output')
-            visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
+        visualize_joint(vizdata, args, name='DDSF_output')
+        visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
 
 
 def visualize_RealNVP_output(model, dataset, args):
@@ -116,6 +114,11 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     if args.pretrain_models:
         # Train DDSFs
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+
+        for param in model.model_DDSF_2.parameters():
+            param.requires_grad = False
+        for param in model.model_RealNVP.parameters():
+            param.requires_grad = False
         best_dict_DDSF_1, test_dict = train_val(model=model,
                                                 model_name='DDSF_1',
                                                 args=args,
@@ -126,28 +129,43 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 error_bars=error_bars,
                                                 rvine=rvine)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
+        model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_1['best_validation_epoch'])
-
+        visualize1D(model=model.model_DDSF_1,
+                    epoch=best_dict_DDSF_1['best_validation_epoch'],
+                    args=args,
+                    best_val=True,
+                    name='DDSF_1')
+        for param in model.model_DDSF_1.parameters():
+            param.requires_grad = False
+        for param in model.model_DDSF_2.parameters():
+            param.requires_grad = True
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_dict_DDSF_2, test_dict = train_val(model=model,
                                                 model_name='DDSF_2',
                                                 args=args,
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
-                                                test_dict=test_dict,
                                                 transform_inputs=True,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars,
                                                 rvine=rvine)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
+        model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_2['best_validation_epoch'])
-
+        visualize1D(model=model.model_DDSF_2,
+                    epoch=best_dict_DDSF_2['best_validation_epoch'],
+                    args=args,
+                    best_val=True,
+                    name='DDSF_2')
         # Visualize DDFS transformations
         if not error_bars and not rvine:
             visualize_DDSF_output(model, dataset, args)
 
+        for param in model.model_DDSF_2.parameters():
+            param.requires_grad = False
+        for param in model.model_RealNVP.parameters():
+            param.requires_grad = True
         # Train RealNVP
         args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
         best_dict_RealNVP, test_dict = train_val(model,
@@ -161,7 +179,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                  error_bars=error_bars,
                                                  rvine=rvine)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
+        model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_RealNVP['best_validation_epoch'])
 
         best_dict = best_dict_RealNVP
@@ -195,7 +213,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                          disable_tqdm=disable_tqdm,
                                          error_bars=error_bars)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
+        model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict['best_validation_epoch'])
 
         if not error_bars and not rvine:

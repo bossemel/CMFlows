@@ -22,7 +22,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
+            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'gaussian'])
         parser.add_argument(
             '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
         parser.add_argument(
@@ -35,6 +35,12 @@ class TrainOptions():
             '--random_seed', type=int, default=58093, help='random seed')
         parser.add_argument(
             '--theta', type=int, required=False)
+        parser.add_argument(
+            '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
+        parser.add_argument(
+            '--var', type=float, default=1, help='Variance of the Gaussian Distribution')
+        parser.add_argument(
+            '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
 
         # Save options
         parser.add_argument(
