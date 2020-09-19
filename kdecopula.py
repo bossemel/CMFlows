@@ -1,16 +1,46 @@
-import copulae
 import os
 import numpy as np
 import random
 from pathlib import Path
 import scipy.stats
 import csv
+from statsmodels.distributions.empirical_distribution import ECDF
 
-from Parametric_modules.options import TrainOptions
+from Parametric_modules.options_kdecopula import TrainOptions
 from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
+import rpy2.robjects as robjects
+# import rpy2's package module
+import rpy2.robjects.packages as rpackages
+from rpy2.robjects.vectors import StrVector
+from rpy2.robjects.packages import importr
+import rpy2.robjects as ro
+import rpy2.robjects.numpy2ri
+rpy2.robjects.numpy2ri.activate()
+
+# import R's utility package
+utils = rpackages.importr('utils')
+
+# select a mirror for R packages
+utils.chooseCRANmirror(ind=1) # select the first mirror in the list
+packnames = ('gsl', 'kdecopula', 'stats', 'VineCopula')
+
+# R vector of strings
+
+#Selectively install what needs to be install.
+names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
+if len(names_to_install) > 0:
+    utils.install_packages(StrVector(names_to_install))
+
+base = importr('base')
+utils = importr('utils')
+#utils.install_packages('kdecopula')
+
+kdecopula = importr('kdecopula')
+stats = importr('stats')
+vinecopula = importr('VineCopula')
 eps = 0.0001
 
 
@@ -53,19 +83,17 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     return test_dict
 
 
-def fit_copula(args, data):
-    if args.assumed_copula == 'clayton':
-        cop = copulae.archimedean.ClaytonCopula(dim=2)
-    elif args.assumed_copula == 'frank':
-        cop = copulae.archimedean.FrankCopula(dim=2)
-    elif args.assumed_copula == 'gumbel':
-        cop = copulae.archimedean.GumbelCopula(dim=2)
-    elif args.assumed_copula == 'gaussian':
-        cop = copulae.elliptical.GaussianCopula(dim=2)
-    else:
-        raise ValueError('Assumed copula not in list')
-    cop.fit(dataset.trn)
-    return cop
+def ecdf(x):
+    xs = np.sort(x)
+    ys = np.arange(1, len(xs)+1)/float(len(xs))
+    return ys
+
+
+def fit_copula(data):
+    data = vinecopula.pobs(data)
+    visualize_joint(np.array(data), args, name='input_data')
+    kde = kdecopula.kdecop(data)
+    return kde
 
 
 if __name__ == '__main__':
@@ -80,6 +108,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
 
+    #
+
     # Turn off cude
     args.cuda = False
 
@@ -90,13 +120,16 @@ if __name__ == '__main__':
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset = datasets.distributions.Joint_Distr(args)
-    test_test_obs = dataset.tst.shape[0]
+    test_obs = dataset.tst.shape[0]
+    viz_obs = 100000
+    dataset_2 = datasets.distributions.Joint_Distr(args)
 
     # Calculate JSD
     if args.error_bars:
-        cop = fit_copula(args, dataset.trn)
+        cop = fit_copula(dataset.trn)
 
-        samples = cop.random(test_obs)  # simulate random number
+        #samples = cop.random(obs)  # simulate random number
+        samples = np.array(stats.simulate(cop, nsim=test_obs))
 
         test_dict = {}
         test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
@@ -108,9 +141,10 @@ if __name__ == '__main__':
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
         for ii in range(1, 10):
-            cop = fit_copula(args, dataset.trn)
+            cop = fit_copula(dataset.trn)
 
-            samples = cop.random(test_obs)  # simulate random number
+            #samples = cop.random(test_obs)  # simulate random number
+            samples = np.array(stats.simulate(cop, nsim=test_obs))
 
             test_dict = {}
             test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
@@ -130,14 +164,17 @@ if __name__ == '__main__':
                     line = [key, np.mean(float_list), np.std(float_list)]
                     writer.writerow(line)
     else:
-        cop = fit_copula(args, dataset.trn)
+        cop = fit_copula(dataset.trn)
 
-        samples = cop.random(test_obs)  # simulate random number
+        #samples = cop.random(test_obs)  # simulate random number
+        samples = np.array(stats.simulate(cop, nsim=viz_obs))
 
         # Visualize samples
         visualize_joint(samples, args, name='archmidean_samples')
 
         test_dict = {}
+        samples = np.array(stats.simulate(cop, nsim=test_obs))
+
         test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
 
         # Gather test losses and save statistics

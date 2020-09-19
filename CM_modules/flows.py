@@ -98,33 +98,58 @@ class CMFlow(nn.Module):
             # Samples from both distributinos
             samples_pred = self.sample_copula(num_samples=samples_target.shape[0]).cpu().numpy()
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+            normal_distr = torch.distributions.normal.Normal(0, 1)
+            samples_target = normal_distr.cdf(inputs)
 
-            assert np.min(samples_pred) >= 0
-            assert np.max(samples_pred) <= 1
+            if args.conditional_copula:
+                cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs))
+
+            # assert np.min(samples_pred) >= 0
+            # assert np.max(samples_pred) <= 1
             # samples_target = inputs.cpu().numpy()
-            samples_target[samples_target == 1] = 1 - eps
-            samples_target[samples_target == 0] = 0 + eps
-            samples_pred[samples_pred == 0] = 0 + eps
-            samples_pred[samples_pred == 1] = 1 - eps
+            # samples_target[samples_target == 1] = 1 - eps
+            # samples_target[samples_target == 0] = 0 + eps
+            # samples_pred[samples_pred == 0] = 0 + eps
+            # samples_pred[samples_pred == 1] = 1 - eps
 
-            assert np.min(samples_target) > 0
-            assert np.max(samples_target) < 1
+            assert torch.min(samples_target) > 0
+            assert torch.max(samples_target) < 1
             assert np.min(samples_pred) > 0
             assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
 
             # Define distributions
             # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-            true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+            if args.conditional_copula:
+                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T)
+            else:
+                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr(samples_pred.T).T
-            # torch.exp(self.log_density_RealNVP(samples_pred)).numpy()
-            prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+            if args.conditional_copula:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+            else:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
 
             # Prob Y in both distributions
-            prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
-            prob_Y_in_p = pred_distr(samples_target.T).T
-            # torch.exp(self.log_density_RealNVP(samples_target)).numpy()
+            if args.conditional_copula:
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.cpu().numpy()], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target.cpu()], axis=1).cpu().numpy().T).T
+
+            else:
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
+                prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
+
+            # if args.conditional_copula:
+            #     prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.cpu().numpy()], axis=1).T).T
+            #     prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target.cpu()], axis=1).cpu().numpy().T).T
+            # else:
+            #     prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+
+            # # Prob Y in both distributions
+            # #prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
+            #     prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            # # torch.exp(self.log_density_RealNVP(samples_target)).numpy()
 
             if np.isnan(np.sum(prob_X_in_q)):
                 prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
