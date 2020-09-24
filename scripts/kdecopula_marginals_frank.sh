@@ -9,8 +9,7 @@ python kdecopula.py \
 --marginal_2 uniform \
 --alpha 5 \
 --theta 2 \
---obs 10000 \
---error_bars
+--obs 10000
 
 echo 'Begin Copula: kdecopula estimation'
 
@@ -22,8 +21,7 @@ python kdecopula.py \
 --marginal_2 gaussian \
 --alpha 5 \
 --theta 2 \
---obs 10000 \
---error_bars
+--obs 10000
 
 echo 'Begin Copula: kdecopula estimation'
 
@@ -35,8 +33,7 @@ python kdecopula.py \
 --marginal_2 gamma \
 --alpha 5 \
 --theta 2 \
---obs 10000 \
---error_bars
+--obs 10000
 
 echo 'Begin Copula: kdecopula estimation'
 
@@ -48,8 +45,7 @@ python kdecopula.py \
 --marginal_2 lognormal \
 --alpha 5 \
 --theta 2 \
---obs 10000 \
---error_bars
+--obs 10000
 
 echo 'Begin Copula: kdecopula estimation'
 
@@ -61,5 +57,4 @@ python kdecopula.py \
 --marginal_2 bimodal_gaussian \
 --alpha 5 \
 --theta 2 \
---obs 10000 \
---error_bars
+--obs 10000

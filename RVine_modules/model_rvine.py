@@ -110,9 +110,10 @@ def initialize_graph(self):
             # Transform inputs using the trained marginal flow
             with torch.no_grad():
                 self.data = self.data.to(self.args.device)
+                #visualize_joint(torch.cat([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1).cpu(), self.args, name='selfdata')
                 transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                #visualize_joint(torch.cat([transformed_inputs, transformed_inputs], axis=1).cpu(), self.args, name='transformedinputs')
                 self.data = self.data.cpu()
-                # self.current_graph.nodes[node]['best_dict'] = best_dict # @Todo: am i using this?
 
         # if marginal flows are disabled, do not transform the inputs
         else:
@@ -153,12 +154,15 @@ def cm_flow_estimation(self, num_current_nodes, plots):
     self.traversed_edges = []
     if num_current_nodes > 2:
         for paired_edge in self.paired_tree_edges:
+            print('paired edge')
             common_node = set(paired_edge[0]).intersection(paired_edge[1])
             if len(common_node) == 1:
                 if paired_edge[0] not in self.traversed_edges:
+                    print('paired edge 0, self.traversed edges', paired_edge[0], self.traversed_edges)
                     self = add_new_node(self, common_node, paired_edge[0], plots)
                     self.traversed_edges.extend([paired_edge[0], tuple(reversed(paired_edge[0]))])
                 if paired_edge[1] not in self.traversed_edges:
+                    print('paired edge 1, self.traversed edges', paired_edge[1], self.traversed_edges)
                     self = add_new_node(self, common_node, paired_edge[1], plots)
                     self.traversed_edges.extend([paired_edge[1], tuple(reversed(paired_edge[1]))])
     if num_current_nodes == 2:
@@ -176,11 +180,12 @@ def add_new_node(self, common_node, edge, plots):
         plots: boolean indicating whether to create plots
     """
     v0, v1, edge = assign_distr_to_nodes(edge, common_node, self.current_tree)
+    edge_str = re.sub('[, ()]', '', str(edge))
+    #visualize_joint(torch.cat([v0, v1], axis=1).cpu(), self.args, name='rvine_input_dataset_v0v1{}'.format(edge_str))
 
     dataset, data_loaders = create_dataset(v0, v1, self.args)
 
-    edge_str = re.sub('[, ()]', '', str(edge))
-    visualize_joint(dataset.trn, self.args, name='rvine_input_dataset_{}'.format(edge_str))
+    visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args, name='rvine_input_dataset_{}'.format(edge_str))
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
@@ -203,10 +208,11 @@ def add_new_node(self, common_node, edge, plots):
         if plots:
             uniform_inputs = self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu())
             edge_str = re.sub('[, ()]', '', str(edge))
+            visualize_joint(self.norm.cdf(torch.cat([v0.reshape(-1, 1), cond_distr], axis=1).cpu()), self.args, name='rvine_con_transform_{}_untransformed'.format(edge_str))
             visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
 
-            cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-            con_samples = self.model_con.sample_copula(num_samples=100000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
+            cond_inputs = torch.tensor(np.random.normal(size=(10000, 1))).float()
+            con_samples = self.model_con.sample_copula(num_samples=10000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
             visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
 
     return self
@@ -322,8 +328,14 @@ class RVine():
                 for node in self.tree_list[ii].nodes():
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
-                    unconditioned_node = next(flatten(common_node))
+                    print(common_node)
+                    print(node)
+                    if not isinstance(common_node, int):
+                        unconditioned_node = next(flatten(common_node))
+                    else:
+                        unconditioned_node = common_node
                     conditioned_node = next(flatten(node))
+
                     print('common node', common_node)
                     print('conditioned node', conditioned_node)
 
@@ -345,7 +357,7 @@ class RVine():
             samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd_vinecopula(self, args, true_rvine, obs=100000):
+    def jsd_vinecopula(self, args, true_rvine, obs=100000, sim_data=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
 
         Params:
@@ -356,6 +368,7 @@ class RVine():
         Returns:
             divergence: estimated JS-divergence
         """
+        print('jsd vinecopula')
         with torch.no_grad():
             # Define distributions
             # normal_distr = scipy.stats.norm(0, 1)
@@ -363,7 +376,26 @@ class RVine():
 
             # Samples from both distributinos
             samples_pred = self.sample(num_samples=obs, transform=True)
-            samples_target = true_rvine.simulate(obs)
+            if sim_data is None:
+                samples_target = true_rvine.simulate(obs)
+            else:
+                normal_distr = scipy.stats.norm(0, 1)
+                samples_target = normal_distr.cdf(sim_data)
+            print('samples pred dim', samples_pred.shape)
+            print('samples_target dim', samples_target.shape)
+            print('visualizing samples')
+            visualize_joint(samples_pred[:, :2].cpu(), self.args, name='samples_pred01')
+            visualize_joint(samples_target[:, :2], self.args, name='samples_target01')
+            visualize_joint(samples_pred[:, 1:3].cpu(), self.args, name='samples_pred12')
+            visualize_joint(samples_target[:, 1:3], self.args, name='samples_target12')
+            visualize_joint(samples_pred[:, 2:4].cpu(), self.args, name='samples_pred23')
+            visualize_joint(samples_target[:, 2:4], self.args, name='samples_target23')
+            visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1).cpu(), self.args, name='samples_pred02')
+            visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), self.args, name='samples_target02')
+            visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1).cpu(), self.args, name='samples_pred13')
+            visualize_joint(np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), self.args, name='samples_target13')
+            visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1).cpu(), self.args, name='samples_pred03')
+            visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), self.args, name='samples_target03')
 
             # Estimate Copula distr
             # RealNVP outputs the density directly, but not the transformation to

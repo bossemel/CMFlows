@@ -16,6 +16,8 @@ from RVine_modules.utils import gen_mv_copula
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics
 
+import CM_modules.utils as CM_utils
+
 if __name__ == '__main__':
 
     # Training settings
@@ -44,11 +46,23 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set number of obs for visualizations
-    args.viz_obs = 1000
+    args.viz_obs = 10000
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
     untransformed_samples = pv_cop.simulate(args.viz_obs)
+
+    # if args.test:
+    #     args.theta = 2
+    #     args.marginal_1 = 'gamma'
+    #     args.marginal_2 = 'gamma'
+
+    #     dataset, data_loaders, train_dataset = CM_utils.load_data(args)
+    #     dataset_trn = torch.tensor(dataset.trn)
+    #     dataset, data_loaders, train_dataset = CM_utils.load_data(args)
+    #     sim_data = dataset.xx
+
+    # visualize_joint(dataset_trn[:, :2], args, name='rvine_input_dataset_test')
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)
@@ -61,6 +75,8 @@ if __name__ == '__main__':
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
+        # Calculating jsd
+        print('calculating jsd')
         rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
         # Save results
         # Gather test losses and save statistics

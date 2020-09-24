@@ -68,6 +68,27 @@ def fit_copula(args, data):
     return cop
 
 
+def train_and_evaluate(continue_from_mode, visualize):
+    cop = fit_copula(args, dataset.trn)
+
+    if visualize:
+        samples = cop.random(viz_obs)  # simulate random number
+        # Visualize samples
+        visualize_joint(samples, args, name='archmidean_samples')
+
+    samples = cop.random(test_obs)  # simulate random number
+
+    test_dict = {}
+    test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+
+    # Gather test losses and save statistics
+    test_losses = {key: [np.mean(value)] for key, value in
+                   test_dict.items()}  # save test set metrics in dict format
+    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                    # save test set metrics on disk in .csv format
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
+
+
 if __name__ == '__main__':
     # Training settings
     args = TrainOptions().parse()   # get training options
@@ -90,37 +111,16 @@ if __name__ == '__main__':
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset = datasets.distributions.Joint_Distr(args)
-    test_test_obs = dataset.tst.shape[0]
+    test_obs = dataset.tst.shape[0]
+    viz_obs = 100000
 
     # Calculate JSD
     if args.error_bars:
-        cop = fit_copula(args, dataset.trn)
+        train_and_evaluate(continue_from_mode=False, visualize=True)
 
-        samples = cop.random(test_obs)  # simulate random number
-
-        test_dict = {}
-        test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
-
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
         for ii in range(1, 10):
-            cop = fit_copula(args, dataset.trn)
+            train_and_evaluate(continue_from_mode=True, visualize=False)
 
-            samples = cop.random(test_obs)  # simulate random number
-
-            test_dict = {}
-            test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
-
-            # Gather test losses and save statistics
-            test_losses = {key: [np.mean(value)] for key, value in
-                           test_dict.items()}  # save test set metrics in dict format
-            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                            # save test set metrics on disk in .csv format
-                            stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=0)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
             writer = csv.writer(f)
@@ -130,19 +130,4 @@ if __name__ == '__main__':
                     line = [key, np.mean(float_list), np.std(float_list)]
                     writer.writerow(line)
     else:
-        cop = fit_copula(args, dataset.trn)
-
-        samples = cop.random(test_obs)  # simulate random number
-
-        # Visualize samples
-        visualize_joint(samples, args, name='archmidean_samples')
-
-        test_dict = {}
-        test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
-
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
+        train_and_evaluate(continue_from_mode=False, visualize=True)

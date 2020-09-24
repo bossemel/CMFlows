@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
-import datasets
 import numpy as np
-import math
+from utils.visualizer import visualize_joint
 
 
 class FlowSequential(nn.Sequential):
@@ -111,7 +110,8 @@ class FlowSequential(nn.Sequential):
 
             # Samples from both distributinos
             if cm_flow is True:
-                samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs)
+                samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
+                samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
             else:
                 samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
 
@@ -124,6 +124,14 @@ class FlowSequential(nn.Sequential):
             else:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 samples_target = normal_distr.cdf(inputs)
+
+            if args.conditional_copula:
+                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args, name='samples_target_jsd')
+                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args, name='samples_pred_jsd')
+
+            else:
+                visualize_joint(samples_target.cpu(), args, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args, name='samples_pred_jsd')
 
             if args.conditional_copula:
                 cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs))
@@ -149,8 +157,8 @@ class FlowSequential(nn.Sequential):
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.cpu().numpy()], axis=1).T).T
-                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target.cpu()], axis=1).cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs.cpu(), samples_target.cpu().numpy()], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs.cpu(), samples_target.cpu()], axis=1).cpu().numpy().T).T
 
             else:
                 prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T

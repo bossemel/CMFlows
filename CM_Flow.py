@@ -60,13 +60,17 @@ def visualize_DDSF_output(model, dataset, args):
 
 def visualize_RealNVP_output(model, dataset, args):
     with torch.no_grad():
-        # Visualize RealNVP outputs
-        output_copula = model.sample_copula(num_samples=100000).cpu()
-        visualize_joint(output_copula, args, name='output_copula_RealNVP')
-
-        # Visualize true copula
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+        if args.conditional_copula:
+            cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula')
+            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula_untransformed')
+        else:
+            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula')
+            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=None, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula_untransformed')
 
 
 def visualize_CM_Flow_output(model, dataset, args):

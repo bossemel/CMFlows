@@ -28,12 +28,14 @@ def marginal_transform(inputs, marginal, args):
     Returns:
         inputs: transformed samples vector
     """
+    print('marginal', marginal)
     if marginal == 'gaussian':
         assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
         assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
         norm = scipy.stats.norm(loc=args.mu, scale=args.var)
         inputs = norm.ppf(inputs)
     elif marginal == 'uniform':
+        print('returning inputs')
         return inputs
     elif marginal == 'lognormal':
         assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
@@ -186,9 +188,9 @@ class Marginals():
 
 
 class Copula_Distr:
-    def __init__(self, args, transform=True):
+    def __init__(self, args, obs=None, transform=True):
 
-        self.xx = Copula_Distr.sampler(args, transform)
+        self.xx = Copula_Distr.sampler(args, transform, obs)
         trn, val, tst = split_train_val_test(self.xx)
 
         self.trn = trn.astype(np.float32)
