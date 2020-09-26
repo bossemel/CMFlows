@@ -88,6 +88,9 @@ def initialize_graph(self):
     for node in self.current_graph.nodes():
         # Prepare dataset for node
         dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
+        node_str = re.sub('[, ()]', '', str(node))
+
+        visualize_joint(np.concatenate([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1), self.args, name='rvine_pre_marginal_{}'.format(node_str))
 
         assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
@@ -118,7 +121,7 @@ def initialize_graph(self):
         # if marginal flows are disabled, do not transform the inputs
         else:
             self.data = self.data.to(self.args.device)
-            transformed_inputs = self.data[:, node:node + 1].float().to(self.args.device)
+            transformed_inputs = torch.tensor(self.norm.ppf(self.data[:, node:node + 1].cpu())).to(self.args.device).float()
             self.data = self.data.cpu()
 
         # save transformed inputs in graph node
@@ -136,6 +139,7 @@ def initialize_graph(self):
         assert not np.isnan(ktau), '{}'.format(ktau)
 
         self.current_graph[n0][n1]['weight'] = np.abs(ktau)
+        print('initialize, edge {}, ktau {}'.format(edge, ktau))
 
     self.graph_list.append(self.current_graph)
 
@@ -270,18 +274,18 @@ class RVine():
         and estimates the copula between nodes using CM Flows.
         """
 
-        # initialize graph and transform marginals using marginal flows
-        self = initialize_graph(self)
-
         # get normal distribution for transformations
         self.norm = scipy.stats.norm(loc=0, scale=1)
+        self.torch_norm = torch.distributions.normal.Normal(0, 1) #@TODO: am i using this?
+        # initialize graph and transform marginals using marginal flows
+        self = initialize_graph(self)
 
         # create new tree as long as current graph has 1 or more nodes
         while len(self.current_graph.nodes()) >= 1:
 
             # calculate the tree which maximizes the k-tau dependency of the graph
             self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight', algorithm='prim')
-
+            print('perform maxim spanning tree, found: {}'.format(self.current_tree))
             self.tree_list.append(self.current_tree)
 
             # create a list of all edges which share a node
@@ -331,16 +335,17 @@ class RVine():
                     print(common_node)
                     print(node)
                     if not isinstance(common_node, int):
-                        unconditioned_node = next(flatten(common_node))
+                        con_input_node = next(flatten(common_node))
                     else:
-                        unconditioned_node = common_node
-                    conditioned_node = next(flatten(node))
+                        con_input_node = common_node
+                    uncon_input_node = next(flatten(node))
 
                     print('common node', common_node)
-                    print('conditioned node', conditioned_node)
+                    print('uncon_input node', uncon_input_node)
+                    print('con_input node', con_input_node)
 
-                    v0 = samples[:, unconditioned_node:unconditioned_node + 1]
-                    v1 = samples[:, conditioned_node:conditioned_node + 1]
+                    v0 = samples[:, con_input_node:con_input_node + 1]
+                    v1 = samples[:, uncon_input_node:uncon_input_node + 1]
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.model_con,
@@ -350,7 +355,7 @@ class RVine():
                                  send_to_device=True)
                     # inverse H-function
                     transformed_marginal = self.model_con.transform(inputs=v1, cond_inputs=v0, mode='inverse', device=self.args.device)
-                    samples[:, conditioned_node:conditioned_node + 1] = transformed_marginal
+                    samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -412,17 +417,17 @@ class RVine():
             prob_Y_in_q = true_rvine.pdf(samples_target.T).T
             prob_Y_in_p = pred_distr.pdf(samples_target.T).T
 
-            if np.isnan(np.sum(prob_X_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            # if np.isnan(np.sum(prob_X_in_q)):
+            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
 
-            if np.isnan(np.sum(prob_Y_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+            # if np.isnan(np.sum(prob_Y_in_q)):
+            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
             assert np.min(samples_pred.cpu().numpy()) >= 0
             assert np.min(samples_target) >= 0

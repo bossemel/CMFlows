@@ -1,38 +1,38 @@
 set -e
-echo 'Begin Mix Copula Rvine: RVine_mix'
+# echo 'Begin Mix Copula Rvine: RVine_mix'
 
-python RVine.py \
---exp_name RVine_mix_gaussian_3 \
---epochs 100 \
---batch-size 100 \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
+# python RVine.py \
+# --exp_name RVine_mix_gaussian_3 \
+# --epochs 100 \
+# --batch-size 100 \
+# --marginal gamma \
+# --mu 0 \
+# --var 1 \
+# --obs 10000 \
+# --mix
 
-echo 'Begin Mix Copula Rvine: RVine_mix'
+# echo 'Begin Mix Copula Rvine: RVine_mix'
 
-python RVine.py \
---exp_name RVine_mix_gamma_3 \
---epochs 100 \
---batch-size 100 \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
+# python RVine.py \
+# --exp_name RVine_mix_gamma_3 \
+# --epochs 100 \
+# --batch-size 100 \
+# --marginal gamma \
+# --mu 0 \
+# --var 1 \
+# --obs 10000 \
+# --mix
 
-echo 'Begin Clayton Copula Rvine: RVine_clayton'
+# echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
-python RVine.py \
---exp_name RVine_clayton_gaussian_3 \
---epochs 100 \
---batch-size 100 \
---copula clayton \
---marginal gaussian \
---alpha 5 \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_clayton_gaussian_3 \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula clayton \
+# --marginal gaussian \
+# --alpha 5 \
+# --obs 10000
 
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 

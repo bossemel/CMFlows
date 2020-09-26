@@ -37,7 +37,6 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     normal_distr = scipy.stats.norm(0, 1)
     #samples_pred = normal_distr.cdf(samples_pred)
 
-    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     #samples_target = normal_distr.cdf(samples_target)
     visualize_joint(samples_pred[:, :2], args, name='samples_pred01')
     visualize_joint(samples_target[:, :2], args, name='samples_target01')
@@ -48,7 +47,8 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     assert np.max(samples_pred) <= 1, '{}'.format(np.max(samples_pred))
 
     # Define distributions
-    true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+    #true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
     # Prob X in both distributions
@@ -141,6 +141,7 @@ if __name__ == '__main__':
     # Set number of obs for visualizations
     args.viz_obs = 10000
     args.test_obs = 10000
+    args.disable_marginal = False
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
