@@ -131,7 +131,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 transform_inputs=True,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars,
-                                                rvine=rvine)
+                                                rvine=rvine,
+                                                cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_1['best_validation_epoch'])
@@ -153,7 +154,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 transform_inputs=True,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars,
-                                                rvine=rvine)
+                                                rvine=rvine,
+                                                cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_2['best_validation_epoch'])
@@ -181,7 +183,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                  transform_inputs=True,
                                                  disable_tqdm=disable_tqdm,
                                                  error_bars=error_bars,
-                                                 rvine=rvine)
+                                                 rvine=rvine,
+                                                 cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_RealNVP['best_validation_epoch'])

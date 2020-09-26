@@ -362,7 +362,7 @@ class RVine():
             samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd_vinecopula(self, args, true_rvine, obs=100000, sim_data=None):
+    def jsd_vinecopula(self, args, true_rvine, obs=10000, sim_data=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
 
         Params:
@@ -416,18 +416,6 @@ class RVine():
             # Prob Y in both distributions
             prob_Y_in_q = true_rvine.pdf(samples_target.T).T
             prob_Y_in_p = pred_distr.pdf(samples_target.T).T
-
-            # if np.isnan(np.sum(prob_X_in_q)):
-            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-
-            # if np.isnan(np.sum(prob_Y_in_q)):
-            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
             assert np.min(samples_pred.cpu().numpy()) >= 0
             assert np.min(samples_target) >= 0

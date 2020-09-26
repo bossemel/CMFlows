@@ -16,7 +16,6 @@ from RVine_modules.utils import gen_mv_copula
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics
 
-import CM_modules.utils as CM_utils
 import matplotlib
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 

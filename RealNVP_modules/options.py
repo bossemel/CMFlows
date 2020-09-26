@@ -61,6 +61,8 @@ class TrainOptions():
             '--conditional_copula', action='store_true')
         parser.add_argument(
             '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
+        parser.add_argument(
+            '--error_bars', action='store_true', help='calculate mean and std over 10 experiments')
 
         self.initialized = True
         return parser

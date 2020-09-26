@@ -6,6 +6,7 @@ import os
 import numpy as np
 from pathlib import Path
 import random
+import csv
 
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
@@ -15,8 +16,11 @@ from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
 import datasets.distributions
+from utils.load_and_save import save_statistics, load_statistics, load_model
 
 from experiment_runner import train_val
+import matplotlib
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
 def build_model(args):
@@ -140,8 +144,8 @@ def grid_search(args, dataset, data_loaders, transform_functions, num_inv_blocks
     return model, best_dict, test_dict
 
 
-def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, save_name=None):
-    if not grid_search and not rvine:
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
+    if not grid_search and not rvine and not error_bars:
         visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
@@ -160,9 +164,17 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
                                      dataset=dataset,
                                      transform_inputs=False,
                                      disable_tqdm=disable_tqdm,
+                                     error_bars=error_bars,
                                      grid_search=grid_search,
                                      rvine=rvine,
                                      save_name=save_name)
+
+    # Gather test losses and save statistics
+    test_losses = {key: [np.mean(value)] for key, value in
+                   test_dict.items()}  # save test set metrics in dict format
+    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                    # save test set metrics on disk in .csv format
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
 
     return model, best_dict, test_dict
 
@@ -213,29 +225,55 @@ if __name__ == '__main__':
                     num_inv_blocks=num_inv_blocks,
                     num_hidden_units=num_hidden_units)
     else:
-        # Train model
-        model, best_dict, test_dict = train_and_plot(args=args,
-                                                     dataset=dataset,
-                                                     data_loaders=data_loaders,
-                                                     disable_tqdm=False,
-                                                     grid_search=False)
+        if args.error_bars is True:
+            eval_dict = {}
+            # Train model
+            model, best_dict, test_dict = train_and_plot(args=args,
+                                                         dataset=dataset,
+                                                         data_loaders=data_loaders,
+                                                         disable_tqdm=True,
+                                                         grid_search=False,
+                                                         error_bars=False)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
-                           best_dict['best_validation_epoch'])
+            model = load_model(model, args.experiment_saved_models, 'train_model',
+                               best_dict['best_validation_epoch'])
+            for ii in range(1, 10):
+                train_and_plot(args=args,
+                               dataset=dataset,
+                               data_loaders=data_loaders,
+                               disable_tqdm=True,
+                               error_bars=True)
+            stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
+            with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
+                writer = csv.writer(f)
+                for key in stats_dict.keys():
+                    if key != 'epoch':
+                        float_list = np.array([float(xx) for xx in stats_dict[key]])
+                        line = [key, np.mean(float_list), np.std(float_list)]
+                        writer.writerow(line)
+        else:
+            # Train model
+            model, best_dict, test_dict = train_and_plot(args=args,
+                                                         dataset=dataset,
+                                                         data_loaders=data_loaders,
+                                                         disable_tqdm=False,
+                                                         grid_search=False)
 
-        # Sample from predicted copual and visualize it
-        with torch.no_grad():
-            if args.conditional_copula:
-                cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula_untransformed')
-            else:
-                output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula_untransformed')
+            model = load_model(model, args.experiment_saved_models, 'train_model',
+                               best_dict['best_validation_epoch'])
+            # Sample from predicted copual and visualize it
+            with torch.no_grad():
+                if args.conditional_copula:
+                    cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+                    output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+                    visualize_joint(output_copula, args, name='output_copula')
+                    output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+                    visualize_joint(output_copula, args, name='output_copula_untransformed')
+                else:
+                    output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+                    visualize_joint(output_copula, args, name='output_copula')
+                    output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
+                    visualize_joint(output_copula, args, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it
         obs = args.obs

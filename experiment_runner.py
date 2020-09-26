@@ -306,7 +306,7 @@ def test(args, epoch, model, loader, device,
 def train_val(model, model_name, args, data_loaders, dataset,
               transform_model_1=None, transform_model_2=None, transform_inputs=True,
               test_dict={}, disable_tqdm=False, grid_search=False, error_bars=False,
-              rvine=False, save_name=None):
+              rvine=False, save_name=None, cm_flow=False):
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
 
@@ -393,7 +393,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         if model_name == 'RealNVP':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
-                                        model.model_RealNVP,
+                                        model.model_RealNVP if cm_flow else model,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
@@ -401,7 +401,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
-                                          model=model.model_RealNVP,
+                                          model=model.model_RealNVP if cm_flow else model,
                                           cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]),
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,

@@ -109,18 +109,24 @@ class FlowSequential(nn.Sequential):
             # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Samples from both distributinos
+            print(inputs.shape)
             if cm_flow is True:
                 samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
                 samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
             else:
                 samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
+                samples_pred_viz = self.sample(num_samples=10000, cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
 
             if not cm_flow:
                 if transform_fct == 'sigmoid':
                     samples_target = sigmoid(inputs)
+                    if args.conditional_copula:
+                        cond_inputs = sigmoid(cond_inputs)
                 elif transform_fct == 'gaussian':
                     normal_distr = torch.distributions.normal.Normal(0, 1)
                     samples_target = normal_distr.cdf(inputs)
+                    if args.conditional_copula:
+                        cond_inputs = normal_distr.cdf(cond_inputs)
             else:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 samples_target = normal_distr.cdf(inputs)
@@ -133,9 +139,6 @@ class FlowSequential(nn.Sequential):
                 visualize_joint(samples_target.cpu(), args, name='samples_target_jsd')
                 visualize_joint(samples_pred_viz.cpu(), args, name='samples_pred_jsd')
 
-            if args.conditional_copula:
-                cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs))
-
             assert np.max(samples_target.cpu().numpy()) <= 1
             assert np.min(samples_target.cpu().numpy()) >= 0
             assert np.max(samples_pred.cpu().numpy()) <= 1
@@ -144,7 +147,7 @@ class FlowSequential(nn.Sequential):
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu())
 
             if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T)
+                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
             else:
                 true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
 
@@ -157,24 +160,23 @@ class FlowSequential(nn.Sequential):
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs.cpu(), samples_target.cpu().numpy()], axis=1).T).T
-                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs.cpu(), samples_target.cpu()], axis=1).cpu().numpy().T).T
-
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs.cpu()], axis=1).cpu().numpy().T).T
             else:
                 prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
-            if np.isnan(np.sum(prob_X_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
+            # if np.isnan(np.sum(prob_X_in_q)):
+            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
+            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
+            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
+            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
 
-            if np.isnan(np.sum(prob_Y_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
+            # if np.isnan(np.sum(prob_Y_in_q)):
+            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
+            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
+            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
+            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
