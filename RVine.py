@@ -53,17 +53,10 @@ if __name__ == '__main__':
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
     untransformed_samples = pv_cop.simulate(args.viz_obs)
 
-    # if args.test:
-    #     args.theta = 2
-    #     args.marginal_1 = 'gamma'
-    #     args.marginal_2 = 'gamma'
-
-    #     dataset, data_loaders, train_dataset = CM_utils.load_data(args)
-    #     dataset_trn = torch.tensor(dataset.trn)
-    #     dataset, data_loaders, train_dataset = CM_utils.load_data(args)
-    #     sim_data = dataset.xx
-
-    # visualize_joint(dataset_trn[:, :2], args, name='rvine_input_dataset_test')
+    if not args.error_bars:
+        visualize_joint(dataset_trn[:, :2], args, name='rvine_input_dataset01')
+        visualize_joint(dataset_trn[:, 1:3], args, name='rvine_input_dataset12')
+        visualize_joint(dataset_trn[:, 2:4], args, name='rvine_input_dataset23')
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)
@@ -77,8 +70,8 @@ if __name__ == '__main__':
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
 
         # Calculating jsd
-        print('calculating jsd')
         rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
+
         # Save results
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -89,7 +82,7 @@ if __name__ == '__main__':
     else:
         rv = RVine(args=args, data=dataset_trn)
         rv.estimate_rvine()
-        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
+        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=True)
 
         test_losses = {key: [np.mean(value)] for key, value in
                        rv.results_dict.items()}  # save test set metrics in dict format
@@ -99,7 +92,7 @@ if __name__ == '__main__':
         for ii in range(1, 11):
             rv = RVine(args=args, data=dataset_trn)
             rv.estimate_rvine(plots=False)
-            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
+            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=False)
 
             test_losses = {key: [np.mean(value)] for key, value in
                            rv.results_dict.items()}  # save test set metrics in dict format

@@ -1,27 +1,26 @@
 set -e
-
-# echo 'Begin Frank Copula Rvine: RVine_frank'
+# cho 'Begin Mix Copula Rvine: RVine_mix'
 
 # python RVine.py \
-# --exp_name RVine_frank_gaussian_error \
+# --exp_name RVine_mix_gaussian_error_new \
 # --epochs 100 \
 # --batch-size 100 \
-# --copula frank \
 # --marginal gaussian \
 # --mu 0 \
 # --var 1 \
 # --obs 10000 \
-# --error_bars
+# --mix \
+# --error_barse
 
-echo 'Begin Frank Copula Rvine: RVine_frank'
+echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_frank_gamma_error_2 \
+--exp_name RVine_mix_gamma_error_new \
 --epochs 100 \
 --batch-size 100 \
---copula frank \
 --marginal gamma \
 --mu 0 \
 --var 1 \
 --obs 10000 \
+--mix \
 --error_bars

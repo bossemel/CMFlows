@@ -6,6 +6,48 @@ import os
 from sklearn import model_selection
 from torch.autograd import Variable
 import scipy.special
+from utils.visualizer import visualize_joint
+
+
+def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
+    # Samples from both distributinos
+    #normal_distr = scipy.stats.norm(0, 1)
+    #samples_target = normal_distr.cdf(samples_target)
+    # assert torch.min(samples_pred) >= 0
+    # assert torch.max(samples_pred) <= 1
+
+    visualize_joint(samples_target, args, name='samples_target_jsd_{}'.format(name))
+    visualize_joint(samples_pred, args, name='samples_pred_jsd_{}'.format(name))
+
+    # Define distributions
+    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+    true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+
+    # Prob X in both distributions
+    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+
+    # Prob Y in both distributions
+    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
+    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+
+    assert not np.isnan(np.sum(prob_X_in_p))
+    assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
+    assert not np.isnan(np.sum(prob_Y_in_p))
+    assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+
+    assert np.min(prob_X_in_p) >= 0
+    assert np.min(prob_X_in_q) >= 0, '%r' % np.min(prob_X_in_q)
+    assert np.min(prob_Y_in_p) >= 0
+    assert np.min(prob_Y_in_q) >= 0
+
+    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                               prob_X_in_q=prob_X_in_q,
+                               prob_Y_in_p=prob_Y_in_p,
+                               prob_Y_in_q=prob_Y_in_q)
+    print('JS-Divergence: {} {}'.format(divergence, name))
+    test_dict['js_divergence'] = divergence
+    return test_dict
 
 
 def sigmoid(xx):

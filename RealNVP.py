@@ -169,12 +169,13 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
                                      rvine=rvine,
                                      save_name=save_name)
 
-    # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
-                   test_dict.items()}  # save test set metrics in dict format
-    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
+    if not rvine:
+        # Gather test losses and save statistics
+        test_losses = {key: [np.mean(value)] for key, value in
+                       test_dict.items()}  # save test set metrics in dict format
+        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                        # save test set metrics on disk in .csv format
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
 
     return model, best_dict, test_dict
 

@@ -201,9 +201,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         epochs = sep.join(list([str(best_dict_DDSF_1['best_validation_epoch']),
                                 str(best_dict_DDSF_2['best_validation_epoch']),
                                 str(best_dict_RealNVP['best_validation_epoch'])]))
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
+        if not rvine:
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
 
     # Train the CM Flow
     if args.train_cm_flow:

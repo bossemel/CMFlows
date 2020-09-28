@@ -4,7 +4,7 @@ set -e
 # echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 # python RVine.py \
-# --exp_name RVine_gumbel_gaussian_error \
+# --exp_name RVine_gumbel_gaussian_error_new \
 # --epochs 100 \
 # --batch-size 100 \
 # --copula gumbel \
@@ -15,7 +15,7 @@ set -e
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_error_2 \
+--exp_name RVine_gumbel_gamma_error_new \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \

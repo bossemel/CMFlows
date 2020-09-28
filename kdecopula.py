@@ -29,7 +29,7 @@ stats = importr('stats')
 vinecopula = importr('VineCopula')
 
 
-def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
+def calc_jsd(test_dict, samples_pred, samples_target):
     # Samples from both distributinos
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     normal_distr = scipy.stats.norm(0, 1)
@@ -63,8 +63,8 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
                                prob_X_in_q=prob_X_in_q,
                                prob_Y_in_p=prob_Y_in_p,
                                prob_Y_in_q=prob_Y_in_q)
-    test_dict['js_divergence'] = divergence
     print('JS-Divergence: {}'.format(divergence))
+    test_dict['js_divergence'] = divergence
     return test_dict
 
 

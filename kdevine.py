@@ -16,6 +16,9 @@ from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 
 from RVine_modules.utils import gen_mv_copula
+from utils import calc_jsd as calc_jsd_utils
+import matplotlib
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
@@ -34,10 +37,7 @@ kdevine = importr('kdevine')
 
 def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     # Samples from both distributinos
-    normal_distr = scipy.stats.norm(0, 1)
-    #samples_pred = normal_distr.cdf(samples_pred)
 
-    #samples_target = normal_distr.cdf(samples_target)
     visualize_joint(samples_pred[:, :2], args, name='samples_pred01')
     visualize_joint(samples_target[:, :2], args, name='samples_target01')
     samples_pred[samples_pred < 0] = 0
@@ -46,8 +46,19 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     assert np.min(samples_pred) >= 0, '{}'.format(np.min(samples_pred))
     assert np.max(samples_pred) <= 1, '{}'.format(np.max(samples_pred))
 
+    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, :2], samples_target=samples_target[:, :2], name='01')
+    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 1:3], samples_target=samples_target[:, 1:3], name='12')
+    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 2:4], samples_target=samples_target[:, 2:4], name='23')
+    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1),
+             samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), name='02')
+    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1),
+             samples_target=np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), name='13')
+    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1),
+             samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), name='03')
+
+    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred,
+             samples_target=samples_target, name='full')
     # Define distributions
-    #true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
@@ -85,10 +96,9 @@ def ecdf(x):
 
 
 def fit_copula(data):
+    visualize_joint(np.array(data), args, name='input_data')
     data = vinecopula.pobs(data.numpy())
     visualize_joint(np.array(data)[:, :2], args, name='pseudo_obs')
-
-    visualize_joint(np.array(data), args, name='input_data')
     cop = kdevine.kdevinecop(data)
     return cop
 

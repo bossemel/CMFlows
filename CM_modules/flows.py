@@ -94,12 +94,9 @@ class CMFlow(nn.Module):
         """Evaluated the JS-Divergence using Monte Carlo.
         """
         with torch.no_grad():
-            samples_target = inputs.cpu().numpy()
+            # samples_target = inputs.cpu().numpy()
             # Samples from both distributinos
-            samples_pred = self.sample_copula(num_samples=samples_target.shape[0]).cpu().numpy()
-            samples_pred = self.sample_copula(num_samples=samples_target.shape[0]).cpu().numpy()
             #visualize_joint(samples_pred, args, name='samples_pred_jsd')
-            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples_target = normal_distr.cdf(inputs)
             #visualize_joint(samples_target, args, name='samples_target_jsd')
@@ -109,17 +106,18 @@ class CMFlow(nn.Module):
 
             assert torch.min(samples_target) > 0
             assert torch.max(samples_target) < 1
-            assert np.min(samples_pred) > 0
-            assert np.max(samples_pred) < 1, '%r' % (np.max(samples_pred))
+
+            samples_pred = self.sample_copula(num_samples=samples_target.shape[0]).cpu().numpy()
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
             # Define distributions
             if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([cond_inputs, samples_target], axis=1).cpu().numpy().T)
+                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
             else:
                 true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
             # Prob X in both distributions
-            prob_X_in_p = pred_distr(samples_pred.T).T
+            prob_X_in_p = pred_distr.pdf(samples_pred.T).T
             if args.conditional_copula:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
             else:
@@ -127,24 +125,12 @@ class CMFlow(nn.Module):
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([cond_inputs, samples_target.cpu().numpy()], axis=1).T).T
-                prob_Y_in_p = pred_distr.pdf(torch.cat([cond_inputs, samples_target.cpu()], axis=1).cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs], axis=1).T).T
+                prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs], axis=1).cpu().numpy().T).T
 
             else:
                 prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
-
-            if np.isnan(np.sum(prob_X_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-
-            if np.isnan(np.sum(prob_Y_in_q)):
-                prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-                prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-                prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
 
             assert not np.isnan(np.sum(prob_X_in_p))
             assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])

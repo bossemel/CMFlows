@@ -11,8 +11,8 @@ python CM_Flow.py \
 --theta 2 \
 --obs 10000 \
 --pretrain_models \
---conditional_copula \
---error_bars
+--conditional_copula # \
+#--error_bars
 
 # echo 'Begin Copula: frank Marginal: uniform Pretrain only'
 

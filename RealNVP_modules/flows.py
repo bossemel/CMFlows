@@ -130,11 +130,12 @@ class FlowSequential(nn.Sequential):
             else:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 samples_target = normal_distr.cdf(inputs)
+                if args.conditional_copula:
+                    cond_inputs = normal_distr.cdf(cond_inputs)
 
             if args.conditional_copula:
                 visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args, name='samples_target_jsd')
                 visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args, name='samples_pred_jsd')
-
             else:
                 visualize_joint(samples_target.cpu(), args, name='samples_target_jsd')
                 visualize_joint(samples_pred_viz.cpu(), args, name='samples_pred_jsd')

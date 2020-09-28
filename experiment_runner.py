@@ -180,8 +180,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 move_transformed_outputs(args, train_loader, device, model, data)
             else:
                 if args.conditional_copula:
-                    model(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
-                          cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
+                    model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
+                                  cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
                 else:
                     model(train_loader.dataset.tensors[0].to(data.device))
         elif model_name == 'CM_Flow':
@@ -342,15 +342,14 @@ def train_val(model, model_name, args, data_loaders, dataset,
 
         # Set model state to epoch
         model.state['model_epoch'] = epoch
+        # save model and best val idx and best val acc, using the model dir, model name and model idx
+        save_model(model=model,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
 
         if not grid_search and not rvine:
-            # save model and best val idx and best val acc, using the model dir, model name and model idx
-            save_model(model=model,
-                       model_save_dir=args.experiment_saved_models,
-                       model_save_name="train_model", model_idx=epoch,
-                       best_validation_model_idx=best_dict['best_validation_epoch'],
-                       best_validation_model_loss=best_dict['best_validation_loss'])
-
             # Save mean of each epoch in total losses dictionary
             for key, value in current_epoch_losses.items():
                 total_losses[key].append(np.mean(
@@ -370,11 +369,15 @@ def train_val(model, model_name, args, data_loaders, dataset,
             print('Best validation at epoch {}: Average Log Likelihood: {:.4f}'.
                   format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
+    # Load model with best validation epoch
+    model = load_model(model, args.experiment_saved_models, 'train_model',
+                       best_dict['best_validation_epoch'])
+
     if not grid_search and not rvine:
 
-        # Load model with best validation epoch
-        model = load_model(model, args.experiment_saved_models, 'train_model',
-                           best_dict['best_validation_epoch'])
+        # # Load model with best validation epoch
+        # model = load_model(model, args.experiment_saved_models, 'train_model',
+        #                    best_dict['best_validation_epoch'])
 
         # Perform test evaluation
         test_dict = test(args=args,

@@ -4,7 +4,7 @@ set -e
 # echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 # python RVine.py \
-# --exp_name RVine_clayton_gaussian_error \
+# --exp_name RVine_clayton_gaussian_error_new \
 # --epochs 100 \
 # --batch-size 100 \
 # --copula clayton \
@@ -16,7 +16,7 @@ set -e
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gamma_error_2 \
+--exp_name RVine_clayton_gamma_error_new \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \

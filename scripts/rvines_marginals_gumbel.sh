@@ -3,28 +3,28 @@ set -e
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_gumbel_uniform_marginal \
---epochs 50 \
+--exp_name RVine_gumbel_gaussian_marginal_new_randseed \
+--epochs 100 \
 --batch-size 100 \
---marginal uniform \
+--marginal gaussian \
 --copula gumbel \
 --mu 0 \
 --var 1 \
---obs 10000 #\
-#--random_seed 3
+--obs 10000 \
+--random_seed 3
 
 
 # echo 'Begin Mix Copula Rvine: RVine_mix'
 
 # python RVine.py \
-# --exp_name RVine_mix_gaussian_3 \
+# --exp_name RVine_gumbel_gamma_new \
 # --epochs 100 \
 # --batch-size 100 \
 # --marginal gamma \
 # --mu 0 \
 # --var 1 \
 # --obs 10000 \
-# --mix
+# --copula gumbel
 
 # echo 'Begin Mix Copula Rvine: RVine_mix'
 
