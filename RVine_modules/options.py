@@ -42,7 +42,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--marginal', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
