@@ -10,8 +10,8 @@ python RVine.py \
 --copula gumbel \
 --mu 0 \
 --var 1 \
---obs 10000 #\
-#--random_seed 3
+--obs 10000 \
+--random_seed 3
 
 
 # echo 'Begin Mix Copula Rvine: RVine_mix'

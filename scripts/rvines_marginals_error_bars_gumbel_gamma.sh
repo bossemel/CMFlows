@@ -21,4 +21,5 @@ python RVine.py \
 --copula gumbel \
 --marginal gamma \
 --obs 10000 \
---error_bars
+--error_bars \
+--continue_error_bars 1

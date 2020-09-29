@@ -117,7 +117,8 @@ def initialize_graph(self):
                 transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
                 self.data = self.data.cpu()
 
-        # if marginal flows are disabled, do not transform the inputs
+        # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
+        # the real number line with the inverse Gaussian CDF
         else:
             self.data = self.data.to(self.args.device)
             transformed_inputs = torch.tensor(self.norm.ppf(self.data[:, node:node + 1].cpu())).to(self.args.device).float()
@@ -154,21 +155,34 @@ def cm_flow_estimation(self, num_current_nodes, plots):
     """
     self.new_graph = nx.Graph()
     self.traversed_edges = []
-    if num_current_nodes > 2:
-        for paired_edge in self.paired_tree_edges:
-            common_node = set(paired_edge[0]).intersection(paired_edge[1])
-            if len(common_node) == 1:
-                if paired_edge[0] not in self.traversed_edges:
-                    print('paired edge 0, self.traversed edges', paired_edge[0], self.traversed_edges)
-                    self = add_new_node(self, common_node, paired_edge[0], plots)
-                    self.traversed_edges.extend([paired_edge[0], tuple(reversed(paired_edge[0]))])
-                if paired_edge[1] not in self.traversed_edges:
-                    print('paired edge 1, self.traversed edges', paired_edge[1], self.traversed_edges)
-                    self = add_new_node(self, common_node, paired_edge[1], plots)
-                    self.traversed_edges.extend([paired_edge[1], tuple(reversed(paired_edge[1]))])
-    if num_current_nodes == 2:
-        for edge in self.current_tree.edges:
-            self = add_new_node(self, edge[0], edge, plots)
+    for node in self.current_tree.nodes():
+        neighbor_list = self.current_tree.neighbors(node)
+        neighbor_list = [n for n in neighbor_list]
+        if len(neighbor_list) >= 2:
+            for neighbor in neighbor_list:
+                #common_node = node
+                if (node, neighbor) not in self.traversed_edges:
+                    self = add_new_node(self, node, (node, neighbor), plots)
+                    self.traversed_edges.extend([(node, neighbor), tuple(reversed((node, neighbor)))])
+        if num_current_nodes == 2:
+            self = add_new_node(self, node, (node, neighbor_list[0]), plots)
+            num_current_nodes -= 1
+
+    # if num_current_nodes > 2:
+    #     for paired_edge in self.paired_tree_edges:
+    #         common_node = set(paired_edge[0]).intersection(paired_edge[1])
+    #         if len(common_node) == 1:
+    #             if paired_edge[0] not in self.traversed_edges:
+    #                 # print('paired edge 0, self.traversed edges', paired_edge[0], self.traversed_edges)
+    #                 self = add_new_node(self, common_node, paired_edge[0], plots)
+    #                 self.traversed_edges.extend([paired_edge[0], tuple(reversed(paired_edge[0]))])
+    #             if paired_edge[1] not in self.traversed_edges:
+    #                 # print('paired edge 1, self.traversed edges', paired_edge[1], self.traversed_edges)
+    #                 self = add_new_node(self, common_node, paired_edge[1], plots)
+    #                 self.traversed_edges.extend([paired_edge[1], tuple(reversed(paired_edge[1]))])
+    # if num_current_nodes == 2:
+    #     for edge in self.current_tree.edges:
+    #         self = add_new_node(self, edge[0], edge, plots)
     return self
 
 
@@ -272,7 +286,6 @@ class RVine():
 
         # get normal distribution for transformations
         self.norm = scipy.stats.norm(loc=0, scale=1)
-        self.torch_norm = torch.distributions.normal.Normal(0, 1) #@TODO: am i using this?
         # initialize graph and transform marginals using marginal flows
         self = initialize_graph(self)
 

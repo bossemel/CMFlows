@@ -80,32 +80,46 @@ if __name__ == '__main__':
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=args.error_bars, test_epoch=None)
     else:
-        rv = RVine(args=args, data=dataset_trn)
-        rv.estimate_rvine()
-        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=True)
-
-        test_losses = {key: [np.mean(value)] for key, value in
-                       rv.results_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=None)
-        for ii in range(1, 11):
+        if args.continue_error_bars == 0:
             rv = RVine(args=args, data=dataset_trn)
-            rv.estimate_rvine(plots=False)
-            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=False)
+            rv.estimate_rvine()
+            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=True)
 
             test_losses = {key: [np.mean(value)] for key, value in
                            rv.results_dict.items()}  # save test set metrics in dict format
             save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                             # save test set metrics on disk in .csv format
-                            stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=None)
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=None)
+            for ii in range(1, 10):
+                rv = RVine(args=args, data=dataset_trn)
+                rv.estimate_rvine(plots=False)
+                rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=False)
+
+                test_losses = {key: [np.mean(value)] for key, value in
+                               rv.results_dict.items()}  # save test set metrics in dict format
+                save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                                # save test set metrics on disk in .csv format
+                                stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=None)
+        else:
+            for ii in range(args.continue_error_bars, 10):
+                rv = RVine(args=args, data=dataset_trn)
+                rv.estimate_rvine(plots=False)
+                rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=False)
+
+                test_losses = {key: [np.mean(value)] for key, value in
+                               rv.results_dict.items()}  # save test set metrics in dict format
+                save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                                # save test set metrics on disk in .csv format
+                                stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=None)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
             writer = csv.writer(f)
             for key in stats_dict.keys():
                 if key != 'epoch':
                     float_list = np.array([float(xx) for xx in stats_dict[key]])
+                    print('Evaluating {} experiments'.format(len(float_list)))
                     line = [key, np.mean(float_list), np.std(float_list)]
+                    print('Mean: {}, Std.: {}'.format(np.mean(float_list), np.std(float_list)))
                     writer.writerow(line)
 
     if not args.error_bars:

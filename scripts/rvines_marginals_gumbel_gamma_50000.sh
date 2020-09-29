@@ -1,4 +1,4 @@
-`set -e
+set -e
 
 # echo 'Begin Mix Copula Rvine: RVine_mix'
 
@@ -17,13 +17,14 @@ echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
 --exp_name RVine_gumbel_gamma_new \
---epochs 100 \
+--epochs 20 \
 --batch-size 100 \
 --marginal gamma \
 --mu 0 \
 --var 1 \
---obs 10000 \
---copula gumbel
+--obs 50000 \
+--copula gumbel \
+--random_seed 3
 
 # echo 'Begin Mix Copula Rvine: RVine_mix'
 

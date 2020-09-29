@@ -93,6 +93,8 @@ class TrainOptions():
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
             '--load_model', action='store_true', help='loads saved model under experiment name')
+        parser.add_argument(
+            '--continue_error_bars', type=int, default=0, help='from which expeirment to continue error bar experiments')
 
         self.initialized = True
         return parser

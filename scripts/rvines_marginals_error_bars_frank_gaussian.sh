@@ -11,7 +11,8 @@ python RVine.py \
 --mu 0 \
 --var 1 \
 --obs 10000 \
---error_bars
+--error_bars \
+--continue_error_bars 8
 
 # echo 'Begin Frank Copula Rvine: RVine_frank'
 
