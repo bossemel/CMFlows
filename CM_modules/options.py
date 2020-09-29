@@ -48,9 +48,9 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in first dimension')
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in first dimension')
         parser.add_argument(
-            '--marginal_2', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal in second dimension')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in second dimension')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(

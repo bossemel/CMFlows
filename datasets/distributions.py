@@ -45,13 +45,6 @@ def marginal_transform(inputs, marginal, args):
         assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
         gamma = scipy.stats.gamma(args.alpha)
         inputs = gamma.ppf(inputs)
-    elif marginal == 'bimodal_gaussian':
-        for ii in range(len(inputs)):
-            which_normal = np.random.randint(0, 2)
-            if which_normal == 0:
-                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=2, scale=2)
-            else:
-                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=12, scale=2)
     else:
         raise NotImplementedError
     return inputs
