@@ -21,8 +21,14 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
 def train_and_plot(visualize=True, continue_from_mode=False):
-    rv = RVine(args=args, data=dataset_trn)
-    rv.estimate_rvine()
+    if not args.error_bars:
+        if not args.load_model:
+            rv.estimate_rvine()
+            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
+        else:
+            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
+    else:
+        rv.estimate_rvine()
     rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in
@@ -76,29 +82,16 @@ if __name__ == '__main__':
 
     # Estimate R-vine
     if not args.error_bars:
-        if not args.load_model:
-            rv.estimate_rvine()
-            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
-        else:
-            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
-
-        # Calculating jsd
-        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
-
-        # Save results
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       rv.results_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=args.error_bars, test_epoch=None)
+        train_and_plot(visualize=True, continue_from_mode=False)
     else:
         if args.continue_error_bars == 0:
             train_and_plot(visualize=True, continue_from_mode=False)
             for ii in range(1, 10):
+                rv = RVine(args=args, data=dataset_trn)
                 train_and_plot(visualize=False, continue_from_mode=True)
         else:
             for ii in range(args.continue_error_bars, 10):
+                rv = RVine(args=args, data=dataset_trn)
                 train_and_plot(visualize=False, continue_from_mode=True)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
