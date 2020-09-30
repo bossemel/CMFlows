@@ -5,9 +5,8 @@ from pathlib import Path
 import scipy.stats
 import csv
 
-from Parametric_modules.options_kdevine import TrainOptions
+from KDE_modules.options_kdevine import TrainOptions
 from utils.visualizer import visualize_joint
-import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
 import rpy2.robjects.packages as rpackages
@@ -46,18 +45,18 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     assert np.min(samples_pred) >= 0, '{}'.format(np.min(samples_pred))
     assert np.max(samples_pred) <= 1, '{}'.format(np.max(samples_pred))
 
-    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, :2], samples_target=samples_target[:, :2], name='01')
-    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 1:3], samples_target=samples_target[:, 1:3], name='12')
-    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 2:4], samples_target=samples_target[:, 2:4], name='23')
-    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1),
-             samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), name='02')
-    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1),
-             samples_target=np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), name='13')
-    calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1),
-             samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), name='03')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, :2], samples_target=samples_target[:, :2], name='01')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 1:3], samples_target=samples_target[:, 1:3], name='12')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 2:4], samples_target=samples_target[:, 2:4], name='23')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1),
+    #          samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), name='02')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1),
+    #          samples_target=np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), name='13')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1),
+    #          samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), name='03')
 
-    calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred,
-             samples_target=samples_target, name='full')
+    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred,
+    #          samples_target=samples_target, name='full')
     # Define distributions
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)

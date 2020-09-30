@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import math
 
+
 def flow_density(inputs, log_jacob):
     """Calculate density using change of variable formula.
 

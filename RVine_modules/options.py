@@ -52,9 +52,9 @@ class TrainOptions():
 
         # Options RealNVP
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=256, help='number of hidden units')
         parser.add_argument(
-            '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=4, help='number of invertible blocks (default: 5)')
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 

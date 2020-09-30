@@ -10,12 +10,6 @@ from utils.visualizer import visualize_joint
 
 
 def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
-    # Samples from both distributinos
-    #normal_distr = scipy.stats.norm(0, 1)
-    #samples_target = normal_distr.cdf(samples_target)
-    # assert torch.min(samples_pred) >= 0
-    # assert torch.max(samples_pred) <= 1
-
     visualize_joint(samples_target, args, name='samples_target_jsd_{}'.format(name))
     visualize_joint(samples_pred, args, name='samples_pred_jsd_{}'.format(name))
 
@@ -139,15 +133,8 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
         divergence: int, JS-Divergence
     """
 
-    mix_X = prob_X_in_p.reshape(-1,) + prob_X_in_q.reshape(-1,) # / 2
-    #np.logaddexp(prob_X_in_p.reshape(-1,), prob_X_in_q.reshape(-1,))
-    mix_Y = prob_Y_in_p.reshape(-1,) + prob_Y_in_q.reshape(-1,) # / 2
-    #np.logaddexp(prob_Y_in_p.reshape(-1,), prob_Y_in_q.reshape(-1,))
-
-    # mix_X = mix_X / np.sum(mix_X)
-    # mix_Y = mix_Y / np.sum(mix_Y)
-    # prob_X_in_p = prob_X_in_p / np.sum(prob_X_in_p)
-    # prob_Y_in_q = prob_Y_in_q / np.sum(prob_Y_in_q)
+    mix_X = prob_X_in_p.reshape(-1,) + prob_X_in_q.reshape(-1,)
+    mix_Y = prob_Y_in_p.reshape(-1,) + prob_Y_in_q.reshape(-1,)
 
     assert np.min(mix_X) >= 0
     assert np.min(mix_Y) >= 0
@@ -202,4 +189,3 @@ def normalize(dataset):
 def make_meshgrid(obs, dim, low, high):
     meshgrid = np.array(np.meshgrid(*[np.linspace(low, high, obs)] * dim))
     return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
-

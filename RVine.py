@@ -36,6 +36,19 @@ def train_and_plot(visualize=True, continue_from_mode=False):
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
                     stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=None)
+    if visualize:
+        rv.plot()
+        # Simulate and visualize
+        samples = rv.sample(num_samples=args.viz_obs)
+
+        paired_dims = combinations(list(range(samples.shape[1])), 2)
+
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        for pair in paired_dims:
+            vis_samples = normal_distr.cdf(samples[:, pair])
+            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
+            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
 
 
 if __name__ == '__main__':
@@ -93,6 +106,8 @@ if __name__ == '__main__':
             for ii in range(args.continue_error_bars, 10):
                 rv = RVine(args=args, data=dataset_trn)
                 train_and_plot(visualize=False, continue_from_mode=True)
+
+        # Load statistics and calculate mean and standard deviation
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
             writer = csv.writer(f)
@@ -103,21 +118,3 @@ if __name__ == '__main__':
                     line = [key, np.mean(float_list), np.std(float_list)]
                     print('Mean: {}, Std.: {}'.format(np.mean(float_list), np.std(float_list)))
                     writer.writerow(line)
-
-    if not args.error_bars:
-        rv.plot()
-
-    assert len(rv.tree_list) > 0
-
-    # Simulate Distribution
-    if not args.error_bars:
-        samples = rv.sample(num_samples=args.viz_obs)
-
-        paired_dims = combinations(list(range(samples.shape[1])), 2)
-
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        for pair in paired_dims:
-            vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
-            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))

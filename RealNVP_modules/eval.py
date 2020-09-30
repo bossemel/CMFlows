@@ -36,7 +36,6 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             else:
                 test_dict["jsd_test_copula"] = [current_jsd]
         else:
-            #for batch_idx, data in enumerate(loader):
             dataset = datasets.distributions.Copula_Distr(args, obs=10000)
             data = torch.tensor(dataset.xx).float()
             print(data.shape)

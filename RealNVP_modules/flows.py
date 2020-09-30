@@ -167,18 +167,6 @@ class FlowSequential(nn.Sequential):
                 prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
-            # if np.isnan(np.sum(prob_X_in_q)):
-            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_X_in_q)]
-            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_X_in_q)]
-            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_X_in_q)]
-            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_X_in_q)]
-
-            # if np.isnan(np.sum(prob_Y_in_q)):
-            #     prob_X_in_p = prob_X_in_p[~np.isnan(prob_Y_in_q)]
-            #     prob_X_in_q = prob_X_in_q[~np.isnan(prob_Y_in_q)]
-            #     prob_Y_in_p = prob_Y_in_p[~np.isnan(prob_Y_in_q)]
-            #     prob_Y_in_q = prob_Y_in_q[~np.isnan(prob_Y_in_q)]
-
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
             assert np.min(prob_Y_in_p) >= 0

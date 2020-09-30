@@ -96,10 +96,8 @@ class CMFlow(nn.Module):
         with torch.no_grad():
             # samples_target = inputs.cpu().numpy()
             # Samples from both distributinos
-            #visualize_joint(samples_pred, args, name='samples_pred_jsd')
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples_target = normal_distr.cdf(inputs)
-            #visualize_joint(samples_target, args, name='samples_target_jsd')
 
             if args.conditional_copula:
                 cond_inputs = torch.tensor(normal_distr.cdf(cond_inputs))

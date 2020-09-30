@@ -13,7 +13,6 @@ import RealNVP_modules.utils as utils
 from RealNVP_modules.options import TrainOptions
 
 from utils.visualizer import visualize_joint
-from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
 import datasets.distributions
 from utils.load_and_save import save_statistics, load_statistics, load_model

@@ -90,16 +90,12 @@ def initialize_graph(self):
         # Prepare dataset for node
         dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
         node_str = re.sub('[, ()]', '', str(node))
-
         visualize_joint(np.concatenate([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1), self.args, name='rvine_pre_marginal_{}'.format(node_str))
-
         assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
-
             print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-
             # Train marginal flow
             best_dict = train_marginal_flow(args=self.args,
                                             model=self.model_marg,
@@ -107,7 +103,6 @@ def initialize_graph(self):
                                             data_loaders=data_loaders,
                                             save_name=node,
                                             add_name='marginal')
-
             # Load best model for marginal flow
             model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
 
@@ -126,7 +121,6 @@ def initialize_graph(self):
 
         # save transformed inputs in graph node
         self.current_graph.nodes[node]['node_data'] = transformed_inputs
-
         assert not np.isnan(torch.sum(transformed_inputs).cpu()), '{}'.format(transformed_inputs[:10])
 
     # for each node pair, compute kendalls tau between the transformed inputs
@@ -160,7 +154,6 @@ def cm_flow_estimation(self, num_current_nodes, plots):
         neighbor_list = [n for n in neighbor_list]
         if len(neighbor_list) >= 2:
             for neighbor in neighbor_list:
-                #common_node = node
                 if (node, neighbor) not in self.traversed_edges:
                     self = add_new_node(self, node, (node, neighbor), plots)
                     self.traversed_edges.extend([(node, neighbor), tuple(reversed((node, neighbor)))])
@@ -168,6 +161,7 @@ def cm_flow_estimation(self, num_current_nodes, plots):
             self = add_new_node(self, node, (node, neighbor_list[0]), plots)
             num_current_nodes -= 1
 
+    # @Todo: remove before submitting code
     # if num_current_nodes > 2:
     #     for paired_edge in self.paired_tree_edges:
     #         common_node = set(paired_edge[0]).intersection(paired_edge[1])
@@ -340,17 +334,11 @@ class RVine():
                 for node in self.tree_list[ii].nodes():
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
-                    # print(common_node)
-                    # print(node)
                     if not isinstance(common_node, int):
                         con_input_node = next(flatten(common_node))
                     else:
                         con_input_node = common_node
                     uncon_input_node = next(flatten(node))
-
-                    # print('common node', common_node)
-                    # print('uncon_input node', uncon_input_node)
-                    # print('con_input node', con_input_node)
 
                     cond_node_data = samples[:, con_input_node:con_input_node + 1]
                     uncon_node_data = samples[:, uncon_input_node:uncon_input_node + 1]
@@ -361,6 +349,7 @@ class RVine():
                                  best_dict_con['best_validation_epoch'],
                                  add_name='cop_con',
                                  send_to_device=True)
+
                     # inverse H-function
                     transformed_marginal = self.model_con.transform(inputs=uncon_node_data, cond_inputs=cond_node_data, mode='inverse', device=self.args.device)
                     samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
@@ -394,6 +383,7 @@ class RVine():
             else:
                 normal_distr = scipy.stats.norm(0, 1)
                 samples_target = normal_distr.cdf(sim_data)
+                # @Todo: remove before submitting code
             if visualize:
                 visualize_joint(samples_pred[:, :2].cpu(), self.args, name='samples_pred01')
                 visualize_joint(samples_target[:, :2], self.args, name='samples_target01')

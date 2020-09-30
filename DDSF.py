@@ -130,9 +130,6 @@ def random_search(args):
                 best_dict = current_best_dict
             tested_combinations.append(current_hyperparams)
             ii += 1
-            # except:
-            #     print('Error for {}'.format(current_hyperparams))
-            #     ii += 1
     print('Random search complete for {}'.format(args.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))

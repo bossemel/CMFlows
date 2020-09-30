@@ -3,7 +3,7 @@ set -e
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gaussian_error_new \
+--exp_name RVine_frank_gaussian_error_4_256 \
 --epochs 100 \
 --batch-size 100 \
 --copula frank \
@@ -11,8 +11,7 @@ python RVine.py \
 --mu 0 \
 --var 1 \
 --obs 10000 \
---error_bars \
---continue_error_bars 8
+--error_bars
 
 # echo 'Begin Frank Copula Rvine: RVine_frank'
 

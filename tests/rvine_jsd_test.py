@@ -18,21 +18,9 @@ def jsd_vinecopula(args, true_rvine, obs=100000):
     Returns:
         divergence: estimated JS-divergence
     """
-    # Define distributions
-    # normal_distr = scipy.stats.norm(0, 1)
-    # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
-
     # Samples from both distributinos
-    #samples_pred = self.sample(num_samples=obs, transform=True)
     samples_target = true_rvine.simulate(obs)
     samples_target_small_change = samples_target + 100000
-    #print('samples pred dim', samples_pred.shape)
-    print('samples_target dim', samples_target.shape)
-    print('visualizing samples')
-    # visualize_joint(samples_pred[:, :2].cpu(), self.args, name='samples_pred01')
-    # visualize_joint(samples_target[:, :2], self.args, name='samples_target01')
-    # visualize_joint(samples_pred[:, 2:4].cpu(), self.args, name='samples_pred23')
-    # visualize_joint(samples_target[:, 2:4], self.args, name='samples_target23')
 
     # Estimate Copula distr
     # RealNVP outputs the density directly, but not the transformation to
@@ -75,9 +63,6 @@ def jsd_vinecopula(args, true_rvine, obs=100000):
 
     print('MC-JSD Vine Copula: {}'.format(divergence))
 
-    #self.results_dict['MC_JSD Vine Copula'] = divergence
-    #return divergence
-
 
 if __name__ == '__main__':
 
@@ -97,4 +82,3 @@ if __name__ == '__main__':
     untransformed_samples = pv_cop.simulate(args.viz_obs)
 
     jsd_vinecopula(args, pv_cop, obs=10000)
-

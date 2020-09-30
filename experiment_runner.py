@@ -342,6 +342,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
 
         # Set model state to epoch
         model.state['model_epoch'] = epoch
+
         # save model and best val idx and best val acc, using the model dir, model name and model idx
         save_model(model=model,
                    model_save_dir=args.experiment_saved_models,

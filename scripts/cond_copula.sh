@@ -9,7 +9,9 @@ python RealNVP.py \
 --theta 2 \
 --obs 10000 \
 --conditional_copula \
---error_bars
+--error_bars \
+--num_hidden_RealNVP 256 \
+--num-blocks 4
 
 echo 'Begin Conditional Frank Copula Experiment'
 
@@ -21,7 +23,9 @@ python RealNVP.py \
 --theta 5 \
 --obs 10000 \
 --conditional_copula \
---error_bars
+--error_bars \
+--num_hidden_RealNVP 256 \
+--num-blocks 4
 
 echo 'Begin Conditional Gumbel Copula Experiment'
 
@@ -33,4 +37,6 @@ python RealNVP.py \
 --theta 5 \
 --obs 10000 \
 --conditional_copula \
---error_bars
+--error_bars \
+--num_hidden_RealNVP 256 \
+--num-blocks 4

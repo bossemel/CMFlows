@@ -1,13 +1,13 @@
 set -e
 echo 'Begin Mix Copula Rvine: kdevine_mix'
 
-python kdevine.py \
---exp_name kdevine_gumbel_gaussian \
---marginal uniform \
---copula gumbel \
---mu 0 \
---var 1 \
---obs 10000 \
+# python kdevine.py \
+# --exp_name kdevine_gumbel_gaussian \
+# --marginal uniform \
+# --copula gumbel \
+# --mu 0 \
+# --var 1 \
+# --obs 10000 \
 #--mix #\
 #--error_bars
 

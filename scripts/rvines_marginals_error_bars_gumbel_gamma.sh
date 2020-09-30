@@ -15,11 +15,12 @@ set -e
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_error_new \
+--exp_name RVine_gumbel_gamma_error_new_4_256 \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \
 --marginal gamma \
 --obs 10000 \
 --error_bars \
---continue_error_bars 1
+--num_hidden_RealNVP 256 \
+--num-blocks 4

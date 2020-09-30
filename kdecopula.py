@@ -5,7 +5,7 @@ from pathlib import Path
 import scipy.stats
 import csv
 
-from Parametric_modules.options_kdecopula import TrainOptions
+from KDE_modules.options_kdecopula import TrainOptions
 from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
@@ -91,7 +91,7 @@ def fit_and_evaluate(continue_from_mode, visualize):
     samples = np.array(stats.simulate(cop, nsim=test_obs))
 
     test_dict = {}
-    test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+    test_dict = calc_jsd(test_dict=test_dict, samples_pred=samples, samples_target=dataset.tst)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in

@@ -1,3 +1,4 @@
+# Note: These functions are based on functions from https://github.com/CSTR-Edinburgh/mlpractical.
 import os
 import matplotlib.pyplot as plt
 import numpy as np

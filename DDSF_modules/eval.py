@@ -14,9 +14,15 @@ def jsd_eval(marginal, args, model, test_dict,
     Params:
         marginal: marginal distribution
         args: passed arguments
-
+        model: used model
+        test_dict: test_dict for evaluation metrics
+        obs: number of observation to sample from
+        plotname: name of the plot
+        cm_flow: whether model is part of cm flow
+        marginal_num: which marginal is used
 
     Returns:
+        test_dict: test_dict with evaluation metrics
     """
     with torch.no_grad():
         # Get distributions

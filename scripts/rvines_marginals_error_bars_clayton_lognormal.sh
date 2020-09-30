@@ -13,14 +13,26 @@ set -e
 # --obs 10000 \
 # --error_bars
 
+# echo 'Begin Clayton Copula Rvine: RVine_clayton'
+
+# python RVine.py \
+# --exp_name RVine_clayton_gamma_error_new \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula clayton \
+# --marginal gamma \
+# --alpha 5 \
+# --obs 10000 \
+# --error_bars
+
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gamma_error_4_256 \
+--exp_name RVine_clayton_lognormal_error_4_256 \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
---marginal gamma \
+--marginal lognormal \
 --alpha 5 \
 --obs 10000 \
 --error_bars

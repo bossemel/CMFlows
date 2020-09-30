@@ -442,7 +442,7 @@ def copula_pdf(copula, theta, uu, vv):
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
         c = -(2 * theta + 1) / theta
         pdf = a * np.power(b, c)
-        assert pdf.all() >= 0 # & pdf.all() < 1
+        assert pdf.all() >= 0
         return pdf
     if copula == 'frank':
         if theta == 0:
@@ -453,7 +453,7 @@ def copula_pdf(copula, theta, uu, vv):
             aux = np.multiply(_g(theta, uu), _g(theta, vv)) + _g(theta, 1)
             den = np.power(aux, 2)
             pdf = num / den
-            assert pdf.all() >= 0 # & pdf.all() < 1
+            assert pdf.all() >= 0
             return pdf
     if copula == 'gumbel':
         if theta == 1:
@@ -466,5 +466,4 @@ def copula_pdf(copula, theta, uu, vv):
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
             d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
-            assert pdf.all() >= 0 # & pdf.all() <= 1
-            return pdf
+            assert pdf.all() >= 0
