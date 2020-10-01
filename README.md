@@ -46,8 +46,8 @@ To train the [CM Flow](https://arxiv.org/abs/1907.03361) run:
 python3 CM_Flow.py --train_cm_flow
 ```
 
-Available datasets are joint samples with Clayton, Frank or Gumbel copula and Gaussian, Uniform, Gamma,
-Lognormal and bimodal Gaussian marginals. Available option can be found in ```CM_modules/options```.
+Available datasets are joint samples with Clayton, Frank or Gumbel copula and Gaussian, Uniform, Gamma and
+Lognormal marginals. Available option can be found in ```CM_modules/options```.
 
 ## To run the multivariate CM Flow:
 

@@ -81,7 +81,6 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
     model.state['best_val_model_acc'] = best_validation_model_loss  # save current best val loss
     if save_name is not None:
         model_save_name = model_save_name + save_name
-    print('saving model under {}_{}_model'.format(model_save_name, str(model_idx)))
     torch.save(model.state, f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(
         model_idx))))  # save state at prespecified filepath
 
@@ -94,7 +93,6 @@ def load_model(model, model_save_dir, model_save_name, model_idx):
     :param model_idx: The index to save the model with.
     :return: best val idx and best val model acc, also it loads the network state into the system state without returning it
     """
-    print('loading model under {}_{}_model'.format(model_save_name, str(model_idx)))
     state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(model_idx))))
     model.load_state_dict(state_dict=state['network'])
     return model

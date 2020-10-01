@@ -6,6 +6,42 @@ import os
 from sklearn import model_selection
 from torch.autograd import Variable
 import scipy.special
+from utils.visualizer import visualize_joint
+
+
+def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
+    visualize_joint(samples_target, args, name='samples_target_jsd_{}'.format(name))
+    visualize_joint(samples_pred, args, name='samples_pred_jsd_{}'.format(name))
+
+    # Define distributions
+    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
+    true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+
+    # Prob X in both distributions
+    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
+    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+
+    # Prob Y in both distributions
+    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
+    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+
+    assert not np.isnan(np.sum(prob_X_in_p))
+    assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
+    assert not np.isnan(np.sum(prob_Y_in_p))
+    assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+
+    assert np.min(prob_X_in_p) >= 0
+    assert np.min(prob_X_in_q) >= 0, '%r' % np.min(prob_X_in_q)
+    assert np.min(prob_Y_in_p) >= 0
+    assert np.min(prob_Y_in_q) >= 0
+
+    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                               prob_X_in_q=prob_X_in_q,
+                               prob_Y_in_p=prob_Y_in_p,
+                               prob_Y_in_q=prob_Y_in_q)
+    print('JS-Divergence: {} {}'.format(divergence, name))
+    test_dict['js_divergence'] = divergence
+    return test_dict
 
 
 def sigmoid(xx):
@@ -97,15 +133,8 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
         divergence: int, JS-Divergence
     """
 
-    mix_X = prob_X_in_p.reshape(-1,) + prob_X_in_q.reshape(-1,) # / 2
-    #np.logaddexp(prob_X_in_p.reshape(-1,), prob_X_in_q.reshape(-1,))
-    mix_Y = prob_Y_in_p.reshape(-1,) + prob_Y_in_q.reshape(-1,) # / 2
-    #np.logaddexp(prob_Y_in_p.reshape(-1,), prob_Y_in_q.reshape(-1,))
-
-    # mix_X = mix_X / np.sum(mix_X)
-    # mix_Y = mix_Y / np.sum(mix_Y)
-    # prob_X_in_p = prob_X_in_p / np.sum(prob_X_in_p)
-    # prob_Y_in_q = prob_Y_in_q / np.sum(prob_Y_in_q)
+    mix_X = prob_X_in_p.reshape(-1,) + prob_X_in_q.reshape(-1,)
+    mix_Y = prob_Y_in_p.reshape(-1,) + prob_Y_in_q.reshape(-1,)
 
     assert np.min(mix_X) >= 0
     assert np.min(mix_Y) >= 0
@@ -160,4 +189,3 @@ def normalize(dataset):
 def make_meshgrid(obs, dim, low, high):
     meshgrid = np.array(np.meshgrid(*[np.linspace(low, high, obs)] * dim))
     return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
-

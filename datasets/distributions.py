@@ -45,21 +45,6 @@ def marginal_transform(inputs, marginal, args):
         assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
         gamma = scipy.stats.gamma(args.alpha)
         inputs = gamma.ppf(inputs)
-    elif marginal == 'bimodal_gaussian':
-        for ii in range(len(inputs)):
-            which_normal = np.random.randint(0,2)
-            if which_normal == 0:
-                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=2, scale=2)
-            else:
-                inputs[ii] = scipy.stats.norm.ppf(q=inputs[ii], loc=12, scale=2)
-        # inputs_split = np.split(inputs, 2)
-        # inputs_1 = inputs_split[0]
-        # inputs_2 = inputs_split[1]
-
-        # samples_1 = scipy.stats.norm.ppf(q=inputs_1, loc=2, scale=2)
-        # samples_2 = scipy.stats.norm.ppf(q=inputs_2, loc=12, scale=2)
-
-        # inputs = np.concatenate([samples_1, samples_2])
     else:
         raise NotImplementedError
     return inputs
@@ -186,9 +171,9 @@ class Marginals():
 
 
 class Copula_Distr:
-    def __init__(self, args, transform=True):
+    def __init__(self, args, obs=None, transform=True):
 
-        self.xx = Copula_Distr.sampler(args, transform)
+        self.xx = Copula_Distr.sampler(args, transform, obs)
         trn, val, tst = split_train_val_test(self.xx)
 
         self.trn = trn.astype(np.float32)
@@ -457,7 +442,7 @@ def copula_pdf(copula, theta, uu, vv):
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
         c = -(2 * theta + 1) / theta
         pdf = a * np.power(b, c)
-        assert pdf.all() >= 0 # & pdf.all() < 1
+        assert pdf.all() >= 0
         return pdf
     if copula == 'frank':
         if theta == 0:
@@ -468,7 +453,7 @@ def copula_pdf(copula, theta, uu, vv):
             aux = np.multiply(_g(theta, uu), _g(theta, vv)) + _g(theta, 1)
             den = np.power(aux, 2)
             pdf = num / den
-            assert pdf.all() >= 0 # & pdf.all() < 1
+            assert pdf.all() >= 0
             return pdf
     if copula == 'gumbel':
         if theta == 1:
@@ -481,5 +466,4 @@ def copula_pdf(copula, theta, uu, vv):
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
             d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
-            assert pdf.all() >= 0 # & pdf.all() <= 1
-            return pdf
+            assert pdf.all() >= 0

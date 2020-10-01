@@ -180,8 +180,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 move_transformed_outputs(args, train_loader, device, model, data)
             else:
                 if args.conditional_copula:
-                    model(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
-                          cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
+                    model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
+                                  cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
                 else:
                     model(train_loader.dataset.tensors[0].to(data.device))
         elif model_name == 'CM_Flow':
@@ -306,7 +306,7 @@ def test(args, epoch, model, loader, device,
 def train_val(model, model_name, args, data_loaders, dataset,
               transform_model_1=None, transform_model_2=None, transform_inputs=True,
               test_dict={}, disable_tqdm=False, grid_search=False, error_bars=False,
-              rvine=False, save_name=None):
+              rvine=False, save_name=None, cm_flow=False):
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
 
@@ -343,14 +343,14 @@ def train_val(model, model_name, args, data_loaders, dataset,
         # Set model state to epoch
         model.state['model_epoch'] = epoch
 
-        if not grid_search and not rvine:
-            # save model and best val idx and best val acc, using the model dir, model name and model idx
-            save_model(model=model,
-                       model_save_dir=args.experiment_saved_models,
-                       model_save_name="train_model", model_idx=epoch,
-                       best_validation_model_idx=best_dict['best_validation_epoch'],
-                       best_validation_model_loss=best_dict['best_validation_loss'])
+        # save model and best val idx and best val acc, using the model dir, model name and model idx
+        save_model(model=model,
+                   model_save_dir=args.experiment_saved_models,
+                   model_save_name="train_model", model_idx=epoch,
+                   best_validation_model_idx=best_dict['best_validation_epoch'],
+                   best_validation_model_loss=best_dict['best_validation_loss'])
 
+        if not grid_search and not rvine:
             # Save mean of each epoch in total losses dictionary
             for key, value in current_epoch_losses.items():
                 total_losses[key].append(np.mean(
@@ -370,11 +370,15 @@ def train_val(model, model_name, args, data_loaders, dataset,
             print('Best validation at epoch {}: Average Log Likelihood: {:.4f}'.
                   format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
 
+    # Load model with best validation epoch
+    model = load_model(model, args.experiment_saved_models, 'train_model',
+                       best_dict['best_validation_epoch'])
+
     if not grid_search and not rvine:
 
-        # Load model with best validation epoch
-        model = load_model(model, args.experiment_saved_models, 'train_model',
-                           best_dict['best_validation_epoch'])
+        # # Load model with best validation epoch
+        # model = load_model(model, args.experiment_saved_models, 'train_model',
+        #                    best_dict['best_validation_epoch'])
 
         # Perform test evaluation
         test_dict = test(args=args,
@@ -393,7 +397,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         if model_name == 'RealNVP':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
-                                        model,
+                                        model.model_RealNVP if cm_flow else model,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
@@ -401,7 +405,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
-                                          model=model,
+                                          model=model.model_RealNVP if cm_flow else model,
                                           cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]),
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,

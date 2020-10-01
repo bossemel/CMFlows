@@ -32,9 +32,11 @@ def gen_mv_copula(args):
 
     # Set-up a vine copula
     copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
-    print(copula)
     copula_samples = copula.simulate(n=args.obs)
     for dim in range(copula_samples.shape[1]):
-        copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, args=args))
-    assert not np.isnan(np.sum(copula_samples))
+        if not args.disable_marginal:
+            copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, args=args))
+        else:
+            copula_samples[:, dim] = marginal_transform(copula_samples[:, dim], marginal=args.marginal, args=args)
+    assert not np.isnan(np.sum(copula_samples)), '{}'.format(copula_samples[np.isnan(copula_samples)])
     return torch.from_numpy(copula_samples), copula_samples.shape[1], copula

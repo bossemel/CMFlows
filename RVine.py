@@ -16,6 +16,41 @@ from RVine_modules.utils import gen_mv_copula
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics
 
+import matplotlib
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
+
+
+def train_and_plot(visualize=True, continue_from_mode=False):
+    if not args.error_bars:
+        if not args.load_model:
+            rv.estimate_rvine()
+            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
+        else:
+            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
+    else:
+        rv.estimate_rvine()
+    rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=visualize)
+
+    test_losses = {key: [np.mean(value)] for key, value in
+                   rv.results_dict.items()}  # save test set metrics in dict format
+    save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                    # save test set metrics on disk in .csv format
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=None)
+    if visualize:
+        rv.plot()
+        # Simulate and visualize
+        samples = rv.sample(num_samples=args.viz_obs)
+
+        paired_dims = combinations(list(range(samples.shape[1])), 2)
+
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        for pair in paired_dims:
+            vis_samples = normal_distr.cdf(samples[:, pair])
+            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
+            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+
+
 if __name__ == '__main__':
 
     # Training settings
@@ -44,74 +79,42 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set number of obs for visualizations
-    args.viz_obs = 1000
+    args.viz_obs = 10000
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
     untransformed_samples = pv_cop.simulate(args.viz_obs)
+
+    if not args.error_bars:
+        visualize_joint(dataset_trn[:, :2], args, name='rvine_input_dataset01')
+        visualize_joint(dataset_trn[:, 1:3], args, name='rvine_input_dataset12')
+        visualize_joint(dataset_trn[:, 2:4], args, name='rvine_input_dataset23')
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)
 
     # Estimate R-vine
     if not args.error_bars:
-        if not args.load_model:
-            rv.estimate_rvine()
-            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
-        else:
-            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
-
-        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
-        # Save results
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       rv.results_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=args.error_bars, test_epoch=None)
+        train_and_plot(visualize=True, continue_from_mode=False)
     else:
-        rv = RVine(args=args, data=dataset_trn)
-        rv.estimate_rvine()
-        rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
+        if args.continue_error_bars == 0:
+            train_and_plot(visualize=True, continue_from_mode=False)
+            for ii in range(1, 10):
+                rv = RVine(args=args, data=dataset_trn)
+                train_and_plot(visualize=False, continue_from_mode=True)
+        else:
+            for ii in range(args.continue_error_bars, 10):
+                rv = RVine(args=args, data=dataset_trn)
+                train_and_plot(visualize=False, continue_from_mode=True)
 
-        test_losses = {key: [np.mean(value)] for key, value in
-                       rv.results_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=None)
-        for ii in range(1, 11):
-            rv = RVine(args=args, data=dataset_trn)
-            rv.estimate_rvine(plots=False)
-            rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs)
-
-            test_losses = {key: [np.mean(value)] for key, value in
-                           rv.results_dict.items()}  # save test set metrics in dict format
-            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                            # save test set metrics on disk in .csv format
-                            stats_dict=test_losses, current_epoch=0, continue_from_mode=True, test_epoch=None)
+        # Load statistics and calculate mean and standard deviation
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
             writer = csv.writer(f)
             for key in stats_dict.keys():
                 if key != 'epoch':
                     float_list = np.array([float(xx) for xx in stats_dict[key]])
+                    print('Evaluating {} experiments'.format(len(float_list)))
                     line = [key, np.mean(float_list), np.std(float_list)]
+                    print('Mean: {}, Std.: {}'.format(np.mean(float_list), np.std(float_list)))
                     writer.writerow(line)
-
-    if not args.error_bars:
-        rv.plot()
-
-    assert len(rv.tree_list) > 0
-
-    # Simulate Distribution
-    if not args.error_bars:
-        samples = rv.sample(num_samples=args.viz_obs)
-
-        paired_dims = combinations(list(range(samples.shape[1])), 2)
-
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        for pair in paired_dims:
-            vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
-            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))

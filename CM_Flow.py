@@ -60,13 +60,17 @@ def visualize_DDSF_output(model, dataset, args):
 
 def visualize_RealNVP_output(model, dataset, args):
     with torch.no_grad():
-        # Visualize RealNVP outputs
-        output_copula = model.sample_copula(num_samples=100000).cpu()
-        visualize_joint(output_copula, args, name='output_copula_RealNVP')
-
-        # Visualize true copula
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+        if args.conditional_copula:
+            cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula')
+            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula_untransformed')
+        else:
+            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula')
+            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=None, device=args.device).cpu()
+            visualize_joint(output_copula, args, name='output_copula_untransformed')
 
 
 def visualize_CM_Flow_output(model, dataset, args):
@@ -127,7 +131,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 transform_inputs=True,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars,
-                                                rvine=rvine)
+                                                rvine=rvine,
+                                                cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_1['best_validation_epoch'])
@@ -149,7 +154,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 transform_inputs=True,
                                                 disable_tqdm=disable_tqdm,
                                                 error_bars=error_bars,
-                                                rvine=rvine)
+                                                rvine=rvine,
+                                                cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_DDSF_2['best_validation_epoch'])
@@ -177,7 +183,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                  transform_inputs=True,
                                                  disable_tqdm=disable_tqdm,
                                                  error_bars=error_bars,
-                                                 rvine=rvine)
+                                                 rvine=rvine,
+                                                 cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_RealNVP['best_validation_epoch'])
@@ -194,9 +201,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         epochs = sep.join(list([str(best_dict_DDSF_1['best_validation_epoch']),
                                 str(best_dict_DDSF_2['best_validation_epoch']),
                                 str(best_dict_RealNVP['best_validation_epoch'])]))
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
+        if not rvine:
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
 
     # Train the CM Flow
     if args.train_cm_flow:

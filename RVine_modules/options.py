@@ -42,7 +42,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--marginal', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
@@ -52,9 +52,9 @@ class TrainOptions():
 
         # Options RealNVP
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
+            '--num_hidden_RealNVP', type=int, default=256, help='number of hidden units')
         parser.add_argument(
-            '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
+            '--num-blocks', type=int, default=4, help='number of invertible blocks (default: 5)')
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
 
@@ -93,6 +93,8 @@ class TrainOptions():
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
             '--load_model', action='store_true', help='loads saved model under experiment name')
+        parser.add_argument(
+            '--continue_error_bars', type=int, default=0, help='from which expeirment to continue error bar experiments')
 
         self.initialized = True
         return parser
