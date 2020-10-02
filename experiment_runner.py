@@ -162,7 +162,11 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 model.clip_grad_norm()
 
         # Perform one optimizer step
-        args.optimizer.step()
+        if args.scheduler is None:
+            args.optimizer.step()
+        else:
+            args.optimizer.step()
+            args.scheduler.step()
         args.optimizer.zero_grad()
 
         pbar.update(data.size(0))
