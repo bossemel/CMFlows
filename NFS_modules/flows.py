@@ -9,6 +9,10 @@ import numpy as np
 from utils import js_divergence, t_m_metric_eval
 
 
+
+
+
+
 class ConditionalFlow(nn.Module):
     """A conditional rational quadratic neural spline flow."""
     def __init__(self, dim, context_dim, n_layers, hidden_units, n_blocks, dropout,
@@ -37,35 +41,65 @@ class ConditionalFlow(nn.Module):
         self.subsample = subsample
         self.device = device
 
+        self.base_transform_type = 'notaffine'
+
         distribution = distributions.StandardNormal([dim]).to(device)
         transform = transforms.CompositeTransform([
-            self.create_transform() for _ in range(self.n_layers)], device)
+            self.create_transform(ii) for ii in range(self.n_layers)], device)
         self.flow = flows.Flow(transform, distribution).to(device)
 
-    def create_transform(self):
+    def create_transform(self, ii):
         """Create invertible rational quadratic transformations."""
-        linear = transforms.RandomPermutation(features=self.dim).to(self.device)
-        base = transforms.PiecewiseRationalQuadraticCouplingTransform(
-            mask=utils.create_mid_split_binary_mask(features=self.dim),
-            transform_net_create_fn=lambda in_features, out_features:
-                nn_.ResidualNet(
-                    in_features=in_features,
-                    out_features=out_features,
-                    context_features=self.context_dim,
-                    hidden_features=self.hidden_units,
-                    num_blocks=self.n_blocks,
-                    dropout_probability=self.dropout,
-                    use_batch_norm=self.use_batch_norm,),
-            tails=self.tails,
-            tail_bound=self.tail_bound,
-            num_bins=self.n_bins,
-            min_bin_height=self.min_bin_height,
-            min_bin_width=self.min_bin_width,
-            min_derivative=self.min_derivative,
-            apply_unconditional_transform=self.unconditional_transform,
-        )
-        t = transforms.CompositeTransform([linear, base], self.device)
-        return t
+        if self.context_dim > 0:
+            linear = transforms.RandomPermutation(features=self.dim).to(self.device)
+            base = transforms.PiecewiseRationalQuadraticCouplingTransform(
+                mask=utils.create_mid_split_binary_mask(features=self.dim),
+                transform_net_create_fn=lambda in_features, out_features:
+                    nn_.ResidualNet(
+                        in_features=in_features,
+                        out_features=out_features,
+                        context_features=self.context_dim,
+                        hidden_features=self.hidden_units,
+                        num_blocks=self.n_blocks,
+                        dropout_probability=self.dropout,
+                        use_batch_norm=self.use_batch_norm,),
+                tails=self.tails,
+                tail_bound=self.tail_bound,
+                num_bins=self.n_bins,
+                min_bin_height=self.min_bin_height,
+                min_bin_width=self.min_bin_width,
+                min_derivative=self.min_derivative,
+                apply_unconditional_transform=self.unconditional_transform,
+            )
+            transform = transforms.CompositeTransform([linear, base], self.device)
+        else:
+            if self.base_transform_type == 'affine':
+                return transforms.AffineCouplingTransform(
+                    mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
+                    transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
+                        in_features=in_features,
+                        out_features=out_features,
+                        hidden_features=32,
+                        num_blocks=2,
+                        use_batch_norm=True
+                    )
+                )
+            else:
+                return transforms.PiecewiseRationalQuadraticCouplingTransform(
+                    mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
+                    transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
+                        in_features=in_features,
+                        out_features=out_features,
+                        hidden_features=32,
+                        num_blocks=2,
+                        use_batch_norm=True
+                    ),
+                    tails='linear',
+                    tail_bound=5,
+                    num_bins=self.n_bins,
+                    apply_unconditional_transform=False
+                )
+        return transform
 
     def _forward(self, inputs, context):
         """Forward pass in density estimation direction.
@@ -76,7 +110,7 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def forward(self, inputs, cond_inputs):
+    def forward(self, inputs, cond_inputs=None):
         """Forward pass to negative log likelihood (NLL).
         Args:
             inputs (torch.Tensor): [N, dim] tensor of data.
@@ -85,7 +119,7 @@ class ConditionalFlow(nn.Module):
         loss = -torch.mean(log_density)
         return loss
 
-    def loss(self, inputs, cond_inputs):
+    def loss(self, inputs, cond_inputs=None):
         """Forward pass to negative log likelihood (NLL).
         Args:
             inputs (torch.Tensor): [N, dim] tensor of data.

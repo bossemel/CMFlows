@@ -38,7 +38,7 @@ class TrainOptions():
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--exp_name', type=str, default='default_name_NFS', help='experiment name to store plots and logs')
+            '--exp_name', type=str, default='default_name_nsf', help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
