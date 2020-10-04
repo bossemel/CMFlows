@@ -84,6 +84,52 @@ class TrainOptions():
         parser.add_argument(
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
+        # NSF
+        parser.add_argument(
+            '--n_layers', type=int, default=10, help='Number of spline layers in flow')
+        parser.add_argument(
+            '--hidden_units', type=int, default=256, help='Number of hidden units in spline layer')
+        parser.add_argument(
+            '--n_blocks', type=int, default=1, help='Number of residual blocks in each spline layer')
+        parser.add_argument(
+            '--tail_bound', type=float, default=5., help='Bounds of spline region')
+        parser.add_argument(
+            '--tails', type=str, default='linear', help='Function type outside spline region')
+        parser.add_argument(
+            '--n_bins', type=int, default=5, help='Number of bins in piecewise spline transform')
+        parser.add_argument(
+            '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
+        parser.add_argument(
+            '--min_bin_width', type=float, default=1e-3, help='Minimum bin width of piecewise transform')
+        parser.add_argument(
+            '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
+        parser.add_argument(
+            '--dropout', type=float, default=0.1, help='Dropout probability in flow')
+        parser.add_argument(
+            '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
+        parser.add_argument(
+            '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
+        parser.add_argument(
+            '--wavelength_threshold', type=float, default=1290., help='Wavelength threshold between blue/red sides')
+        parser.add_argument(
+            '--subsample', type=int, default=3, help='Subsample spectra for dimensionality reduction')
+        parser.add_argument(
+            '--log_transform', type=int, default=0, help='Log transform spectra before standardization')
+        parser.add_argument(
+            '--standardize', type=int, default=1, help='Standardize spectra (by wavelength)')
+        parser.add_argument(
+            '--drop_outliers', type=int, default=1, help='Drop spectra with outlying flux.')
+        parser.add_argument(
+            '--learning_rate', type=float, default=2.5e-4, help='Initial learning rate during annealing')
+        parser.add_argument(
+            '--min_learning_rate', type=float, default=1e-8, help='Minimum learning rate during annealing')
+        parser.add_argument(
+            '--anneal_period', type=int, default=10000, help='Learning rate annealing period')
+        parser.add_argument(
+            '--anneal_mult', type=int, default=2, help='Warm restart period multiplier')
+        parser.add_argument(
+            '--n_restarts', type=int, default=3, help='Number of annealing restarts')
+
         # Save options
         parser.add_argument(
             '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')

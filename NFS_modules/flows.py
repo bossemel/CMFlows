@@ -9,10 +9,6 @@ import numpy as np
 from utils import js_divergence, t_m_metric_eval
 
 
-
-
-
-
 class ConditionalFlow(nn.Module):
     """A conditional rational quadratic neural spline flow."""
     def __init__(self, dim, context_dim, n_layers, hidden_units, n_blocks, dropout,
@@ -42,7 +38,6 @@ class ConditionalFlow(nn.Module):
         self.device = device
 
         self.base_transform_type = 'notaffine'
-
         distribution = distributions.StandardNormal([dim]).to(device)
         transform = transforms.CompositeTransform([
             self.create_transform(ii) for ii in range(self.n_layers)], device)
@@ -71,8 +66,9 @@ class ConditionalFlow(nn.Module):
                 min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
-            transform = transforms.CompositeTransform([linear, base], self.device)
-        else:
+            # transform = transforms.CompositeTransform([linear, base], self.device)
+            return transforms.CompositeTransform([linear, base], self.device)
+        elif self.dim == 2:
             if self.base_transform_type == 'affine':
                 return transforms.AffineCouplingTransform(
                     mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
@@ -99,14 +95,26 @@ class ConditionalFlow(nn.Module):
                     num_bins=self.n_bins,
                     apply_unconditional_transform=False
                 )
-        return transform
+        elif self.dim == 1:
+            return transforms.MaskedAffineAutoregressiveTransform(
+            features=self.dim,
+            hidden_features=self.hidden_units,
+            context_features=None,
+            num_blocks=self.n_blocks,
+            use_residual_blocks=True,
+            random_mask=False,
+            dropout_probability=self.dropout,
+            use_batch_norm=self.use_batch_norm
+        )
+        else:
+            raise NotImplementedError
+        # return transform
 
-    def _forward(self, inputs, context):
+    def _forward(self, inputs, context=None):
         """Forward pass in density estimation direction.
         Args:
             inputs (torch.Tensor): [N, dim] tensor of data.
             context (torch.Tensor): [N, context_dim] tensor of context."""
-        context = context # self.encoder(context)
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
@@ -138,6 +146,13 @@ class ConditionalFlow(nn.Module):
     #     noise = noise.squeeze(1).to(self.device)
     #     samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
     #     return samples, log_density
+
+    def transform(self, inputs, cond_inputs=None, device=None):
+        if device is not None:
+            inputs = inputs.to(device)
+            cond_inputs = cond_inputs.to(device)
+        samples = self._forward(inputs, cond_inputs).reshape(-1, 1)
+        return samples
 
     def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation
@@ -177,7 +192,9 @@ class ConditionalFlow(nn.Module):
             noise = noise.to(device)
             if cond_inputs is not None:
                 cond_inputs = cond_inputs.to(device)
-        samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
+        samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
+
+        #samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -194,7 +211,6 @@ class ConditionalFlow(nn.Module):
             # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Samples from both distributinos
-            print(inputs.shape)
             if cm_flow is True:
                 samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
                 samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)

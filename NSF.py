@@ -1,7 +1,6 @@
 import torch
 import torch.optim as optim
 import torch.utils.data
-import torch.nn as nn
 import os
 import numpy as np
 from pathlib import Path
@@ -23,36 +22,7 @@ from NFS_modules.options import TrainOptions
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
-# def create_base_transform(i):
-#     if args.base_transform_type == 'affine':
-#         return transforms.AffineCouplingTransform(
-#             mask=utils.create_alternating_binary_mask(features=dim, even=(i % 2 == 0)),
-#             transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-#                 in_features=in_features,
-#                 out_features=out_features,
-#                 hidden_features=32,
-#                 num_blocks=2,
-#                 use_batch_norm=True
-#             )
-#         )
-#     else:
-#         return transforms.PiecewiseRationalQuadraticCouplingTransform(
-#             mask=utils.create_alternating_binary_mask(features=dim, even=(i % 2 == 0)),
-#             transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-#                 in_features=in_features,
-#                 out_features=out_features,
-#                 hidden_features=32,
-#                 num_blocks=2,
-#                 use_batch_norm=True
-#             ),
-#             tails='linear',
-#             tail_bound=5,
-#             num_bins=args.num_bins,
-#             apply_unconditional_transform=False
-#         )
-
-
-def build_model(args):
+def build_model(args, flow_type='cop_flow'):
     """Creates model.
 
     Params:
@@ -60,12 +30,18 @@ def build_model(args):
 
     Returns: RealNVP model
     """
-    if args.conditional_copula:
+    if flow_type == 'cop_flow':
+        if args.conditional_copula:
+            num_inputs = 1
+            num_cond_inputs = 1
+        else:
+            num_inputs = 2
+            num_cond_inputs = 0
+    elif flow_type == 'marg_flow':
         num_inputs = 1
-        num_cond_inputs = 1
-    else:
-        num_inputs = 2
         num_cond_inputs = 0
+    else:
+        raise ValueError('Unknown flow type')
 
     flow = flows.ConditionalFlow(dim=num_inputs,
                                  context_dim=num_cond_inputs, n_layers=args.n_layers,
@@ -78,52 +54,6 @@ def build_model(args):
                                  unconditional_transform=args.unconditional_transform,
                                  subsample=args.subsample,
                                  device=args.device)
-
-    # # create model
-    # distribution = distributions.StandardNormal((2,))
-
-    # args.base_transform_type = 'affine'
-
-    # transform = transforms.CompositeTransform([
-    #     create_base_transform(i) for i in range(2)
-    # ])
-
-    # flow = flows.Flow(transform, distribution).to(args.device)
-
-    # n_params = utils.get_num_parameters(flow)
-    # print('There are {} trainable parameters in this model.'.format(n_params))
-
-
-
-
-    # num_hidden = {args.copula: args.num_hidden_RealNVP}[args.copula]
-    # modules = []
-    # if args.conditional_copula:
-    #     num_inputs = 1
-    #     num_cond_inputs = 1
-    # else:
-    #     num_inputs = 2
-    #     num_cond_inputs = 0
-
-    # mask = torch.arange(0, num_inputs) % 2
-    # mask = mask.to(args.device).float()
-
-    # for _ in range(args.num_blocks):
-    #     modules += [
-    #         fnn.CouplingLayer(
-    #             num_inputs, num_hidden, mask, num_cond_inputs,
-    #             s_act='tanh', t_act='relu'),
-    #         fnn.BatchNormFlow(num_inputs)
-    #     ]
-    #     mask = 1 - mask
-
-    # model = fnn.FlowSequential(*modules)
-
-    # for module in model.modules():
-    #     if isinstance(module, nn.Linear):
-    #         nn.init.orthogonal_(module.weight)
-    #         if hasattr(module, 'bias') and module.bias is not None:
-    #             module.bias.data.fill_(0)
     return flow
 
 
@@ -144,7 +74,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name='RealNVP',
+                                     model_name='cop_flow',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -193,7 +123,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Specify, that this RealNVP is not part of a CM_Flow
-    args.RealNVP_part_of_CM_Flow = False
+    args.cop_flow_part_of_CM_Flow = False
 
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)

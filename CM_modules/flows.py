@@ -4,6 +4,7 @@ from utils import t_m_metric_eval, js_divergence, flow_density
 import numpy as np
 from RealNVP import build_model as build_model_RealNVP
 from DDSF import build_model as build_model_DDSF
+from NSF import build_model as build_model_nsf
 import scipy.stats
 from utils.visualizer import visualize_joint
 eps = 0.0001
@@ -13,9 +14,12 @@ class CMFlow(nn.Module):
     def __init__(self, transform,
                  device, batch_size, args):
         super(CMFlow, self).__init__()
-        self.model_RealNVP = build_model_RealNVP(args)
-        self.model_DDSF_1 = build_model_DDSF(args)
-        self.model_DDSF_2 = build_model_DDSF(args)
+        self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
+        self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
+        self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
+        # self.cop_flow = build_model_RealNVP(args)
+        # self.marg_flow_1 = build_model_DDSF(args)
+        # self.marg_flow_2 = build_model_DDSF(args)
         self.transform_fct = transform
         self.device = device
         self.batch_size = batch_size
@@ -34,12 +38,14 @@ class CMFlow(nn.Module):
         Returns:
             log density of the model
         """
-        self.n = inputs.shape[0]
-        self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        outputs, log_jacob, __ = self.model_DDSF_1.forward((inputs, self.logdets, self.context))
-        density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        return density
+    # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the cop_flow
+
+        # self.n = inputs.shape[0]
+        # self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        # self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        # outputs, log_jacob, __ = self.marg_flow_1.forward((inputs, self.logdets, self.context))
+        # density = flow_density(outputs, log_jacob.reshape(-1, 1))
+        return self.marg_flow_1.forward(inputs)
 
     def log_density_DDSF_2(self, inputs, logdets=None, context=None):
         """Returns log of target density of the Flow
@@ -50,21 +56,23 @@ class CMFlow(nn.Module):
         Returns:
             log density of the model
         """
-        self.n = inputs.shape[0]
-        self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        outputs, log_jacob, __ = self.model_DDSF_2.forward((inputs, self.logdets, self.context))
-        density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        return density
+        # self.n = inputs.shape[0]
+        # self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        # self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        # outputs, log_jacob, __ = self.marg_flow_2.forward((inputs, self.logdets, self.context))
+        # density = flow_density(outputs, log_jacob.reshape(-1, 1))
+        # return density
+        return self.marg_flow_2.forward(inputs)
 
-    def log_density_RealNVP(self, inputs, cond_inputs=None, mode='direct', transform_inputs=False):
-        """Calculates log density of the flow
-        """
-        if transform_inputs:
-            raise NotImplementedError
-        outputs, log_jacob = self.model_RealNVP.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
-        density = flow_density(outputs, log_jacob)
-        return density
+
+    # def log_density_RealNVP(self, inputs, cond_inputs=None, mode='direct', transform_inputs=False):
+    #     """Calculates log density of the flow
+    #     """
+    #     if transform_inputs:
+    #         raise NotImplementedError
+    #     outputs, log_jacob = self.cop_flow.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
+    #     density = flow_density(outputs, log_jacob)
+    #     return density
 
     def sample(self, num_samples=None, noise=None, cond_inputs=None):
         """Samples from the copula without transforming the marginals.
@@ -75,7 +83,7 @@ class CMFlow(nn.Module):
         noise = noise.to(device)
         if cond_inputs is not None:
             cond_inputs = cond_inputs.to(device)
-        samples = self.model_RealNVP.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
+        samples = self.cop_flow.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         return samples
 
     def sample_copula(self, num_samples=None, noise=None):
@@ -85,7 +93,7 @@ class CMFlow(nn.Module):
             noise = torch.Tensor(num_samples, 2).normal_()
         device = next(self.parameters()).device
         noise = noise.to(device)
-        samples = self.model_RealNVP.forward(noise, mode='inverse')[0]
+        samples = self.cop_flow.forward(noise, mode='inverse')[0]
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
         return samples

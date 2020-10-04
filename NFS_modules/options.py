@@ -88,14 +88,6 @@ class TrainOptions():
         parser.add_argument(
             '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
         parser.add_argument(
-            '--use_cnn_encoder', type=int, default=0, help='Use 1-D CNN to encode conditioning information')
-        parser.add_argument(
-            '--encoder_units', type=int, default=128, help='Number of hidden units in encoder layers')
-        parser.add_argument(
-            '--n_encoder_layers', type=int, default=2, help='Number of layers in encoder')
-        parser.add_argument(
-            '--encoder_dropout', type=float, default=0., help='Dropout probability in encoder')
-        parser.add_argument(
             '--wavelength_threshold', type=float, default=1290., help='Wavelength threshold between blue/red sides')
         parser.add_argument(
             '--subsample', type=int, default=3, help='Subsample spectra for dimensionality reduction')
@@ -115,8 +107,6 @@ class TrainOptions():
             '--anneal_mult', type=int, default=2, help='Warm restart period multiplier')
         parser.add_argument(
             '--n_restarts', type=int, default=3, help='Number of annealing restarts')
-        parser.add_argument(
-            '--grad_clip', type=float, default=5., help='Gradient norm clipping threshold')
 
         self.initialized = True
         return parser

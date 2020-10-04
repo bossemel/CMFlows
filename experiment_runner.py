@@ -4,13 +4,13 @@ import torch.utils.data
 from tqdm import tqdm
 import numpy as np
 
-import RealNVP_modules.flows as fnn
+#import cop_flow_modules.flows as fnn
 
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from RealNVP_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from DDSF_modules.eval import jsd_eval as jsd_eval_marginal
-from DDSF_modules.visualizer import visualize1D
+from NFS_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
+from DDSF_modules.eval import jsd_eval as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
+from NFS_modules.visualizer import visualize1D
 from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm
 from utils import flow_density, empty_logdets_context
@@ -18,62 +18,74 @@ from utils import flow_density, empty_logdets_context
 eps = 0.0001
 
 
-def ddsf_1_forward(model, data, device):
-    logdets, context = empty_logdets_context(data, device)
-    return model.model_DDSF_1.forward((data[:, 0: 1], logdets, context))
+# def marg_flow_1_forward(model, data, device):
+#     # logdets, context = empty_logdets_context(data, device)
+#     return model.marg_flow_1.forward(data[:, 0: 1]) # , logdets, context))
 
 
-def ddsf_2_forward(model, data, device):
-    logdets, context = empty_logdets_context(data, device)
-    return model.model_DDSF_2.forward((data[:, 1:2], logdets, context))
+# def marg_flow_2_forward(model, data, device):
+#     # logdets, context = empty_logdets_context(data, device)
+#     return model.marg_flow_2.forward(data[:, 1:2]) #, logdets, context))
 
 
 def cm_flow_forward(model, data, device):
-    # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the RealNVP
-    output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
-    output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
+    # @Todo: do i need this function?
+    # CM_Flow passes each dimension of the data through a marg_flow, and then passes the output through the cop_flow
+    output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1])
+    output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1])
+    loss_marg_flow_1 = -output_marg_flow_1.mean()
+    loss_marg_flow_2 = -output_marg_flow_2.mean()
 
     with torch.no_grad():
-        outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+        outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
 
-    output_RealNVP, logdets_RealNVP = model.model_RealNVP.forward(inputs=outputs_DDSFs, mode='direct')
+    output_cop_flow = model.cop_flow.forward(inputs=outputs_marg_flows) #, mode='direct')
 
     # Calculate losses using Change of Variable Theorem and a normal prior
-    loss_DDSF_1 = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
-    loss_DDSF_2 = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
-    loss_RealNVP = -flow_density(output_RealNVP, logdets_RealNVP).mean()
-    assert loss_RealNVP >= 0
-    assert loss_DDSF_1 >= 0
-    assert loss_DDSF_2 >= 0
-    loss = loss_RealNVP + loss_DDSF_1 + loss_DDSF_2
-    return model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP
+    # loss_marg_flow_1 = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
+    # loss_marg_flow_2 = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
+    loss_cop_flow = -output_cop_flow.mean()
+    assert loss_cop_flow >= 0
+    assert loss_marg_flow_1 >= 0
+    assert loss_marg_flow_2 >= 0
+    loss = loss_cop_flow + loss_marg_flow_1 + loss_marg_flow_2
+    return model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow
 
 
-def single_model_forward(args, model, model_name, data, transform_inputs, device):
-    # When training just the DDSF or RealNVP, there is only one loss and no preprocessing of data.
-    if model_name == 'DDSF_1':
-        output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
-        loss = -flow_density(output_DDSF_1, logdets_DDSF_1.reshape(-1, 1)).mean()
-    elif model_name == 'DDSF_2':
-        output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
-        loss = -flow_density(output_DDSF_2, logdets_DDSF_2.reshape(-1, 1)).mean()
-    elif model_name == 'RealNVP':
+def single_model_forward(args, model, model_name, data, transform_inputs, device, cond_data=None):
+    # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
+    if model_name == 'marg_flow_1':
+        output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1])
+        loss = -output_marg_flow_1.mean()
+        # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
+        # loss = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
+    elif model_name == 'marg_flow_2':
+        output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1])
+        loss = -output_marg_flow_2.mean()
+        # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
+        # loss = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
+    elif model_name == 'cop_flow':
         if transform_inputs is True:
             with torch.no_grad():
-                output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, data, device)
-                output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, data, device)
-                outputs_DDSFs = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
+                output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1]).reshape(-1, 1)
+                # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
+                output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1]).reshape(-1, 1)
+                # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
+                outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), axis=1)
             if args.conditional_copula:
-                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=output_DDSF_1, cond_inputs=output_DDSF_2, mode='direct')
+                losses = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2) #, mode='direct')
             else:
-                output_RealNVP, logdets_RealNVP = model.model_RealNVP(inputs=outputs_DDSFs, mode='direct')
-            loss = -flow_density(output_RealNVP, logdets_RealNVP).mean()
+                losses = model.cop_flow.loss(outputs_marg_flows) #, mode='direct')
+            loss = losses.mean()
         else:
             if args.conditional_copula:
                 losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
             else:
                 losses = model.loss(data)
             loss = losses.mean()
+    elif model_name == 'rvine_cop_flow':
+        losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
+        loss = losses.mean()
     else:
         losses = model.loss(data)
         loss = losses.mean()
@@ -82,15 +94,15 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
     return model, loss
 
 
-def move_transformed_outputs(args, train_loader, device, model, data):
-    logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
-    output_DDSF_1, logdets_DDSF_1, __ = ddsf_1_forward(model, train_loader.dataset.tensors[0], device)
-    output_DDSF_2, logdets_DDSF_2, __ = ddsf_2_forward(model, train_loader.dataset.tensors[0], device)
-    if args.conditional_copula:
-        model.model_RealNVP.forward(inputs=output_DDSF_1.to(data.device), cond_inputs=output_DDSF_2.to(data.device))
-    else:
-        train_loader_tensor = torch.cat((output_DDSF_1, output_DDSF_2), dim=1)
-        model.model_RealNVP.forward(train_loader_tensor.to(data.device))
+# def move_transformed_outputs(args, train_loader, device, model, data):
+#     logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
+#     output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, train_loader.dataset.tensors[0], device)
+#     output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, train_loader.dataset.tensors[0], device)
+#     if args.conditional_copula:
+#         model.cop_flow.forward(inputs=output_marg_flow_1.to(data.device), cond_inputs=output_marg_flow_2.to(data.device))
+#     else:
+#         train_loader_tensor = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
+#         model.cop_flow.forward(train_loader_tensor.to(data.device))
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
@@ -118,7 +130,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         assert not torch.isnan(torch.sum(data))
 
         if model_name == 'CM_Flow':
-            model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
+            model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
                                                                                   data,
                                                                                   device)
             # Append Training loss to current_epoch_losses dictionary
@@ -128,16 +140,16 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                 current_epoch_losses['train_loss'] = []
 
             # Perform backwards calculation for each loss on its own, retaining the first two graphs. Since the outputs
-            # of the DDSF's are inputs to RealNVP, the RealNVP loss contains the DDSF weights as well.
-            loss_DDSF_1.backward(retain_graph=True)
-            loss_DDSF_2.backward(retain_graph=True)
-            loss_RealNVP.backward()
+            # of the marg_flow's are inputs to cop_flow, the cop_flow loss contains the marg_flow weights as well.
+            loss_marg_flow_1.backward(retain_graph=True)
+            loss_marg_flow_2.backward(retain_graph=True)
+            loss_cop_flow.backward()
 
             if args.clip_grad_norm:
                 model.clip_grad_norm()
 
         else:
-            if model_name in ['DDSF_1', 'DDSF_2', 'RealNVP']:
+            if model_name in ['marg_flow_1', 'marg_flow_2', 'cop_flow', 'rvine_cop_flow']:
                 model, loss = single_model_forward(args,
                                                    model,
                                                    model_name,
@@ -157,9 +169,9 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss.backward()
 
         # Perform gradient clipping
-        if model_name in ['DDSF_1', 'DDSF_2', 'DDSF', 'CM_Flow']:
-            if args.clip_grad_norm:
-                model.clip_grad_norm()
+        # if model_name in ['marg_flow_1', 'marg_flow_2', 'marg_flow', 'CM_Flow']:
+        #     if args.clip_grad_norm:
+        #         model.clip_grad_norm()
 
         # Perform one optimizer step
         if args.scheduler is None:
@@ -174,26 +186,26 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
 
     pbar.close()
 
-    for module in model.modules():
-        if isinstance(module, fnn.BatchNormFlow):
-            module.momentum = 0
+    # for module in model.modules():
+    #     if isinstance(module, fnn.BatchNormFlow):
+    #         module.momentum = 0
 
-    with torch.no_grad():
-        if model_name == 'RealNVP':
-            if transform_inputs is True:
-                move_transformed_outputs(args, train_loader, device, model, data)
-            else:
-                if args.conditional_copula:
-                    model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
-                                  cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
-                else:
-                    model(train_loader.dataset.tensors[0].to(data.device))
-        elif model_name == 'CM_Flow':
-            move_transformed_outputs(args, train_loader, device, model, data)
+    # with torch.no_grad():
+    #     if model_name == 'cop_flow':
+    #         if transform_inputs is True:
+    #             move_transformed_outputs(args, train_loader, device, model, data)
+    #         else:
+    #             if args.conditional_copula:
+    #                 model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
+    #                               cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
+    #             else:
+    #                 model(train_loader.dataset.tensors[0].to(data.device))
+    #     elif model_name == 'CM_Flow':
+    #         move_transformed_outputs(args, train_loader, device, model, data)
 
-    for module in model.modules():
-        if isinstance(module, fnn.BatchNormFlow):
-            module.momentum = 1
+    # for module in model.modules():
+    #     if isinstance(module, fnn.BatchNormFlow):
+    #         module.momentum = 1
 
     return current_epoch_losses
 
@@ -228,7 +240,7 @@ def validate(args, epoch, model, loader, device,
 
         with torch.no_grad():
             if model_name == 'CM_Flow':
-                model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
+                model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
                                                                                       data,
                                                                                       device)
             else:
@@ -283,7 +295,7 @@ def test(args, epoch, model, loader, device,
         data = data.to(device)
         with torch.no_grad():
             if model_name == 'CM_Flow':
-                model, loss, loss_DDSF_1, loss_DDSF_2, loss_RealNVP = cm_flow_forward(model,
+                model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
                                                                                       data,
                                                                                       device)
             else:
@@ -398,25 +410,25 @@ def train_val(model, model_name, args, data_loaders, dataset,
         num_samples = int(0.2 * args.obs)
 
         # Calculate Jensen-Shannon Divergence of copula
-        if model_name == 'RealNVP':
+        if model_name == 'cop_flow':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
-                                        model.model_RealNVP if cm_flow else model,
+                                        model.cop_flow if cm_flow else model,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
-                                        cm_flow=args.RealNVP_part_of_CM_Flow)
+                                        cm_flow=args.cop_flow_part_of_CM_Flow)
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
-                                          model=model.model_RealNVP if cm_flow else model,
+                                          model=model.cop_flow if cm_flow else model,
                                           cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]),
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
-                                          cm_flow=args.RealNVP_part_of_CM_Flow)
+                                          cm_flow=args.cop_flow_part_of_CM_Flow)
 
-        if model_name == 'DDSF':
+        if model_name == 'marg_flow':
             # Calculate Jensen-Shannon Divergence of marginal 1
             args.marginal = args.marginal
             test_dict = jsd_eval_marginal(marginal=args.marginal,
@@ -431,7 +443,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
                             args=args,
                             best_val=True)
 
-        if model_name == 'DDSF_1':
+        if model_name == 'marg_flow_1':
             # Calculate Jensen-Shannon Divergence of marginal 1
             args.marginal = args.marginal_1
             test_dict = jsd_eval_marginal(marginal=args.marginal_1,
@@ -443,7 +455,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                           marginal_num='1')
 
         # Calculate Jensen-Shannon Divergence of marginal 1
-        if model_name == 'DDSF_2':
+        if model_name == 'marg_flow_2':
             args.marginal = args.marginal_2
             test_dict = jsd_eval_marginal(marginal=args.marginal_2,
                                           args=args,
@@ -461,7 +473,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                         data_loaders['test_loader'],
                                         device=args.device,
                                         test_dict=test_dict,
-                                        cm_flow=args.RealNVP_part_of_CM_Flow)
+                                        cm_flow=args.cop_flow_part_of_CM_Flow)
 
             test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
                                              marginal_2=args.marginal_2,
@@ -490,7 +502,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)
         if not error_bars and not grid_search and not rvine:
-            if model_name == 'DDSF':
+            if model_name == 'marg_flow':
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)

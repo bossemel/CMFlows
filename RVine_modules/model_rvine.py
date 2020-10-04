@@ -6,12 +6,15 @@ import torch
 import re
 import matplotlib.pyplot as plt
 import os
+import torch.optim as optim
 
 from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
-from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
-from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
+from NSF import  build_model as NSF_build_model
+#from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
+#from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
+from experiment_runner import train_val
 from utils import calc_jsd
 
 
@@ -33,40 +36,40 @@ def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
     model.eval()
 
 
-def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, save_name, add_name):
-    """Trains the copula flow and returns a dicitionary with the best epoch.
+# def train_copula_flow(args, model, dataset, data_loaders, conditional_copula, save_name, add_name):
+#     """Trains the copula flow and returns a dicitionary with the best epoch.
 
-    Params:
-        args: passed arguments
-        model: the model to train
-        dataset: current dataset
-        data_loaders: train, val and test set data loaders
-        conditional_copula: boolean indicating whether unconditional und conditional copula flow is trained
-        save_name: name under which to save the model (edge name)
-        add_name: additional name to save the model under (usually 'uncon' or 'con')
+#     Params:
+#         args: passed arguments
+#         model: the model to train
+#         dataset: current dataset
+#         data_loaders: train, val and test set data loaders
+#         conditional_copula: boolean indicating whether unconditional und conditional copula flow is trained
+#         save_name: name under which to save the model (edge name)
+#         add_name: additional name to save the model under (usually 'uncon' or 'con')
 
-    Returns:
-        best_dict: dictionary indicating the best validation epoch
-    """
-    save_name = re.sub('[, ()]', '', str(save_name)) + add_name
-    args.conditional_copula = conditional_copula
-    __, best_dict, __ = RealNVP_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
-    return best_dict
+#     Returns:
+#         best_dict: dictionary indicating the best validation epoch
+#     """
+#     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
+#     args.conditional_copula = conditional_copula
+#     __, best_dict, __ = NSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
+#     return best_dict
 
 
-def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name):
-    """ Trains marginal flow and saved the results with the given save_name.
+# def train_marginal_flow(args, model, dataset, data_loaders, save_name, add_name):
+#     """ Trains marginal flow and saved the results with the given save_name.
 
-    Params:
-        args: passed arguments
-        model: model to train
-        dataset, dataloaders: current data set, with train/val/test set data loaders
-        save_name: name under which to save the model
-        add_name: additional name, usually 'uncon' or 'con'
-    """
-    save_name = re.sub('[, ()]', '', str(save_name)) + add_name
-    __, best_dict, __ = DDSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
-    return best_dict
+#     Params:
+#         args: passed arguments
+#         model: model to train
+#         dataset, dataloaders: current data set, with train/val/test set data loaders
+#         save_name: name under which to save the model
+#         add_name: additional name, usually 'uncon' or 'con'
+#     """
+#     save_name = re.sub('[, ()]', '', str(save_name)) + add_name
+#     __, best_dict, __ = NSF_train_and_plot(args, dataset, data_loaders, disable_tqdm=True, rvine=True, save_name=save_name)
+#     return best_dict
 
 
 def flatten(nested_tuple):
@@ -97,12 +100,17 @@ def initialize_graph(self):
         if not self.args.disable_marginal:
             print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
             # Train marginal flow
-            best_dict = train_marginal_flow(args=self.args,
-                                            model=self.model_marg,
-                                            dataset=dataset,
-                                            data_loaders=data_loaders,
-                                            save_name=node,
-                                            add_name='marginal')
+            self.args.optimizer = optim.Adam(self.model_marg.parameters(), lr=self.args.lr)
+            self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+
+            best_dict, __ = train_val(args=self.args,
+                                      model=self.model_marg,
+                                      dataset=dataset,
+                                      data_loaders=data_loaders,
+                                      save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
+                                      model_name='rvine_marg_flow',
+                                      rvine=True,
+                                      disable_tqdm=True)
             # Load best model for marginal flow
             model_loader(self.model_marg, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
 
@@ -197,26 +205,32 @@ def add_new_node(self, common_node, edge, plots):
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
-    best_dict_con = train_copula_flow(self.args,
-                                      self.model_con,
-                                      dataset,
-                                      data_loaders,
-                                      conditional_copula=True,
-                                      save_name=edge,
-                                      add_name='cop_con')
+    self.args.optimizer = optim.Adam(self.model_marg.parameters(), lr=self.args.lr)
+    self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+
+    best_dict_con, __ = train_val(args=self.args,
+                                  model=self.model_con,
+                                  dataset=dataset,
+                                  data_loaders=data_loaders,
+                                  save_name=re.sub('[, ()]', '', str(edge)) + 'cop_con',
+                                  model_name='rvine_cop_flow',
+                                  disable_tqdm=True,
+                                  rvine=True)
 
     model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
-        node_data = self.model_con.transform(inputs=uncon_node_data.reshape(-1, 1), cond_inputs=cond_node_data.reshape(-1, 1))
+        node_data = self.model_con.transform(inputs=uncon_node_data.reshape(-1, 1), cond_inputs=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
         self.new_graph.add_node(edge,
                                 node_data=node_data,
                                 best_dict_con=best_dict_con,
                                 common_node=common_node)
         if plots:
+            gaussian_inputs = torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu()
             uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
             edge_str = re.sub('[, ()]', '', str(edge))
-            visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_{}'.format(edge_str))
+            visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_uniform_{}'.format(edge_str))
+            visualize_joint(gaussian_inputs, self.args, name='rvine_con_transform_gaussian_{}'.format(edge_str))
 
             cond_inputs = torch.tensor(np.random.normal(size=(10000, 1))).float()
             con_samples = self.model_con.sample_copula(num_samples=10000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
@@ -263,12 +277,16 @@ class RVine():
 
         # Initialize conditional copula Flow
         self.args.conditional_copula = True
-        self.model_con = RealNVP_build_model(args)
+        self.model_con = NSF_build_model(args, flow_type='cop_flow')
         self.model_con.to(args.device)
+        self.model_con.state = dict()
+        self.model_con.train()
 
         # Initialize marginal flow
-        self.model_marg = DDSF_build_model(args)
+        self.model_marg = NSF_build_model(args, flow_type='marg_flow')
         self.model_marg.to(args.device)
+        self.model_marg.state = dict()
+        self.model_marg.train()
 
         # Initialize empty results dictionary
         self.results_dict = {}
@@ -351,7 +369,7 @@ class RVine():
                                  send_to_device=True)
 
                     # inverse H-function
-                    transformed_marginal = self.model_con.transform(inputs=uncon_node_data, cond_inputs=cond_node_data, mode='inverse', device=self.args.device)
+                    transformed_marginal = self.model_con.transform(inputs=uncon_node_data, cond_inputs=cond_node_data, device=self.args.device)
                     samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
         if transform:

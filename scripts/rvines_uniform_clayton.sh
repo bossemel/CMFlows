@@ -4,7 +4,7 @@ set -e
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_uniform_4_256_nom \
+--exp_name RVine_clayton_uniform_nsf \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
@@ -12,6 +12,7 @@ python RVine.py \
 --obs 10000 \
 --disable_marginal \
 --random_seed 32 \
---error_bars \
 --num_hidden_RealNVP 256 \
 --num-blocks 4
+
+# --error_bars \

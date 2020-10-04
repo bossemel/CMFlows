@@ -12,7 +12,7 @@ from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
-from DDSF_modules.visualizer import visualize1D
+from NFS_modules.visualizer import visualize1D
 
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics, load_model
@@ -24,16 +24,16 @@ eps = 0.0001
 
 
 def build_model(args):
-    """Builds the CM Flow model. It is a concatenation of RealNVP and DDSF.
+    """Builds the CM Flow model. It is a concatenation of cop_flow and marg_flow.
 
     Params:
         args: passed option arguments
 
     Returns:
         model: CM Flows model
-        model_RealNVP: RealNVP model
-        model_DDSF_1: 1st DDSF model
-        model_DDSF_2: 2nd DDSF model
+        cop_flow: cop_flow model
+        marg_flow_1: 1st marg_flow model
+        marg_flow_2: 2nd marg_flow model
     """
     model = flows.CMFlow(transform=args.transform_fct,
                          device=args.device,
@@ -43,33 +43,33 @@ def build_model(args):
     return model
 
 
-def visualize_DDSF_output(model, dataset, args):
+def visualize_marg_flow_output(model, dataset, args):
     with torch.no_grad():
         vizdata = torch.tensor(dataset.trn)
-        n = vizdata.shape[0]
-        context = torch.FloatTensor(n, 1).zero_().to(args.device)
-        logdets = torch.FloatTensor(n).zero_().to(args.device)
-        vizdata_1, __, __ = model.model_DDSF_1.forward((vizdata[:, 0:1], logdets, context))
-        vizdata_2, __, __ = model.model_DDSF_2.forward((vizdata[:, 1:2], logdets, context))
+        # n = vizdata.shape[0]
+        # context = torch.FloatTensor(n, 1).zero_().to(args.device)
+        # logdets = torch.FloatTensor(n).zero_().to(args.device)
+        vizdata_1 = model.marg_flow_1._forward(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+        vizdata_2 = model.marg_flow_2._forward(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
         normal_distr = torch.distributions.normal.Normal(0, 1)
         vizdata_uniform = normal_distr.cdf(vizdata)
-        visualize_joint(vizdata, args, name='DDSF_output')
-        visualize_joint(vizdata_uniform, args, name='DDSF_output_uniform')
+        visualize_joint(vizdata, args, name='marg_flow_output')
+        visualize_joint(vizdata_uniform, args, name='marg_flow_output_uniform')
 
 
-def visualize_RealNVP_output(model, dataset, args):
+def visualize_cop_flow_output(model, dataset, args):
     with torch.no_grad():
         if args.conditional_copula:
             cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+            output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
             visualize_joint(output_copula, args, name='output_copula')
-            output_copula = model.model_RealNVP.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+            output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
             visualize_joint(output_copula, args, name='output_copula_untransformed')
         else:
-            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+            output_copula = model.cop_flow.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
             visualize_joint(output_copula, args, name='output_copula')
-            output_copula = model.model_RealNVP.sample(num_samples=100000, transform=None, device=args.device).cpu()
+            output_copula = model.cop_flow.sample(num_samples=100000, transform=None, device=args.device).cpu()
             visualize_joint(output_copula, args, name='output_copula_untransformed')
 
 
@@ -114,17 +114,18 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.state = dict()
     model.to(args.device)
 
-    # Pretrain models individually, with RealNVP using the outputs of DDSF as inputs
+    # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
     if args.pretrain_models:
-        # Train DDSFs
-        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+        # Train marg_flows
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
-        for param in model.model_DDSF_2.parameters():
+        for param in model.marg_flow_2.parameters():
             param.requires_grad = False
-        for param in model.model_RealNVP.parameters():
+        for param in model.cop_flow.parameters():
             param.requires_grad = False
-        best_dict_DDSF_1, test_dict = train_val(model=model,
-                                                model_name='DDSF_1',
+        best_dict_marg_flow_1, test_dict = train_val(model=model,
+                                                model_name='marg_flow_1',
                                                 args=args,
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
@@ -135,19 +136,23 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                           best_dict_DDSF_1['best_validation_epoch'])
-        visualize1D(model=model.model_DDSF_1,
-                    epoch=best_dict_DDSF_1['best_validation_epoch'],
+                           best_dict_marg_flow_1['best_validation_epoch'])
+        visualize1D(model=model.marg_flow_1,
+                    epoch=best_dict_marg_flow_1['best_validation_epoch'],
                     args=args,
                     best_val=True,
-                    name='DDSF_1')
-        for param in model.model_DDSF_1.parameters():
+                    name='marg_flow_1')
+        for param in model.marg_flow_1.parameters():
             param.requires_grad = False
-        for param in model.model_DDSF_2.parameters():
+        for param in model.marg_flow_2.parameters():
             param.requires_grad = True
-        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        best_dict_DDSF_2, test_dict = train_val(model=model,
-                                                model_name='DDSF_2',
+        #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+
+
+        best_dict_marg_flow_2, test_dict = train_val(model=model,
+                                                model_name='marg_flow_2',
                                                 args=args,
                                                 data_loaders=data_loaders,
                                                 dataset=dataset,
@@ -158,24 +163,28 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                 cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                           best_dict_DDSF_2['best_validation_epoch'])
-        visualize1D(model=model.model_DDSF_2,
-                    epoch=best_dict_DDSF_2['best_validation_epoch'],
+                           best_dict_marg_flow_2['best_validation_epoch'])
+        visualize1D(model=model.marg_flow_2,
+                    epoch=best_dict_marg_flow_2['best_validation_epoch'],
                     args=args,
                     best_val=True,
-                    name='DDSF_2')
+                    name='marg_flow_2')
         # Visualize DDFS transformations
         if not error_bars and not rvine:
-            visualize_DDSF_output(model, dataset, args)
+            visualize_marg_flow_output(model, dataset, args)
 
-        for param in model.model_DDSF_2.parameters():
+        for param in model.marg_flow_2.parameters():
             param.requires_grad = False
-        for param in model.model_RealNVP.parameters():
+        for param in model.cop_flow.parameters():
             param.requires_grad = True
-        # Train RealNVP
-        args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-        best_dict_RealNVP, test_dict = train_val(model,
-                                                 model_name='RealNVP',
+        # Train cop_flow
+        # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+        args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+        model.cop_flow.train()
+
+        best_dict_cop_flow, test_dict = train_val(model,
+                                                 model_name='cop_flow',
                                                  args=args,
                                                  data_loaders=data_loaders,
                                                  dataset=dataset,
@@ -187,20 +196,20 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                                                  cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                           best_dict_RealNVP['best_validation_epoch'])
+                           best_dict_cop_flow['best_validation_epoch'])
 
-        best_dict = best_dict_RealNVP
+        best_dict = best_dict_cop_flow
 
         if not error_bars and not rvine:
-            visualize_RealNVP_output(model, dataset, args)
+            visualize_cop_flow_output(model, dataset, args)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
                        test_dict.items()}  # save test set metrics in dict format
         sep = '_'
-        epochs = sep.join(list([str(best_dict_DDSF_1['best_validation_epoch']),
-                                str(best_dict_DDSF_2['best_validation_epoch']),
-                                str(best_dict_RealNVP['best_validation_epoch'])]))
+        epochs = sep.join(list([str(best_dict_marg_flow_1['best_validation_epoch']),
+                                str(best_dict_marg_flow_2['best_validation_epoch']),
+                                str(best_dict_cop_flow['best_validation_epoch'])]))
         if not rvine:
             save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                             # save test set metrics on disk in .csv format
@@ -229,7 +238,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
         # Visualize DDFS transformations
         if not error_bars and not rvine:
-            visualize_DDSF_output(model, dataset, args)
+            visualize_marg_flow_output(model, dataset, args)
 
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
@@ -266,8 +275,8 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Specify, that this RealNVP is part of a CM_Flow
-    args.RealNVP_part_of_CM_Flow = True
+    # Specify, that this cop_flow is part of a CM_Flow
+    args.cop_flow_part_of_CM_Flow = True
 
     # Set up data loader
     dataset, data_loaders, train_dataset = utils.load_data(args)
