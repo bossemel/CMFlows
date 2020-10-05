@@ -9,11 +9,10 @@ import numpy as np
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from NFS_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from DDSF_modules.eval import jsd_eval as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
+from NFS_modules.eval import jsd_eval_1D as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
 from NFS_modules.visualizer import visualize1D
 from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm
-from utils import flow_density, empty_logdets_context
 
 eps = 0.0001
 
@@ -29,12 +28,13 @@ eps = 0.0001
 
 
 def cm_flow_forward(model, data, device):
+    raise NotImplementedError
     # @Todo: do i need this function?
     # CM_Flow passes each dimension of the data through a marg_flow, and then passes the output through the cop_flow
     output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1])
-    output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1])
-    loss_marg_flow_1 = -output_marg_flow_1.mean()
-    loss_marg_flow_2 = -output_marg_flow_2.mean()
+    output_marg_flow_2 = model.marg_flow_2._forward(data[:, 1: 2])
+    loss_marg_flow_1 = -torch.mean(output_marg_flow_1)
+    loss_marg_flow_2 = -torch.mean(output_marg_flow_2)
 
     with torch.no_grad():
         outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
@@ -44,10 +44,11 @@ def cm_flow_forward(model, data, device):
     # Calculate losses using Change of Variable Theorem and a normal prior
     # loss_marg_flow_1 = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
     # loss_marg_flow_2 = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
-    loss_cop_flow = -output_cop_flow.mean()
+    loss_cop_flow = -torch.mean(output_cop_flow)
     assert loss_cop_flow >= 0
     assert loss_marg_flow_1 >= 0
     assert loss_marg_flow_2 >= 0
+
     loss = loss_cop_flow + loss_marg_flow_1 + loss_marg_flow_2
     return model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow
 
@@ -55,28 +56,26 @@ def cm_flow_forward(model, data, device):
 def single_model_forward(args, model, model_name, data, transform_inputs, device, cond_data=None):
     # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
     if model_name == 'marg_flow_1':
-        output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1])
-        loss = -output_marg_flow_1.mean()
+        loss = model.marg_flow_1.loss(data[:, 0: 1])
         # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
         # loss = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
     elif model_name == 'marg_flow_2':
-        output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1])
-        loss = -output_marg_flow_2.mean()
+        loss = model.marg_flow_2.loss(data[:, 1: 2])
         # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
         # loss = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
     elif model_name == 'cop_flow':
         if transform_inputs is True:
             with torch.no_grad():
-                output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1]).reshape(-1, 1)
+                output_marg_flow_1 = model.marg_flow_1.flow.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
                 # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
-                output_marg_flow_2 = model.marg_flow_2._forward(data[:, 0: 1]).reshape(-1, 1)
+                output_marg_flow_2 = model.marg_flow_2.flow.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
                 # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
                 outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), axis=1)
             if args.conditional_copula:
-                losses = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2) #, mode='direct')
+                loss = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2) #, mode='direct')
             else:
-                losses = model.cop_flow.loss(outputs_marg_flows) #, mode='direct')
-            loss = losses.mean()
+                loss = model.cop_flow.loss(outputs_marg_flows) #, mode='direct')
+            # loss = losses.mean()
         else:
             if args.conditional_copula:
                 losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])

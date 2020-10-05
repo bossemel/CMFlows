@@ -99,9 +99,16 @@ def initialize_graph(self):
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
             print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-            # Train marginal flow
+
+            # Initialize marginal flow
+            self.model_marg = NSF_build_model(self.args, flow_type='marg_flow')
+            self.model_marg.to(self.args.device)
+            self.model_marg.state = dict()
+            self.model_marg.train()
             self.args.optimizer = optim.Adam(self.model_marg.parameters(), lr=self.args.lr)
             self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+
+            # Train marginal flow
 
             best_dict, __ = train_val(args=self.args,
                                       model=self.model_marg,
@@ -117,7 +124,7 @@ def initialize_graph(self):
             # Transform inputs using the trained marginal flow
             with torch.no_grad():
                 self.data = self.data.to(self.args.device)
-                transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                transformed_inputs = self.model_marg.flow.transform_to_noise(self.data[:, node:node + 1].float())
                 self.data = self.data.cpu()
 
         # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
@@ -205,8 +212,15 @@ def add_new_node(self, common_node, edge, plots):
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
-    self.args.optimizer = optim.Adam(self.model_marg.parameters(), lr=self.args.lr)
+    # Initialize conditional copula Flow
+    self.args.conditional_copula = True
+    self.model_con = NSF_build_model(self.args, flow_type='cop_flow')
+    self.model_con.to(self.args.device)
+    self.model_con.state = dict()
+    self.model_con.train()
+    self.args.optimizer = optim.Adam(self.model_con.parameters(), lr=self.args.lr)
     self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+
 
     best_dict_con, __ = train_val(args=self.args,
                                   model=self.model_con,
@@ -220,7 +234,7 @@ def add_new_node(self, common_node, edge, plots):
     model_loader(self.model_con, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
-        node_data = self.model_con.transform(inputs=uncon_node_data.reshape(-1, 1), cond_inputs=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
+        node_data = self.model_con.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
         self.new_graph.add_node(edge,
                                 node_data=node_data,
                                 best_dict_con=best_dict_con,
@@ -275,18 +289,8 @@ class RVine():
         self.tree_list = []
         self.num_inputs = data.shape[1]
 
-        # Initialize conditional copula Flow
-        self.args.conditional_copula = True
-        self.model_con = NSF_build_model(args, flow_type='cop_flow')
-        self.model_con.to(args.device)
-        self.model_con.state = dict()
-        self.model_con.train()
 
-        # Initialize marginal flow
-        self.model_marg = NSF_build_model(args, flow_type='marg_flow')
-        self.model_marg.to(args.device)
-        self.model_marg.state = dict()
-        self.model_marg.train()
+
 
         # Initialize empty results dictionary
         self.results_dict = {}
@@ -367,9 +371,11 @@ class RVine():
                                  best_dict_con['best_validation_epoch'],
                                  add_name='cop_con',
                                  send_to_device=True)
+                    self.model_con.to(self.args.device)
 
                     # inverse H-function
-                    transformed_marginal = self.model_con.transform(inputs=uncon_node_data, cond_inputs=cond_node_data, device=self.args.device)
+                    transformed_marginal, __ = self.model_con.flow._transform.inverse(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
+                    # transformed_marginal = self.model_con._forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device)).reshape(-1, 1)
                     samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
         if transform:

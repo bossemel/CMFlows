@@ -1,14 +1,14 @@
 set -e
-echo 'Gaussian - random Search'
+# echo 'Gaussian - random Search'
 
-python NSF.py \
---exp_name NSF_gaussian_random_search \
---epochs 100 \
---marginal gaussian \
---batch-size 100 \
---obs 10000 \
---random_search \
---flow_type marg_flow
+# python NSF.py \
+# --exp_name NSF_gaussian_random_search \
+# --epochs 1 \
+# --marginal gaussian \
+# --batch-size 100 \
+# --obs 10000 \
+# --random_search \
+# --flow_type marg_flow
 
 # echo 'Uniform - random Search'
 
@@ -35,15 +35,15 @@ python NSF.py \
 # --random_search \
 # --flow_type marg_flow
 
-# echo 'Lognormal - random Search'
+echo 'Lognormal - random Search'
 
-# python NSF.py \
-# --exp_name NSF_lognormal_random_search \
-# --epochs 100 \
-# --marginal lognormal \
-# --mu 0 \
-# --var 1 \
-# --batch-size 100 \
-# --obs 10000 \
-# --random_search \
-# --flow_type marg_flow
+python NSF.py \
+--exp_name NSF_lognormal_random_search \
+--epochs 100 \
+--marginal lognormal \
+--mu 0 \
+--var 1 \
+--batch-size 100 \
+--obs 10000 \
+--random_search \
+--flow_type marg_flow

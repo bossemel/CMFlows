@@ -125,15 +125,15 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         for param in model.cop_flow.parameters():
             param.requires_grad = False
         best_dict_marg_flow_1, test_dict = train_val(model=model,
-                                                model_name='marg_flow_1',
-                                                args=args,
-                                                data_loaders=data_loaders,
-                                                dataset=dataset,
-                                                transform_inputs=True,
-                                                disable_tqdm=disable_tqdm,
-                                                error_bars=error_bars,
-                                                rvine=rvine,
-                                                cm_flow=True)
+                                                     model_name='marg_flow_1',
+                                                     args=args,
+                                                     data_loaders=data_loaders,
+                                                     dataset=dataset,
+                                                     transform_inputs=True,
+                                                     disable_tqdm=disable_tqdm,
+                                                     error_bars=error_bars,
+                                                     rvine=rvine,
+                                                     cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_marg_flow_1['best_validation_epoch'])
@@ -152,15 +152,15 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
 
         best_dict_marg_flow_2, test_dict = train_val(model=model,
-                                                model_name='marg_flow_2',
-                                                args=args,
-                                                data_loaders=data_loaders,
-                                                dataset=dataset,
-                                                transform_inputs=True,
-                                                disable_tqdm=disable_tqdm,
-                                                error_bars=error_bars,
-                                                rvine=rvine,
-                                                cm_flow=True)
+                                                     model_name='marg_flow_2',
+                                                     args=args,
+                                                     data_loaders=data_loaders,
+                                                     dataset=dataset,
+                                                     transform_inputs=True,
+                                                     disable_tqdm=disable_tqdm,
+                                                     error_bars=error_bars,
+                                                     rvine=rvine,
+                                                     cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_marg_flow_2['best_validation_epoch'])
@@ -184,16 +184,16 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         model.cop_flow.train()
 
         best_dict_cop_flow, test_dict = train_val(model,
-                                                 model_name='cop_flow',
-                                                 args=args,
-                                                 data_loaders=data_loaders,
-                                                 dataset=dataset,
-                                                 test_dict=test_dict,
-                                                 transform_inputs=True,
-                                                 disable_tqdm=disable_tqdm,
-                                                 error_bars=error_bars,
-                                                 rvine=rvine,
-                                                 cm_flow=True)
+                                                  model_name='cop_flow',
+                                                  args=args,
+                                                  data_loaders=data_loaders,
+                                                  dataset=dataset,
+                                                  test_dict=test_dict,
+                                                  transform_inputs=True,
+                                                  disable_tqdm=disable_tqdm,
+                                                  error_bars=error_bars,
+                                                  rvine=rvine,
+                                                  cm_flow=True)
 
         model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
                            best_dict_cop_flow['best_validation_epoch'])

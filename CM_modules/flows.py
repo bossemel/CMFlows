@@ -45,7 +45,7 @@ class CMFlow(nn.Module):
         # self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
         # outputs, log_jacob, __ = self.marg_flow_1.forward((inputs, self.logdets, self.context))
         # density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        return self.marg_flow_1.forward(inputs)
+        return self.marg_flow_1._forward(inputs)
 
     def log_density_DDSF_2(self, inputs, logdets=None, context=None):
         """Returns log of target density of the Flow
@@ -62,7 +62,7 @@ class CMFlow(nn.Module):
         # outputs, log_jacob, __ = self.marg_flow_2.forward((inputs, self.logdets, self.context))
         # density = flow_density(outputs, log_jacob.reshape(-1, 1))
         # return density
-        return self.marg_flow_2.forward(inputs)
+        return self.marg_flow_2._forward(inputs)
 
 
     # def log_density_RealNVP(self, inputs, cond_inputs=None, mode='direct', transform_inputs=False):

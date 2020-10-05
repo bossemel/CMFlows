@@ -129,7 +129,8 @@ class TrainOptions():
             '--anneal_mult', type=int, default=2, help='Warm restart period multiplier')
         parser.add_argument(
             '--n_restarts', type=int, default=3, help='Number of annealing restarts')
-
+        parser.add_argument(
+            '--num_bins', type=int, default=8, help='Number of bins to use for piecewise transforms.')
         # Save options
         parser.add_argument(
             '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')

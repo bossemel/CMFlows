@@ -1,27 +1,27 @@
 set -e
-echo 'Gaussian - random Search'
-
-python NSF.py \
---exp_name NSF_gaussian_random_search \
---epochs 100 \
---marginal gaussian \
---batch-size 100 \
---obs 10000 \
---random_search \
---flow_type marg_flow
-
-# echo 'Uniform - random Search'
+# echo 'Gaussian - random Search'
 
 # python NSF.py \
-# --exp_name NSF_uniform_random_search \
-# --epochs 100 \
-# --marginal uniform \
-# --low -1 \
-# --high 3 \
+# --exp_name NSF_gaussian_random_search \
+# --epochs 1 \
+# --marginal gaussian \
 # --batch-size 100 \
 # --obs 10000 \
 # --random_search \
 # --flow_type marg_flow
+
+echo 'Uniform - random Search'
+
+python NSF.py \
+--exp_name NSF_uniform_random_search \
+--epochs 100 \
+--marginal uniform \
+--low -1 \
+--high 3 \
+--batch-size 100 \
+--obs 10000 \
+--random_search \
+--flow_type marg_flow
 
 # echo 'Gamma - random Search'
 

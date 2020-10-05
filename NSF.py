@@ -7,7 +7,8 @@ from pathlib import Path
 import random
 import csv
 
-import RealNVP_modules.utils as utils
+import RealNVP_modules.utils as RealNVP_utils
+import DDSF_modules.utils as DDSF_utils
 
 from utils.visualizer import visualize_joint
 import datasets.distributions
@@ -18,6 +19,10 @@ import matplotlib
 
 from NFS_modules import flows
 from NFS_modules.options import TrainOptions
+from utils import HiddenPrints\
+
+
+
 
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
@@ -53,16 +58,84 @@ def build_model(args, flow_type='cop_flow'):
                                  min_derivative=args.min_derivative,
                                  unconditional_transform=args.unconditional_transform,
                                  subsample=args.subsample,
-                                 device=args.device)
+                                 device=args.device, num_bins=args.num_bins)
     return flow
 
 
+def random_search(args):
+    results_dict = {}
+    tested_combinations = []
+    best_loss = 1000
+    ii = 0
+    while ii < 30:
+        args.n_layers = 5 * np.random.choice(range(1, 5))
+        args.hidden_units = 2**np.random.choice(range(10))
+        args.n_blocks = np.random.choice(range(5))
+        args.n_bins = 5 * np.random.choice(range(2, 10))
+        args.dropout = 0.1 * np.random.choice(range(1, 4))
+        lr_number = np.random.choice(range(2, 10))
+        args.lr = 1 / 10**lr_number
+        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+
+        if args.flow_type == 'cop_flow':
+            current_hyperparams = (args.n_layers,
+                                   args.hidden_units,
+                                   args.n_blocks,
+                                   args.n_bins,
+                                   args.dropout,
+                                   args.lr,
+                                   args.weight_decay)
+
+        elif args.flow_type == 'marg_flow':
+            args.num_bins = int(2 ** np.random.choice(range(5)))
+            current_hyperparams = (args.n_layers,
+                                   args.hidden_units,
+                                   args.n_blocks,
+                                   args.n_bins,
+                                   args.dropout,
+                                   args.lr,
+                                   args.weight_decay,
+                                   args.num_bins)
+        else:
+            raise ValueError('Unknown Flow type')
+
+        if current_hyperparams not in tested_combinations:
+            print('args.n_layers, args.hidden_units, args.n_blocks, args.n_bins, args.dropout, \
+                args.lr, args.weight_decay, {}'.format(current_hyperparams))
+            if args.flow_type == 'marg_flow':
+                print('num bins: {}'.format(args.num_bins))
+            with HiddenPrints():
+                __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                          dataset=dataset,
+                                                                          data_loaders=data_loaders,
+                                                                          disable_tqdm=True,
+                                                                          grid_search=True)
+            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                 current_best_dict['best_validation_loss'])
+            print(results_dict[current_hyperparams])
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                f.write(str(results_dict))
+            if current_best_dict['best_validation_loss'] < best_loss:
+                best_loss = current_best_dict['best_validation_loss']
+                best_hyperparams = current_hyperparams
+                best_dict = current_best_dict
+            tested_combinations.append(current_hyperparams)
+            ii += 1
+    print('Random search complete for {}'.format(args.copula))
+    print('Best hyperparams: {}'.format(best_hyperparams))
+    print('Lowest Val Loss: {}'.format(best_loss))
+    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
+    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+
+
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
-    if not grid_search and not rvine and not error_bars:
+    if not grid_search and not rvine and not error_bars and args.flow_type == 'cop_flow':
         visualize_joint(dataset.trn, args, name='input_dataset')
 
     # Build model and send to device
-    model = build_model(args)
+    model = build_model(args, flow_type=args.flow_type)
     model.state = dict()
     model.to(args.device)
     model.train()
@@ -74,7 +147,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name='cop_flow',
+                                     model_name=args.flow_type,
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -126,10 +199,14 @@ if __name__ == '__main__':
     args.cop_flow_part_of_CM_Flow = False
 
     # Set up data loader
-    dataset, data_loaders = utils.load_data(args)
+    if args.flow_type == 'cop_flow':
+        dataset, data_loaders = RealNVP_utils.load_data(args)
+    elif args.flow_type == 'marg_flow':
+        dataset, data_loaders = DDSF_utils.load_data(args)
 
-    # if args.random_search:
-    #     random_search(args=args)
+
+    if args.random_search:
+        random_search(args=args)
     # elif args.grid_search:
     #     # Hyperparameter options:
     #     transform_functions = ['gaussian', 'sigmoid']
@@ -141,68 +218,69 @@ if __name__ == '__main__':
     #                 transform_functions=transform_functions,
     #                 num_inv_blocks=num_inv_blocks,
     #                 num_hidden_units=num_hidden_units)
-    # else:
-    if args.error_bars is True:
-        eval_dict = {}
-        # Train model
-        model, best_dict, test_dict = train_and_plot(args=args,
-                                                     dataset=dataset,
-                                                     data_loaders=data_loaders,
-                                                     disable_tqdm=True,
-                                                     grid_search=False,
-                                                     error_bars=False)
-
-        model = load_model(model, args.experiment_saved_models, 'train_model',
-                           best_dict['best_validation_epoch'])
-        for ii in range(1, 10):
-            train_and_plot(args=args,
-                           dataset=dataset,
-                           data_loaders=data_loaders,
-                           disable_tqdm=True,
-                           error_bars=True)
-        stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
-        with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
-            writer = csv.writer(f)
-            for key in stats_dict.keys():
-                if key != 'epoch':
-                    float_list = np.array([float(xx) for xx in stats_dict[key]])
-                    line = [key, np.mean(float_list), np.std(float_list)]
-                    writer.writerow(line)
     else:
-        # Train model
-        model, best_dict, test_dict = train_and_plot(args=args,
-                                                     dataset=dataset,
-                                                     data_loaders=data_loaders,
-                                                     disable_tqdm=False,
-                                                     grid_search=False)
+        if args.error_bars is True:
+            eval_dict = {}
+            # Train model
+            model, best_dict, test_dict = train_and_plot(args=args,
+                                                         dataset=dataset,
+                                                         data_loaders=data_loaders,
+                                                         disable_tqdm=True,
+                                                         grid_search=False,
+                                                         error_bars=False)
 
-        model = load_model(model, args.experiment_saved_models, 'train_model',
-                           best_dict['best_validation_epoch'])
-        # Sample from predicted copual and visualize it
-        with torch.no_grad():
-            if args.conditional_copula:
-                cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula_untransformed')
-            else:
-                output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula')
-                output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
-                visualize_joint(output_copula, args, name='output_copula_untransformed')
+            model = load_model(model, args.experiment_saved_models, 'train_model',
+                               best_dict['best_validation_epoch'])
+            for ii in range(1, 10):
+                train_and_plot(args=args,
+                               dataset=dataset,
+                               data_loaders=data_loaders,
+                               disable_tqdm=True,
+                               error_bars=True)
+            stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
+            with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
+                writer = csv.writer(f)
+                for key in stats_dict.keys():
+                    if key != 'epoch':
+                        float_list = np.array([float(xx) for xx in stats_dict[key]])
+                        line = [key, np.mean(float_list), np.std(float_list)]
+                        writer.writerow(line)
+        else:
+            # Train model
+            model, best_dict, test_dict = train_and_plot(args=args,
+                                                         dataset=dataset,
+                                                         data_loaders=data_loaders,
+                                                         disable_tqdm=False,
+                                                         grid_search=False)
 
-        # Sample from true copula and visualize it
-        obs = args.obs
-        args.obs = 100000
-        dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
-        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
-        args.obs = obs
+            model = load_model(model, args.experiment_saved_models, 'train_model',
+                               best_dict['best_validation_epoch'])
+            # Sample from predicted copual and visualize it
+            with torch.no_grad():
+                if args.flow_type == 'cop_flow':
+                    if args.conditional_copula:
+                        cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
+                        output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+                        visualize_joint(output_copula, args, name='output_copula')
+                        output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+                        visualize_joint(output_copula, args, name='output_copula_untransformed')
+                    else:
+                        output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+                        visualize_joint(output_copula, args, name='output_copula')
+                        output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
+                        visualize_joint(output_copula, args, name='output_copula_untransformed')
 
-        # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
-        save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
+                    # Sample from true copula and visualize it
+                    obs = args.obs
+                    args.obs = 100000
+                    dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
+                    visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+                    args.obs = obs
+
+            # Gather test losses and save statistics
+            test_losses = {key: [np.mean(value)] for key, value in
+                           test_dict.items()}  # save test set metrics in dict format
+            save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
+                            # save test set metrics on disk in .csv format
+                            stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=best_dict['best_validation_epoch'])
 

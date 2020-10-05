@@ -7,13 +7,14 @@ import scipy.stats
 from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval
+from torch.nn import functional as F
 
 
 class ConditionalFlow(nn.Module):
     """A conditional rational quadratic neural spline flow."""
     def __init__(self, dim, context_dim, n_layers, hidden_units, n_blocks, dropout,
                  use_batch_norm, tails, tail_bound, n_bins, min_bin_height,
-                 min_bin_width, min_derivative, unconditional_transform, subsample, device):
+                 min_bin_width, min_derivative, unconditional_transform, subsample, device, num_bins):
         super().__init__()
         self.dim = dim
         self.num_inputs = dim
@@ -36,6 +37,8 @@ class ConditionalFlow(nn.Module):
         # self.use_cnn_encoder = use_cnn_encoder
         self.subsample = subsample
         self.device = device
+
+        self.num_bins = num_bins
 
         self.base_transform_type = 'notaffine'
         distribution = distributions.StandardNormal([dim]).to(device)
@@ -96,16 +99,20 @@ class ConditionalFlow(nn.Module):
                     apply_unconditional_transform=False
                 )
         elif self.dim == 1:
-            return transforms.MaskedAffineAutoregressiveTransform(
-            features=self.dim,
-            hidden_features=self.hidden_units,
-            context_features=None,
-            num_blocks=self.n_blocks,
-            use_residual_blocks=True,
-            random_mask=False,
-            dropout_probability=self.dropout,
-            use_batch_norm=self.use_batch_norm
-        )
+            return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
+                features=self.dim,
+                hidden_features=self.hidden_units,
+                context_features=None,
+                num_bins=self.num_bins,
+                tails='linear',
+                tail_bound=self.tail_bound,
+                num_blocks=self.n_blocks,
+                use_residual_blocks=True,
+                random_mask=False,
+                activation=F.relu,
+                dropout_probability=self.dropout,
+                use_batch_norm=self.use_batch_norm
+            )
         else:
             raise NotImplementedError
         # return transform
@@ -118,14 +125,14 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def forward(self, inputs, cond_inputs=None):
-        """Forward pass to negative log likelihood (NLL).
-        Args:
-            inputs (torch.Tensor): [N, dim] tensor of data.
-            cond_inputs (torch.Tensor): [N, cond_inputs_dim] tensor of cond_inputs."""
-        log_density = self._forward(inputs, cond_inputs)
-        loss = -torch.mean(log_density)
-        return loss
+    # def forward(self, inputs, cond_inputs=None):
+    #     """Forward pass to negative log likelihood (NLL).
+    #     Args:
+    #         inputs (torch.Tensor): [N, dim] tensor of data.
+    #         cond_inputs (torch.Tensor): [N, cond_inputs_dim] tensor of cond_inputs."""
+    #     log_density = self._forward(inputs, cond_inputs)
+    #     loss = -torch.mean(log_density)
+    #     return loss
 
     def loss(self, inputs, cond_inputs=None):
         """Forward pass to negative log likelihood (NLL).
@@ -147,12 +154,12 @@ class ConditionalFlow(nn.Module):
     #     samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
     #     return samples, log_density
 
-    def transform(self, inputs, cond_inputs=None, device=None):
-        if device is not None:
-            inputs = inputs.to(device)
-            cond_inputs = cond_inputs.to(device)
-        samples = self._forward(inputs, cond_inputs).reshape(-1, 1)
-        return samples
+    # def transform(self, inputs, cond_inputs=None, device=None):
+    #     if device is not None:
+    #         inputs = inputs.to(device)
+    #         cond_inputs = cond_inputs.to(device)
+    #     noise = self.flow.transform_to_noise(inputs, context=cond_inputs).reshape(-1, 1)
+    #     return noise
 
     def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation

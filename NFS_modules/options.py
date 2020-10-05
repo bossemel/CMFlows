@@ -108,6 +108,23 @@ class TrainOptions():
         parser.add_argument(
             '--n_restarts', type=int, default=3, help='Number of annealing restarts')
 
+        parser.add_argument(
+            '--flow_type', type=str, default='cop_flow', choices=['cop_flow', 'marg_flow'])
+        parser.add_argument(
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
+        parser.add_argument(
+            '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
+        parser.add_argument(
+            '--var', type=float, default=1, help='Variance of the Gaussian Distribution')
+        parser.add_argument(
+            '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
+        parser.add_argument(
+            '--num_bins', type=int, default=8, help='Number of bins to use for piecewise transforms.')
+
+        parser.add_argument(
+            '--low', type=float, required=False)
+        parser.add_argument(
+            '--high', type=float, required=False)
         self.initialized = True
         return parser
 
