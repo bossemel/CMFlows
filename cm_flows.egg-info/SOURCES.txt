@@ -140,6 +140,9 @@ scripts/kdevine_uniform.sh
 scripts/marginal_flows.sh
 scripts/marginal_flows_grid_search.sh
 scripts/marginal_flows_random_search.sh
+scripts/marginal_flows_random_search_gamma.sh
+scripts/marginal_flows_random_search_lognormal.sh
+scripts/marginal_flows_random_search_uniform.sh
 scripts/parametric.sh
 scripts/parametric_marginals_clayton.sh
 scripts/parametric_marginals_frank.sh

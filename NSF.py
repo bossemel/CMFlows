@@ -49,16 +49,7 @@ def build_model(args, flow_type='cop_flow'):
         raise ValueError('Unknown flow type')
 
     flow = flows.ConditionalFlow(dim=num_inputs,
-                                 context_dim=num_cond_inputs, n_layers=args.n_layers,
-                                 hidden_units=args.hidden_units, n_blocks=args.n_blocks,
-                                 dropout=args.dropout,
-                                 use_batch_norm=args.use_batch_norm, tails=args.tails,
-                                 tail_bound=args.tail_bound, n_bins=args.n_bins,
-                                 min_bin_height=args.min_bin_height, min_bin_width=args.min_bin_width,
-                                 min_derivative=args.min_derivative,
-                                 unconditional_transform=args.unconditional_transform,
-                                 subsample=args.subsample,
-                                 device=args.device, num_bins=args.num_bins)
+                                 context_dim=num_cond_inputs, args=args)
     return flow
 
 
@@ -69,15 +60,20 @@ def random_search(args):
     ii = 0
     while ii < 30:
         args.n_layers = 5 * np.random.choice(range(1, 5))
-        args.hidden_units = 2**np.random.choice(range(10))
+        args.hidden_units = 2**np.random.choice(range(8))
         args.n_blocks = np.random.choice(range(5))
         args.n_bins = 5 * np.random.choice(range(2, 10))
-        args.dropout = 0.1 * np.random.choice(range(1, 4))
+        args.dropout = 0.05 * np.random.choice(range(1, 6))
         lr_number = np.random.choice(range(2, 10))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
 
         if args.flow_type == 'cop_flow':
+            args.n_layers_c = args.n_layers
+            args.hidden_units_c = args.hidden_units
+            args.n_blocks_c = args.n_blocks
+            args.n_bins_c = args.n_bins
+            args.dropout_c = args.dropout
             current_hyperparams = (args.n_layers,
                                    args.hidden_units,
                                    args.n_blocks,
@@ -87,15 +83,18 @@ def random_search(args):
                                    args.weight_decay)
 
         elif args.flow_type == 'marg_flow':
-            args.num_bins = int(2 ** np.random.choice(range(5)))
+            args.n_bins_m = int(2 ** np.random.choice(range(5)))
+            args.n_layers_m = args.n_layers
+            args.hidden_units_m = args.hidden_units
+            args.n_blocks_m = args.n_blocks
+            args.dropout_m = args.dropout
             current_hyperparams = (args.n_layers,
                                    args.hidden_units,
                                    args.n_blocks,
-                                   args.n_bins,
                                    args.dropout,
                                    args.lr,
                                    args.weight_decay,
-                                   args.num_bins)
+                                   args.n_bins_m)
         else:
             raise ValueError('Unknown Flow type')
 
@@ -103,7 +102,7 @@ def random_search(args):
             print('args.n_layers, args.hidden_units, args.n_blocks, args.n_bins, args.dropout, \
                 args.lr, args.weight_decay, {}'.format(current_hyperparams))
             if args.flow_type == 'marg_flow':
-                print('num bins: {}'.format(args.num_bins))
+                print('num bins: {}'.format(args.n_bins_m))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -204,6 +203,8 @@ if __name__ == '__main__':
     elif args.flow_type == 'marg_flow':
         dataset, data_loaders = DDSF_utils.load_data(args)
 
+    if args.no_tails:
+        args.tails = None
 
     if args.random_search:
         random_search(args=args)

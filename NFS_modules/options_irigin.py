@@ -13,46 +13,16 @@ class TrainOptions():
     def initialize(self, parser):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
-
-        # CM Options
-
-        # Architecture
         parser.add_argument(
-            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
-        parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
-        parser.add_argument(
-            '--conditional_copula', action='store_true', help='estimates the conditional copula')
-
-        # Training options
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
-            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
+            '--epochs', type=int, default=100, help='number of epochs to train')
         parser.add_argument(
-            '--lr', type=float, default=0.001, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=1e-05, help='learning rate')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
-        parser.add_argument(
-            '--random_seed', type=int, default=58094, help='random seed')
-        parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
-        parser.add_argument(
-            '--clip', type=float, default=5.0)
-        parser.add_argument(
-            '--weight_decay', type=int, default=1e-10, help='adam optimizer weight decay')
-        parser.add_argument(
-            '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
-        parser.add_argument(
-            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
-
-        # Dataset options
-        parser.add_argument(
-            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
-        parser.add_argument(
-            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in first dimension')
-        parser.add_argument(
-            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in second dimension')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
@@ -60,34 +30,51 @@ class TrainOptions():
         parser.add_argument(
             '--theta', type=float, default=2, help='theta for copula sampling')
         parser.add_argument(
+            '--random_seed', type=int, default=58093, help='random seed')
+        parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
-            '--alpha', type=float, default=5, help='alpha for gamma distribution')
-        parser.add_argument(
-            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
-        parser.add_argument(
-            '--var', type=float, default=1, help='var for marginal gaussian distribution')
-        parser.add_argument(
-            '--low', type=float, default=0, help='lower bound for uniform distribution')
-        parser.add_argument(
-            '--high', type=float, default=1, help='upper bound for uniform distirbution')
-
-
-        # Options NSF - Copula estimation
+            '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--n_layers_c', type=int, default=15, help='Number of spline layers in flow')
+            '--exp_name', type=str, default='default_name_nsf', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=16, help='Number of hidden units in spline layer')
+            '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--n_blocks_c', type=int, default=2, help='Number of residual blocks in each spline layer')
+            '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--grid_search', action='store_true', help='grid search over hyperparameters')
+        parser.add_argument(
+            '--random_search', action='store_true', help='random search over hyperparameters')
+        parser.add_argument(
+            '--weight_decay', type=int, default=0, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--beta1', type=float, default=0.9)
+        parser.add_argument(
+            '--beta2', type=float, default=0.999)
+        parser.add_argument(
+            '--conditional_copula', action='store_true')
+        parser.add_argument(
+            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
+        parser.add_argument(
+            '--error_bars', action='store_true', help='calculate mean and std over 10 experiments')
+        parser.add_argument(
+            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+
+
+        parser.add_argument(
+            '--n_layers', type=int, default=10, help='Number of spline layers in flow')
+        parser.add_argument(
+            '--hidden_units', type=int, default=256, help='Number of hidden units in spline layer')
+        parser.add_argument(
+            '--n_blocks', type=int, default=1, help='Number of residual blocks in each spline layer')
         parser.add_argument(
             '--tail_bound', type=float, default=5., help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
-            '--n_bins_c', type=int, default=15, help='Number of bins in piecewise spline transform')
+            '--n_bins', type=int, default=5, help='Number of bins in piecewise spline transform')
         parser.add_argument(
             '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
         parser.add_argument(
@@ -95,7 +82,7 @@ class TrainOptions():
         parser.add_argument(
             '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
         parser.add_argument(
-            '--dropout_c', type=float, default=0.15, help='Dropout probability in flow')
+            '--dropout', type=float, default=0.1, help='Dropout probability in flow')
         parser.add_argument(
             '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
         parser.add_argument(
@@ -110,27 +97,34 @@ class TrainOptions():
             '--standardize', type=int, default=1, help='Standardize spectra (by wavelength)')
         parser.add_argument(
             '--drop_outliers', type=int, default=1, help='Drop spectra with outlying flux.')
+        parser.add_argument(
+            '--learning_rate', type=float, default=2.5e-4, help='Initial learning rate during annealing')
+        parser.add_argument(
+            '--min_learning_rate', type=float, default=1e-8, help='Minimum learning rate during annealing')
+        parser.add_argument(
+            '--anneal_period', type=int, default=10000, help='Learning rate annealing period')
+        parser.add_argument(
+            '--anneal_mult', type=int, default=2, help='Warm restart period multiplier')
+        parser.add_argument(
+            '--n_restarts', type=int, default=3, help='Number of annealing restarts')
 
-        # NSF Options marginal
         parser.add_argument(
-            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
+            '--flow_type', type=str, default='cop_flow', choices=['cop_flow', 'marg_flow'])
         parser.add_argument(
-            '--hidden_units_m', type=int, default=16, help='Number of hidden units in spline layer')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'])
         parser.add_argument(
-            '--n_blocks_m', type=int, default=3, help='Number of residual blocks in each spline layer')
+            '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
         parser.add_argument(
-            '--n_bins_m', type=int, default=20, help='Number of bins in piecewise spline transform')
+            '--var', type=float, default=1, help='Variance of the Gaussian Distribution')
         parser.add_argument(
-            '--dropout_m', type=float, default=0.05, help='Dropout probability in flow')
+            '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
+        parser.add_argument(
+            '--num_bins', type=int, default=8, help='Number of bins to use for piecewise transforms.')
 
-        # Save options
         parser.add_argument(
-            '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
+            '--low', type=float, required=False)
         parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
-        parser.add_argument(
-            '--experiment_saved_models', type=str, default='saved_models')
-
+            '--high', type=float, required=False)
         self.initialized = True
         return parser
 

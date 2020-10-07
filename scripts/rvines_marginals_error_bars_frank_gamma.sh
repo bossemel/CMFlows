@@ -16,7 +16,7 @@ set -e
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_error_4_256 \
+--exp_name RVine_frank_gamma_error_nsf \
 --epochs 100 \
 --batch-size 100 \
 --copula frank \

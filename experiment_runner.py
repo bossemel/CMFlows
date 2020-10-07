@@ -144,8 +144,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss_marg_flow_2.backward(retain_graph=True)
             loss_cop_flow.backward()
 
-            if args.clip_grad_norm:
-                model.clip_grad_norm()
+            # if args.clip_grad_norm:
+            #     model.clip_grad_norm()
 
         else:
             if model_name in ['marg_flow_1', 'marg_flow_2', 'cop_flow', 'rvine_cop_flow']:
@@ -173,6 +173,9 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         #         model.clip_grad_norm()
 
         # Perform one optimizer step
+        if args.clip_grad_norm:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+
         if args.scheduler is None:
             args.optimizer.step()
         else:

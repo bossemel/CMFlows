@@ -3,6 +3,7 @@ import torch.nn as nn
 import NFS_modules.nn as nn_
 import NFS_modules.utils as utils
 from NFS_modules.nde import distributions, flows, transforms
+from NFS_modules.nde.transforms.marginal import MarginalSpline
 import scipy.stats
 from utils.visualizer import visualize_joint
 import numpy as np
@@ -12,39 +13,42 @@ from torch.nn import functional as F
 
 class ConditionalFlow(nn.Module):
     """A conditional rational quadratic neural spline flow."""
-    def __init__(self, dim, context_dim, n_layers, hidden_units, n_blocks, dropout,
-                 use_batch_norm, tails, tail_bound, n_bins, min_bin_height,
-                 min_bin_width, min_derivative, unconditional_transform, subsample, device, num_bins):
+    def __init__(self, dim, context_dim, args):
         super().__init__()
         self.dim = dim
         self.num_inputs = dim
         self.context_dim = context_dim
-        self.n_layers = n_layers
-        # self.n_encoder_layers = n_encoder_layers
-        # self.encoder_units = encoder_units
-        self.hidden_units = hidden_units
-        self.n_blocks = n_blocks
-        self.dropout = dropout
-        # self.encoder_dropout = encoder_dropout
-        self.use_batch_norm = use_batch_norm
-        self.tails = tails
-        self.tail_bound = tail_bound
-        self.n_bins = n_bins
-        self.min_bin_height = min_bin_height
-        self.min_bin_width = min_bin_width
-        self.min_derivative = min_derivative
-        self.unconditional_transform = unconditional_transform
-        # self.use_cnn_encoder = use_cnn_encoder
-        self.subsample = subsample
-        self.device = device
 
-        self.num_bins = num_bins
+        if context_dim == 0 and dim == 1:
+            args.flow_type = 'marg_flow'
+            self.n_layers_m = args.n_layers_m
+            self.hidden_units_m = args.hidden_units_m
+            self.n_blocks_m = args.n_blocks_m
+            self.dropout_m = args.dropout_m
+            self.n_bins_m = args.n_bins_m
+
+        else:
+            args.flow_type = 'cop_flow'
+            self.n_layers_c = args.n_layers_c
+            self.hidden_units_c = args.hidden_units_c
+            self.n_blocks_c = args.n_blocks_c
+            self.dropout_c = args.dropout_c
+            self.n_bins_c = args.n_bins_c
+
+        self.use_batch_norm = args.use_batch_norm
+        self.tails = args.tails
+        self.tail_bound = args.tail_bound
+        self.min_bin_height = args.min_bin_height
+        self.min_bin_width = args.min_bin_width
+        self.min_derivative = args.min_derivative
+        self.unconditional_transform = args.unconditional_transform
+        self.device = args.device
 
         self.base_transform_type = 'notaffine'
-        distribution = distributions.StandardNormal([dim]).to(device)
+        distribution = distributions.StandardNormal([dim]).to(args.device)
         transform = transforms.CompositeTransform([
-            self.create_transform(ii) for ii in range(self.n_layers)], device)
-        self.flow = flows.Flow(transform, distribution).to(device)
+            self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
+        self.flow = flows.Flow(transform, distribution).to(args.device)
 
     def create_transform(self, ii):
         """Create invertible rational quadratic transformations."""
@@ -57,13 +61,13 @@ class ConditionalFlow(nn.Module):
                         in_features=in_features,
                         out_features=out_features,
                         context_features=self.context_dim,
-                        hidden_features=self.hidden_units,
-                        num_blocks=self.n_blocks,
-                        dropout_probability=self.dropout,
+                        hidden_features=self.hidden_units_c,
+                        num_blocks=self.n_blocks_c,
+                        dropout_probability=self.dropout_c,
                         use_batch_norm=self.use_batch_norm,),
                 tails=self.tails,
                 tail_bound=self.tail_bound,
-                num_bins=self.n_bins,
+                num_bins=self.n_bins_c,
                 min_bin_height=self.min_bin_height,
                 min_bin_width=self.min_bin_width,
                 min_derivative=self.min_derivative,
@@ -72,45 +76,46 @@ class ConditionalFlow(nn.Module):
             # transform = transforms.CompositeTransform([linear, base], self.device)
             return transforms.CompositeTransform([linear, base], self.device)
         elif self.dim == 2:
-            if self.base_transform_type == 'affine':
-                return transforms.AffineCouplingTransform(
-                    mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
-                    transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-                        in_features=in_features,
-                        out_features=out_features,
-                        hidden_features=32,
-                        num_blocks=2,
-                        use_batch_norm=True
-                    )
-                )
-            else:
-                return transforms.PiecewiseRationalQuadraticCouplingTransform(
-                    mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
-                    transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-                        in_features=in_features,
-                        out_features=out_features,
-                        hidden_features=32,
-                        num_blocks=2,
-                        use_batch_norm=True
-                    ),
-                    tails='linear',
-                    tail_bound=5,
-                    num_bins=self.n_bins,
-                    apply_unconditional_transform=False
-                )
+            return transforms.PiecewiseRationalQuadraticCouplingTransform(
+                mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
+                transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
+                    in_features=in_features,
+                    out_features=out_features,
+                    hidden_features=self.hidden_units_c,
+                    num_blocks=self.n_blocks_c,
+                    use_batch_norm=self.use_batch_norm
+                ),
+                tails=self.tails,
+                tail_bound=self.tail_bound,
+                num_bins=self.n_bins_c,
+                apply_unconditional_transform=self.unconditional_transform
+            )
+        # elif self.dim == 1:
+        #     # return MarginalSpline(features=self.dim,
+        #     #     hidden_features=self.hidden_units_m,
+        #     #     context_features=None,
+        #     #     num_bins=self.n_bins_m,
+        #     #     tails=self.tails,
+        #     #     tail_bound=self.tail_bound,
+        #     #     num_blocks=self.n_blocks_m,
+        #     #     use_residual_blocks=True,
+        #     #     random_mask=False,
+        #     #     activation=F.relu,
+        #     #     dropout_probability=self.dropout_m,
+        #     #     use_batch_norm=self.use_batch_norm)
         elif self.dim == 1:
             return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
                 features=self.dim,
-                hidden_features=self.hidden_units,
+                hidden_features=self.hidden_units_m,
                 context_features=None,
-                num_bins=self.num_bins,
-                tails='linear',
+                num_bins=self.n_bins_m,
+                tails=self.tails,
                 tail_bound=self.tail_bound,
-                num_blocks=self.n_blocks,
+                num_blocks=self.n_blocks_m,
                 use_residual_blocks=True,
                 random_mask=False,
                 activation=F.relu,
-                dropout_probability=self.dropout,
+                dropout_probability=self.dropout_m,
                 use_batch_norm=self.use_batch_norm
             )
         else:
