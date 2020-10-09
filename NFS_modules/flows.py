@@ -3,7 +3,6 @@ import torch.nn as nn
 import NFS_modules.nn as nn_
 import NFS_modules.utils as utils
 from NFS_modules.nde import distributions, flows, transforms
-from NFS_modules.nde.transforms.marginal import MarginalSpline
 import scipy.stats
 from utils.visualizer import visualize_joint
 import numpy as np
@@ -90,19 +89,6 @@ class ConditionalFlow(nn.Module):
                 num_bins=self.n_bins_c,
                 apply_unconditional_transform=self.unconditional_transform
             )
-        # elif self.dim == 1:
-        #     # return MarginalSpline(features=self.dim,
-        #     #     hidden_features=self.hidden_units_m,
-        #     #     context_features=None,
-        #     #     num_bins=self.n_bins_m,
-        #     #     tails=self.tails,
-        #     #     tail_bound=self.tail_bound,
-        #     #     num_blocks=self.n_blocks_m,
-        #     #     use_residual_blocks=True,
-        #     #     random_mask=False,
-        #     #     activation=F.relu,
-        #     #     dropout_probability=self.dropout_m,
-        #     #     use_batch_norm=self.use_batch_norm)
         elif self.dim == 1:
             return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
                 features=self.dim,
