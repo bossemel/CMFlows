@@ -88,7 +88,7 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
     else:
         losses = model.loss(data)
         loss = losses.mean()
-        del losses
+        # del losses
 
     return model, loss
 
@@ -155,6 +155,9 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                                                    data,
                                                    transform_inputs,
                                                    device)
+            elif model_name == 'DDSF_1':
+                losses = model.model_DDSF_1.loss(data[:, 0: 1])
+                loss = losses.mean()
 
             else:
                 losses = model.loss(data)
@@ -168,9 +171,10 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss.backward()
 
         # Perform gradient clipping
-        # if model_name in ['marg_flow_1', 'marg_flow_2', 'marg_flow', 'CM_Flow']:
-        #     if args.clip_grad_norm:
-        #         model.clip_grad_norm()
+        if model_name in ['DDSF_1', 'DDSF_2', 'DDSF', 'CM_Flow']:
+            if args.clip_grad_norm:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+                # model.clip_grad_norm()
 
         # Perform one optimizer step
         if args.clip_grad_norm:
@@ -230,7 +234,7 @@ def validate(args, epoch, model, loader, device,
         current_epoch_losses: updated current_epoch_losses
         best_dict: updated best_dict
     """
-    model.eval()
+    model.eval() # @Todo: einzelne modelle in eval versetzen?
 
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')

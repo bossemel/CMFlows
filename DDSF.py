@@ -241,6 +241,8 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     random.seed(args.random_seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
     dataset, data_loaders = load_data(args)

@@ -169,3 +169,4 @@ class CMFlow(nn.Module):
         """Performs gradient clipping
         """
         nn.utils.clip_grad_norm_(self.parameters(), self.clip)
+        nn.utils.clip_grad_norm_(self.parameters(), self.clip)
