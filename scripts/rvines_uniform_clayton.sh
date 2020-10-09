@@ -11,8 +11,4 @@ python RVine.py \
 --marginal uniform \
 --obs 10000 \
 --disable_marginal \
---random_seed 32 \
---num_hidden_RealNVP 256 \
---num-blocks 4
-
-# --error_bars \
+--random_seed 32

@@ -58,7 +58,7 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = 0
-    while ii < 30:
+    while ii < 100:
         args.n_layers = 5 * np.random.choice(range(1, 5))
         args.hidden_units = 2**np.random.choice(range(8))
         args.n_blocks = np.random.choice(range(5))
@@ -67,6 +67,7 @@ def random_search(args):
         lr_number = np.random.choice(range(2, 10))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+        args.tail_bound = 2**np.random.choice(range(6))
 
         if args.flow_type == 'cop_flow':
             args.n_layers_c = args.n_layers
@@ -80,7 +81,8 @@ def random_search(args):
                                    args.n_bins,
                                    args.dropout,
                                    args.lr,
-                                   args.weight_decay)
+                                   args.weight_decay,
+                                   args.tail_bound)
 
         elif args.flow_type == 'marg_flow':
             args.n_bins_m = int(2 ** np.random.choice(range(5)))
@@ -94,13 +96,14 @@ def random_search(args):
                                    args.dropout,
                                    args.lr,
                                    args.weight_decay,
+                                   args.tail_bound,
                                    args.n_bins_m)
         else:
             raise ValueError('Unknown Flow type')
 
         if current_hyperparams not in tested_combinations:
-            print('args.n_layers, args.hidden_units, args.n_blocks, args.n_bins, args.dropout, \
-                args.lr, args.weight_decay, {}'.format(current_hyperparams))
+            print('n_layers, hidden_units, n_blocks, n_bins, dropout, \
+                lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
             if args.flow_type == 'marg_flow':
                 print('num bins: {}'.format(args.n_bins_m))
             with HiddenPrints():

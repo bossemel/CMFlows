@@ -1,7 +1,7 @@
 set -e
 echo 'Begin Clayton Copula with best Hyperparameters'
 
-python RealNVP.py \
+python NSF.py \
 --exp_name clayton_unconditional  \
 --epochs 100 \
 --batch-size 100 \
@@ -12,7 +12,7 @@ python RealNVP.py \
 
 echo 'Begin Frank Copula with best Hyperparameters'
 
-python RealNVP.py \
+python NSF.py \
 --exp_name frank_unconditional  \
 --epochs 100 \
 --batch-size 100 \
@@ -23,7 +23,7 @@ python RealNVP.py \
 
 echo 'Begin Gumbel Copula with best Hyperparameters'
 
-python RealNVP.py \
+python NSF.py \
 --exp_name gumbel_unconditional \
 --epochs 100 \
 --batch-size 100 \
