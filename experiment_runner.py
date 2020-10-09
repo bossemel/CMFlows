@@ -171,9 +171,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             loss.backward()
 
         # Perform gradient clipping
-        if model_name in ['DDSF_1', 'DDSF_2', 'DDSF', 'CM_Flow']:
-            if args.clip_grad_norm:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+        if args.clip_grad_norm:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
                 # model.clip_grad_norm()
 
         # Perform one optimizer step

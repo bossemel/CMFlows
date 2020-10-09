@@ -22,8 +22,6 @@ from NFS_modules.options import TrainOptions
 from utils import HiddenPrints\
 
 
-
-
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
@@ -67,6 +65,7 @@ def random_search(args):
         lr_number = np.random.choice(range(2, 10))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+        args.clip_grad_norm = np.random.choice([True, False])
 
         if args.flow_type == 'cop_flow':
             args.n_layers_c = args.n_layers
@@ -80,7 +79,8 @@ def random_search(args):
                                    args.n_bins,
                                    args.dropout,
                                    args.lr,
-                                   args.weight_decay)
+                                   args.weight_decay,
+                                   args.clip_grad_norm)
 
         elif args.flow_type == 'marg_flow':
             args.n_bins_m = int(2 ** np.random.choice(range(5)))
