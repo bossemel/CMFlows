@@ -175,10 +175,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
                 # model.clip_grad_norm()
 
-        # Perform one optimizer step
-        if args.clip_grad_norm:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-
         if args.scheduler is None:
             args.optimizer.step()
         else:

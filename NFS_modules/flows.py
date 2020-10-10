@@ -25,6 +25,7 @@ class ConditionalFlow(nn.Module):
             self.n_blocks_m = args.n_blocks_m
             self.dropout_m = args.dropout_m
             self.n_bins_m = args.n_bins_m
+            self.tail_bound_m = args.tail_bound_m
 
         else:
             args.flow_type = 'cop_flow'
@@ -33,10 +34,10 @@ class ConditionalFlow(nn.Module):
             self.n_blocks_c = args.n_blocks_c
             self.dropout_c = args.dropout_c
             self.n_bins_c = args.n_bins_c
+            self.tail_bound_c = args.tail_bound_c
 
         self.use_batch_norm = args.use_batch_norm
         self.tails = args.tails
-        self.tail_bound = args.tail_bound
         self.min_bin_height = args.min_bin_height
         self.min_bin_width = args.min_bin_width
         self.min_derivative = args.min_derivative
@@ -65,7 +66,7 @@ class ConditionalFlow(nn.Module):
                         dropout_probability=self.dropout_c,
                         use_batch_norm=self.use_batch_norm,),
                 tails=self.tails,
-                tail_bound=self.tail_bound,
+                tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
                 min_bin_height=self.min_bin_height,
                 min_bin_width=self.min_bin_width,
@@ -85,7 +86,7 @@ class ConditionalFlow(nn.Module):
                     use_batch_norm=self.use_batch_norm
                 ),
                 tails=self.tails,
-                tail_bound=self.tail_bound,
+                tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
                 apply_unconditional_transform=self.unconditional_transform
             )
@@ -96,7 +97,7 @@ class ConditionalFlow(nn.Module):
                 context_features=None,
                 num_bins=self.n_bins_m,
                 tails=self.tails,
-                tail_bound=self.tail_bound,
+                tail_bound=self.tail_bound_m,
                 num_blocks=self.n_blocks_m,
                 use_residual_blocks=True,
                 random_mask=False,
@@ -116,15 +117,6 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    # def forward(self, inputs, cond_inputs=None):
-    #     """Forward pass to negative log likelihood (NLL).
-    #     Args:
-    #         inputs (torch.Tensor): [N, dim] tensor of data.
-    #         cond_inputs (torch.Tensor): [N, cond_inputs_dim] tensor of cond_inputs."""
-    #     log_density = self._forward(inputs, cond_inputs)
-    #     loss = -torch.mean(log_density)
-    #     return loss
-
     def loss(self, inputs, cond_inputs=None):
         """Forward pass to negative log likelihood (NLL).
         Args:
@@ -133,24 +125,6 @@ class ConditionalFlow(nn.Module):
         log_density = self._forward(inputs, cond_inputs)
         loss = -torch.mean(log_density)
         return loss
-
-    # def sample(self, cond_inputs, num_samples):
-    #     """Draw samples from the conditional flow.
-    #     Args:
-    #         cond_inputs (torch.Tensor): [cond_inputs_dim] tensor of conditioning info.
-    #         num_samples (int): Number of samples to draw."""
-    #     # cond_inputs = self.encoder(cond_inputs.unsqueeze(0)).expand(num_samples, -1)
-    #     noise = self.flow._distribution.sample(1, cond_inputs)
-    #     noise = noise.squeeze(1).to(self.device)
-    #     samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
-    #     return samples, log_density
-
-    # def transform(self, inputs, cond_inputs=None, device=None):
-    #     if device is not None:
-    #         inputs = inputs.to(device)
-    #         cond_inputs = cond_inputs.to(device)
-    #     noise = self.flow.transform_to_noise(inputs, context=cond_inputs).reshape(-1, 1)
-    #     return noise
 
     def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
         """Returns an output sample without transformation
@@ -165,7 +139,6 @@ class ConditionalFlow(nn.Module):
                 cond_inputs = cond_inputs.to(device)
             noise = noise.to(device)
         samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
-        # samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
         if not copula:
@@ -191,8 +164,6 @@ class ConditionalFlow(nn.Module):
             if cond_inputs is not None:
                 cond_inputs = cond_inputs.to(device)
         samples, log_density = self.flow._transform.inverse(noise, cond_inputs)
-
-        #samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([cond_inputs, samples], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -279,7 +250,6 @@ class ConditionalFlow(nn.Module):
                                        prob_Y_in_q=prob_Y_in_q.reshape(-1,))
 
             return divergence
-
 
     def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False):
         """Returns evaluation metrics for the copula marginals.
