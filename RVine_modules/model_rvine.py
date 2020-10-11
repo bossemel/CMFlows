@@ -13,7 +13,7 @@ from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
 from NSF import  build_model as NSF_build_model
 #from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
-from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
+#from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
 from experiment_runner import train_val
 from utils import calc_jsd
 
@@ -101,11 +101,10 @@ def initialize_graph(self):
             print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
 
             # Initialize marginal flow
-            self.model_marg = DDSF_build_model(self.args) #, flow_type='marg_flow')
-            #self.model_marg = NSF_build_model(self.args, flow_type='marg_flow')
+            self.model_marg = NSF_build_model(self.args, flow_type='marg_flow')
             self.model_marg.to(self.args.device)
             self.model_marg.state = dict()
-            #self.model_marg.train()
+            self.model_marg.train()
             self.args.optimizer = optim.Adam(self.model_marg.parameters(), lr=self.args.lr)
             self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
 
@@ -125,7 +124,7 @@ def initialize_graph(self):
             # Transform inputs using the trained marginal flow
             with torch.no_grad():
                 self.data = self.data.to(self.args.device)
-                transformed_inputs = self.model_marg.transform(self.data[:, node:node + 1].float())
+                transformed_inputs = self.model_marg.flow.transform_to_noise(self.data[:, node:node + 1].float())
                 self.data = self.data.cpu()
 
         # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
