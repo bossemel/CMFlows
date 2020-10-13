@@ -14,49 +14,64 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
+        # CM Options
+        # Architecture
+        parser.add_argument(
+            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
+        parser.add_argument(
+            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+        parser.add_argument(
+            '--conditional_copula', action='store_true', help='estimates the conditional copula')
+
         # Training options
         parser.add_argument(
             '--batch-size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=1e-05, help='learning rate (default: 1e-05)')
+            '--lr', type=float, default=0.001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
+            '--random_seed', type=int, default=58094, help='random seed')
         parser.add_argument(
-            '--clip_grad_norm', action='store_true', default=False, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
+            '--clip', type=float, default=5.0)
+        parser.add_argument(
+            '--weight_decay', type=int, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
         parser.add_argument(
             '--disable_marginal', action='store_true', default=False, help='disables marginal flow projection')
-        parser.add_argument(
-            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 
         # Dataset options
-        parser.add_argument(
-            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
-        parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
-
-        # Options RealNVP
         parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=256, help='number of hidden units')
+            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--num-blocks', type=int, default=4, help='number of invertible blocks (default: 5)')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
-            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+            '--tau', type=float, required=False, help='tau to use for copula sampling')
+        parser.add_argument(
+            '--theta', type=float, default=2, help='theta for copula sampling')
+        parser.add_argument(
+            '--df', type=int, required=False, help='degrees of freedom for student-t copula')
+        parser.add_argument(
+            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
+        parser.add_argument(
+            '--var', type=float, default=1, help='var for marginal gaussian distribution')
+        parser.add_argument(
+            '--low', type=float, default=0, help='lower bound for uniform distribution')
+        parser.add_argument(
+            '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
         # Options DDSF
         parser.add_argument(
@@ -70,25 +85,59 @@ class TrainOptions():
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
         parser.add_argument(
-            '--clip', type=float, default=5.0)
-        parser.add_argument(
             '--beta1', type=float, default=0.9)
         parser.add_argument(
             '--beta2', type=float, default=0.999)
+
+        # Options NSF - Copula estimation
         parser.add_argument(
-            '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
+            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--var', type=float, default=1, help='var for marginal gaussian distribution')
+            '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
         parser.add_argument(
-            '--low', type=float, default=0, help='lower bound for uniform distribution')
+            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--high', type=float, default=1, help='upper bound for uniform distirbution')
+            '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
+        parser.add_argument(
+            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
+        parser.add_argument(
+            '--tails', type=str, default='linear', help='Function type outside spline region')
+        parser.add_argument(
+            '--n_bins_c', type=int, default=30, help='Number of bins in piecewise spline transform')
+        parser.add_argument(
+            '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
+        parser.add_argument(
+            '--min_bin_width', type=float, default=1e-3, help='Minimum bin width of piecewise transform')
+        parser.add_argument(
+            '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
+        parser.add_argument(
+            '--dropout_c', type=float, default=0.25, help='Dropout probability in flow')
+        parser.add_argument(
+            '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
+        parser.add_argument(
+            '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
+        parser.add_argument(
+            '--no_tails', action='store_true', default=False, help='No tails')
+
+        # NSF Options marginal
+        parser.add_argument(
+            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
+        parser.add_argument(
+            '--hidden_units_m', type=int, default=128, help='Number of hidden units in spline layer')
+        parser.add_argument(
+            '--n_blocks_m', type=int, default=2, help='Number of residual blocks in each spline layer')
+        parser.add_argument(
+            '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
+        parser.add_argument(
+            '--dropout_m', type=float, default=0.15, help='Dropout probability in flow')
+        parser.add_argument(
+            '--tail_bound_m', type=float, default=8, help='Bounds of spline region')
 
         # Save options
         parser.add_argument(
             '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures_rvine', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(

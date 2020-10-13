@@ -80,6 +80,7 @@ if __name__ == '__main__':
 
     # Set number of obs for visualizations
     args.viz_obs = 10000
+    args.conditional_copula = True
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)

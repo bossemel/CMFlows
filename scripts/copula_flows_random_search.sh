@@ -1,33 +1,39 @@
 set -e
-# echo 'Begin Clayton Copula Grid Search'
+echo 'Begin Clayton Copula Grid Search'
+
+python NSF.py \
+--exp_name clayton_grid_search \
+--epochs 100 \
+--copula clayton \
+--theta 2 \
+--batch-size 100 \
+--obs 10000 \
+--random_search \
+--flow_type cop_flow \
+--conditional_copula
+
+# echo 'Begin Frank Copula random Search'
 
 # python RealNVP.py \
-# --exp_name clayton_grid_search \
-# --epochs 50 \
-# --copula clayton \
-# --theta 2 \
+# --exp_name frank_random_search \
+# --epochs 100 \
+# --copula frank \
+# --theta 5 \
 # --batch-size 100 \
 # --obs 10000 \
-# --random_search
+# --random_search \
+# --flow_type cop_flow \
+# --conditional_copula
 
-echo 'Begin Frank Copula random Search'
+# echo 'Begin Gumbel Copula random Search'
 
-python RealNVP.py \
---exp_name frank_random_search \
---epochs 50 \
---copula frank \
---theta 5 \
---batch-size 100 \
---obs 10000 \
---random_search
-
-echo 'Begin Gumbel Copula random Search'
-
-python RealNVP.py \
---exp_name gumbel_random_search \
---epochs 50 \
---copula gumbel \
---theta 5 \
---batch-size 100 \
---obs 10000 \
---random_search
+# python RealNVP.py \
+# --exp_name gumbel_random_search \
+# --epochs 100 \
+# --copula gumbel \
+# --theta 5 \
+# --batch-size 100 \
+# --obs 10000 \
+# --random_search \
+# --flow_type cop_flow \
+# --conditional_copula

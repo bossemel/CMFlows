@@ -30,7 +30,7 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=1e-05, help='learning rate (default: 0.0001)')
+            '--lr', type=float, default=0.001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -38,7 +38,9 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
+            '--clip', type=float, default=5.0)
+        parser.add_argument(
+            '--weight_decay', type=int, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -61,32 +63,6 @@ class TrainOptions():
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
-
-        # Options RealNVP
-        parser.add_argument(
-            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
-        parser.add_argument(
-            '--num-blocks', type=int, default=8, help='number of invertible blocks (default: 5)')
-        parser.add_argument(
-            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
-
-        # Options DDSF
-        parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=5)
-        parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=1)
-        parser.add_argument(
-            '--num_ds_dim', type=int, default=16)
-        parser.add_argument(
-            '--num_ds_layers', type=int, default=2)
-        parser.add_argument(
-            '--dimh_DDSF', type=int, default=128)
-        parser.add_argument(
-            '--clip', type=float, default=5.0)
-        parser.add_argument(
-            '--beta1', type=float, default=0.9)
-        parser.add_argument(
-            '--beta2', type=float, default=0.999)
         parser.add_argument(
             '--mu', type=float, default=0, help='mu for marginal gaussian distribution')
         parser.add_argument(
@@ -95,8 +71,50 @@ class TrainOptions():
             '--low', type=float, default=0, help='lower bound for uniform distribution')
         parser.add_argument(
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
+
+        # Options NSF - Copula estimation
         parser.add_argument(
-            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
+            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
+        parser.add_argument(
+            '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
+        parser.add_argument(
+            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
+        parser.add_argument(
+            '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
+        parser.add_argument(
+            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
+        parser.add_argument(
+            '--tails', type=str, default='linear', help='Function type outside spline region')
+        parser.add_argument(
+            '--n_bins_c', type=int, default=30, help='Number of bins in piecewise spline transform')
+        parser.add_argument(
+            '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
+        parser.add_argument(
+            '--min_bin_width', type=float, default=1e-3, help='Minimum bin width of piecewise transform')
+        parser.add_argument(
+            '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
+        parser.add_argument(
+            '--dropout_c', type=float, default=0.25, help='Dropout probability in flow')
+        parser.add_argument(
+            '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
+        parser.add_argument(
+            '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
+        parser.add_argument(
+            '--no_tails', action='store_true', default=False, help='No tails')
+
+        # NSF Options marginal
+        parser.add_argument(
+            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
+        parser.add_argument(
+            '--hidden_units_m', type=int, default=128, help='Number of hidden units in spline layer')
+        parser.add_argument(
+            '--n_blocks_m', type=int, default=2, help='Number of residual blocks in each spline layer')
+        parser.add_argument(
+            '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
+        parser.add_argument(
+            '--dropout_m', type=float, default=0.15, help='Dropout probability in flow')
+        parser.add_argument(
+            '--tail_bound_m', type=float, default=8, help='Bounds of spline region')
 
         # Save options
         parser.add_argument(

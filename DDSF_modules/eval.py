@@ -38,9 +38,9 @@ def jsd_eval(marginal, args, model, test_dict,
             prob_vector_X = np.exp(model.log_density(torch.tensor(grid).float()).cpu().numpy())
         else:
             if marginal_num == '1':
-                prob_vector_X = np.exp(model.log_density_DDSF_1(torch.tensor(grid).float()).cpu().numpy())
+                prob_vector_X = np.exp(model.log_density_DDSF_1(torch.tensor(grid).to(args.device).float()).cpu().numpy())
             elif marginal_num == '2':
-                prob_vector_X = np.exp(model.log_density_DDSF_2(torch.tensor(grid).float()).cpu().numpy())
+                prob_vector_X = np.exp(model.log_density_DDSF_2(torch.tensor(grid).to(args.device).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
