@@ -252,17 +252,17 @@ class TrainOptions():
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
+            '--n_layers_c', type=int, default=10, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=256, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
+            '--n_blocks_c', type=int, default=1, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=5, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
-            '--n_bins_c', type=int, default=30, help='Number of bins in piecewise spline transform')
+            '--n_bins_c', type=int, default=5, help='Number of bins in piecewise spline transform')
         parser.add_argument(
             '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
         parser.add_argument(
