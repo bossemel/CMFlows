@@ -11,9 +11,9 @@ import torch.optim as optim
 from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
-from NSF import  build_model as NSF_build_model
-#from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
-#from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
+from NSF import build_model as NSF_build_model
+# from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
+# from DDSF import train_and_plot as DDSF_train_and_plot, build_model as DDSF_build_model
 from experiment_runner import train_val
 from utils import calc_jsd
 

@@ -1,5 +1,4 @@
 set -e
-
 echo 'Gaussian'
 
 python NSF.py \
