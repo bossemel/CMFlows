@@ -12,7 +12,7 @@ from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
-from NFS_modules.visualizer import visualize1D
+from NSF_modules.visualizer import visualize1D
 
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics, load_model

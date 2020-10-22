@@ -17,8 +17,8 @@ from utils.load_and_save import save_statistics, load_statistics, load_model
 from experiment_runner import train_val
 import matplotlib
 
-from NFS_modules import flows
-from NFS_modules.options import TrainOptions
+from NSF_modules import flows
+from NSF_modules.options import TrainOptions
 from utils import HiddenPrints\
 
 

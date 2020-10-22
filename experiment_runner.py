@@ -8,9 +8,9 @@ import numpy as np
 
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from NFS_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from NFS_modules.eval import jsd_eval_1D as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
-from NFS_modules.visualizer import visualize1D
+from NSF_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
+from NSF_modules.eval import jsd_eval_1D as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
+from NSF_modules.visualizer import visualize1D
 from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm
 
