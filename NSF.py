@@ -55,13 +55,12 @@ def random_search(args):
     results_dict = {}
     tested_combinations = []
     best_loss = 1000
-    ii = 0
-    while ii < 100:
+    ii = args.continue_from
+    while ii < 200:
         args.n_layers = 5 * np.random.choice(range(1, 5))
         args.hidden_units = 2**np.random.choice(range(8))
         args.n_blocks = np.random.choice(range(5))
         args.n_bins = 5 * np.random.choice(range(2, 10))
-        args.dropout = 0.05 * np.random.choice(range(1, 6))
         lr_number = np.random.choice(range(2, 10))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
@@ -69,6 +68,7 @@ def random_search(args):
         args.tail_bound = 2**np.random.choice(range(6))
 
         if args.flow_type == 'cop_flow':
+            args.dropout = 0.05 * np.random.choice(range(1, 6))
             args.n_layers_c = args.n_layers
             args.hidden_units_c = args.hidden_units
             args.n_blocks_c = args.n_blocks
@@ -89,24 +89,24 @@ def random_search(args):
             args.n_layers_m = args.n_layers
             args.hidden_units_m = args.hidden_units
             args.n_blocks_m = args.n_blocks
-            args.dropout_m = args.dropout
             current_hyperparams = (args.n_layers,
                                    args.hidden_units,
                                    args.n_blocks,
-                                   args.dropout,
+                                   args.n_bins_m,
                                    args.lr,
                                    args.weight_decay,
                                    args.tail_bound,
-                                   args.clip_grad_norm,
-                                   args.n_bins_m)
+                                   args.clip_grad_norm)
         else:
             raise ValueError('Unknown Flow type')
 
         if current_hyperparams not in tested_combinations:
-            print('n_layers, hidden_units, n_blocks, n_bins, dropout, \
-                lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
-            if args.flow_type == 'marg_flow':
-                print('num bins: {}'.format(args.n_bins_m))
+            if args.flow_type == 'cop_flow':
+                print('n_layers, hidden_units, n_blocks, n_bins, dropout, \
+                    lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
+            else:
+                print('n_layers, hidden_units, n_blocks, n_bins, \
+                    lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -128,9 +128,10 @@ def random_search(args):
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))
     print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
-    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
-        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    if args.continue_from == 0:
+        with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+            f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                    'Best Epoch: ' + str(best_dict['best_validation_epoch']))
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):

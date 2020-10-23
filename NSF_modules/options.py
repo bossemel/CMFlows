@@ -48,6 +48,8 @@ class TrainOptions():
         parser.add_argument(
             '--random_search', action='store_true', help='random search over hyperparameters')
         parser.add_argument(
+            '--continue_from', type=int, default=0, help='continue random search from iteration number')
+        parser.add_argument(
             '--flow_type', type=str, default='cop_flow', choices=['cop_flow', 'marg_flow'])
 
         # Dataset options

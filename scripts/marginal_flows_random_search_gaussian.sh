@@ -8,7 +8,8 @@ python NSF.py \
 --batch-size 100 \
 --obs 10000 \
 --random_search \
---flow_type marg_flow
+--flow_type marg_flow \
+--continue_from 112
 
 # echo 'Uniform - random Search'
 

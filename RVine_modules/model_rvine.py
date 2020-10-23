@@ -1,3 +1,7 @@
+# This module is inspired by: Yuan, Zhenfei and Taizhong Hu. "pyvine: The Python Package for
+# Regular Vine Copula Modeling, Sampling and Testing." Commun. Math. Stat., 13 Sept. 2019,
+# pp. 1-34, doi:10.1007/s40304-019-00195-2.
+
 import networkx as nx
 from itertools import combinations
 import scipy.stats

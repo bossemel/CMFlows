@@ -97,10 +97,10 @@ class ConditionalFlow(nn.Module):
                 num_bins=self.n_bins_m,
                 tails=self.tails,
                 tail_bound=self.tail_bound_m,
-                num_blocks=self.n_blocks_m,
-                activation=F.relu,
-                dropout_probability=0.,
-                use_batch_norm=self.use_batch_norm)
+                num_blocks=self.n_blocks_m)
+                # activation=F.relu,
+                # dropout_probability=0.,
+                # use_batch_norm=self.use_batch_norm)
             # return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
             #     features=self.dim,
             #     hidden_features=self.hidden_units_m,
