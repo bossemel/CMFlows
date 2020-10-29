@@ -7,7 +7,6 @@ import scipy.stats
 from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval
-from torch.nn import functional as F
 
 
 class ConditionalFlow(nn.Module):
@@ -73,7 +72,6 @@ class ConditionalFlow(nn.Module):
                 min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
-            # transform = transforms.CompositeTransform([linear, base], self.device)
             return transforms.CompositeTransform([linear, base], self.device)
         elif self.dim == 2:
             return transforms.PiecewiseRationalQuadraticCouplingTransform(
@@ -98,26 +96,8 @@ class ConditionalFlow(nn.Module):
                 tails=self.tails,
                 tail_bound=self.tail_bound_m,
                 num_blocks=self.n_blocks_m)
-                # activation=F.relu,
-                # dropout_probability=0.,
-                # use_batch_norm=self.use_batch_norm)
-            # return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
-            #     features=self.dim,
-            #     hidden_features=self.hidden_units_m,
-            #     context_features=None,
-            #     num_bins=self.n_bins_m,
-            #     tails=self.tails,
-            #     tail_bound=self.tail_bound_m,
-            #     num_blocks=self.n_blocks_m,
-            #     use_residual_blocks=True,
-            #     random_mask=False,
-            #     activation=F.relu,
-            #     dropout_probability=self.dropout_m,
-            #     use_batch_norm=self.use_batch_norm
-            # )
         else:
-            raise NotImplementedError
-        # return transform
+            raise ValueError('unknown dimensionality')
 
     def _forward(self, inputs, context=None):
         """Forward pass in density estimation direction.

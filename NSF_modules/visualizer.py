@@ -42,4 +42,4 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
         if not best_val:
             fig.savefig(os.path.join(args.figures_path, 'epoch_{}_{}.pdf'.format(epoch, name)), dpi=300, bbox_inches='tight')
         else:
-            fig.savefig(os.path.join(args.figures_path, 'epoch_{}_bestval.pdf'.format(name)), dpi=300, bbox_inches='tight')
+            fig.savefig(os.path.join(args.figures_path, 'epochsubl_{}_bestval.pdf'.format(name)), dpi=300, bbox_inches='tight')

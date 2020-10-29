@@ -14,13 +14,13 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
-        # CM Options
+        # nsf Options
 
         # Architecture
         parser.add_argument(
             '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
         parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+            '--train_cm_flow', action='store_true', help='whether to train combined nsf Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
 
@@ -122,9 +122,9 @@ class TrainOptions():
 
         # Save options
         parser.add_argument(
-            '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
+            '--exp_name', type=str, default='default_name_nsf', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures_nsf', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
 

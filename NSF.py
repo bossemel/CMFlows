@@ -102,11 +102,10 @@ def random_search(args):
 
         if current_hyperparams not in tested_combinations:
             if args.flow_type == 'cop_flow':
-                print('n_layers, hidden_units, n_blocks, n_bins, dropout, \
-                    lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, dropout, lr, weight_decay, tail_bound'
             else:
-                print('n_layers, hidden_units, n_blocks, n_bins, \
-                    lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, lr, weight_decay, tail_bound'
+            print('{}: {}'.format(hyperparams_string, current_hyperparams))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -116,22 +115,29 @@ def random_search(args):
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                  current_best_dict['best_validation_loss'])
             print(results_dict[current_hyperparams])
-            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                f.write(str(results_dict))
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w' if ii == 0 else 'a') as f:
+                if ii == 0:
+                    f.write(hyperparams_string + '\n' + str(current_hyperparams) + ': ' + str(results_dict[current_hyperparams]) + '\n')
+                else:
+                    f.write(str(current_hyperparams) + ': ' + str(results_dict[current_hyperparams]) + '\n')
+
             if current_best_dict['best_validation_loss'] < best_loss:
                 best_loss = current_best_dict['best_validation_loss']
                 best_hyperparams = current_hyperparams
                 best_dict = current_best_dict
             tested_combinations.append(current_hyperparams)
             ii += 1
-    print('Random search complete for {}'.format(args.copula))
-    print('Best hyperparams: {}'.format(best_hyperparams))
-    print('Lowest Val Loss: {}'.format(best_loss))
-    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
     if args.continue_from == 0:
-        with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
-            f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                    'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+        print('Random search complete for {}'.format(args.copula if args.flow_type == 'cop_flow' else args.marginal))
+        print('Best hyperparams: {}'.format(best_hyperparams))
+        print('Lowest Val Loss: {}'.format(best_loss))
+        print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
+        if args.continue_from == 0:
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+                f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                        'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    else:
+        print('Random search complete. See random_search.txt for results.')
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
