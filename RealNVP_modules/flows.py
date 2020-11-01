@@ -135,11 +135,11 @@ class FlowSequential(nn.Sequential):
                     cond_inputs = normal_distr.cdf(cond_inputs)
 
             if args.conditional_copula:
-                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args, name='samples_target_jsd')
-                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args, name='samples_pred_jsd')
+                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
             else:
-                visualize_joint(samples_target.cpu(), args, name='samples_target_jsd')
-                visualize_joint(samples_pred_viz.cpu(), args, name='samples_pred_jsd')
+                visualize_joint(samples_target.cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
 
             assert np.max(samples_target.cpu().numpy()) <= 1
             assert np.min(samples_target.cpu().numpy()) >= 0
@@ -182,21 +182,21 @@ class FlowSequential(nn.Sequential):
 
             return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False):
+    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
             if cm_flow:
-                if args.conditional_copula:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=args.device).cpu().numpy()
+                if cond_inputs:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=device).cpu().numpy()
                 else:
-                    samples = self.sample_copula(num_samples=num_samples, device=args.device).cpu().numpy()
+                    samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
-                if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=args.device).cpu().numpy()
+                if cond_inputs:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=device).cpu().numpy()
                 else:
-                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=args.device).cpu().numpy()
-            if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
+            if cond_inputs:
                 margin_x1 = cond_inputs
                 margin_x2 = samples
             else:

@@ -46,9 +46,9 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         normal_distr = torch.distributions.normal.Normal(0, 1)
         for pair in paired_dims:
             vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
-            visualize_joint(dataset_trn[:, pair].numpy(), args, name='true_distr_dim{}'.format(pair))
-            visualize_joint(untransformed_samples[:, pair], args, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            visualize_joint(vis_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            visualize_joint(dataset_trn[:, pair].numpy(), args.figures_path, name='true_distr_dim{}'.format(pair))
+            visualize_joint(untransformed_samples[:, pair], args.figures_path, name='untransformed_true_distr_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
 
 
 if __name__ == '__main__':
@@ -87,9 +87,9 @@ if __name__ == '__main__':
     untransformed_samples = pv_cop.simulate(args.viz_obs)
 
     if not args.error_bars:
-        visualize_joint(dataset_trn[:, :2], args, name='rvine_input_dataset01')
-        visualize_joint(dataset_trn[:, 1:3], args, name='rvine_input_dataset12')
-        visualize_joint(dataset_trn[:, 2:4], args, name='rvine_input_dataset23')
+        visualize_joint(dataset_trn[:, :2], args.figures_path, name='rvine_input_dataset01')
+        visualize_joint(dataset_trn[:, 1:3], args.figures_path, name='rvine_input_dataset12')
+        visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
 
     # Initialize R-vine
     rv = RVine(args=args, data=dataset_trn)

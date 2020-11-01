@@ -76,7 +76,7 @@ def ecdf(x):
 
 def fit_copula(data):
     data = vinecopula.pobs(data)
-    visualize_joint(np.array(data), args, name='input_data')
+    visualize_joint(np.array(data), args.figures_path, name='input_data')
     kde = kdecopula.kdecop(data)
     return kde
 
@@ -86,7 +86,7 @@ def fit_and_evaluate(continue_from_mode, visualize):
 
     if visualize:
         samples = np.array(stats.simulate(cop, nsim=viz_obs))
-        visualize_joint(samples, args, name='archmidean_samples')
+        visualize_joint(samples, args.figures_path, name='archmidean_samples')
 
     samples = np.array(stats.simulate(cop, nsim=test_obs))
 

@@ -76,7 +76,7 @@ def margin_uniformity(args, epoch, model, cond_inputs=None, transform_fct=None, 
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args, num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow)
+            current_m_metric_x2 = model.t_metric_eval(num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
     if 't_1' in test_dict:
         test_dict["t_1"].append(current_t_metric_x1 / num_samples)
         test_dict["m_1"].append(current_m_metric_x1 / num_samples)

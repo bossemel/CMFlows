@@ -134,7 +134,7 @@ class CMFlow(nn.Module):
                                        prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=None):
+    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=None):
         """Evaluates the uniformity of the predicted marginals.
         """
         with torch.no_grad():

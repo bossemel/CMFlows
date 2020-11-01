@@ -74,7 +74,7 @@ def train_and_evaluate(continue_from_mode, visualize):
     if visualize:
         samples = cop.random(viz_obs)  # simulate random number
         # Visualize samples
-        visualize_joint(samples, args, name='archmidean_samples')
+        visualize_joint(samples, args.figures_path, name='archmidean_samples')
 
     samples = cop.random(test_obs)  # simulate random number
 
