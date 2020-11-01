@@ -153,7 +153,7 @@ class FlowSequential(nn.Sequential):
             # else:
             #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
             # Get true copula distribution
-            true_cop_distr = datasets.distributions.Copula_Distr(args)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
             prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
 

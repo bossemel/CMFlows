@@ -171,7 +171,7 @@ class ConditionalFlow(nn.Module):
             # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Get true copula distribution
-            true_cop_distr = datasets.distributions.Copula_Distr(args)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
             # Samples from both distributinos
             if cm_flow is True:

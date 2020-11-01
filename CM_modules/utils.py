@@ -19,7 +19,7 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Joint_Distr(args)
+    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha)
 
     train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)
@@ -75,11 +75,11 @@ def jsd_eval_marginal_cm(marginal_1, marginal_2, args, model, test_dict,
     with torch.no_grad():
         # Get distributions
         args.marginal = marginal_1
-        marginal_distr_1 = datasets.distributions.Marginals(args)
+        marginal_distr_1 = datasets.distributions.Marginals(marginal_1, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
         args.marginal = marginal_2
-        marginal_distr_2 = datasets.distributions.Marginals(args)
-        samples_1 = marginal_distr_1.sampler(args=args, obs=obs)
-        samples_2 = marginal_distr_2.sampler(args=args, obs=obs)
+        marginal_distr_2 = datasets.distributions.Marginals(marginal_2, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
+        samples_1 = marginal_distr_1.sampler(obs=obs)
+        samples_2 = marginal_distr_2.sampler(obs=obs)
 
         # Get Grid
         grid_1 = np.linspace(np.min(samples_1), np.max(samples_1), obs).reshape(-1, 1)

@@ -153,7 +153,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
     model.to(args.device)
 
     # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
+    #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
     best_dict, test_dict = train_val(model=model,
@@ -278,7 +280,7 @@ if __name__ == '__main__':
         # Sample from true copula and visualize it
         obs = args.obs
         args.obs = 100000
-        dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
+        dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
         visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
         args.obs = obs
 

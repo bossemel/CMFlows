@@ -287,7 +287,7 @@ if __name__ == '__main__':
                     # Sample from true copula and visualize it
                     obs = args.obs
                     args.obs = 100000
-                    dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
+                    dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
                     visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
                     args.obs = obs
 

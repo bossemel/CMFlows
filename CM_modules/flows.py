@@ -100,7 +100,7 @@ class CMFlow(nn.Module):
             # else:
             #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
             # Get true copula distribution
-            true_cop_distr = datasets.distributions.Copula_Distr(args)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr.pdf(samples_pred.T).T

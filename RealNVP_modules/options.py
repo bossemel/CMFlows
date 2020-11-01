@@ -65,7 +65,8 @@ class TrainOptions():
             '--error_bars', action='store_true', help='calculate mean and std over 10 experiments')
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
-
+        parser.add_argument(
+            '--clip', type=float, default=5.0)
 
         self.initialized = True
         return parser

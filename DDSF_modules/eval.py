@@ -26,8 +26,8 @@ def jsd_eval(marginal, args, model, test_dict,
     """
     with torch.no_grad():
         # Get distributions
-        marginal_distr = datasets.distributions.Marginals(args)
-        samples = marginal_distr.sampler(args=args, obs=obs)
+        marginal_distr = datasets.distributions.Marginals(args.marginal_1, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
+        samples = marginal_distr.sampler(obs=obs)
 
         # Get Grid
         grid = np.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)

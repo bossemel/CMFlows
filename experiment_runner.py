@@ -4,8 +4,6 @@ import torch.utils.data
 from tqdm import tqdm
 import numpy as np
 
-#import cop_flow_modules.flows as fnn
-
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from NSF_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
@@ -503,7 +501,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)
         if not error_bars and not grid_search and not rvine:
-            if model_name == 'marg_flow':
+            if model_name == 'marg_flow' or model_name == 'DDSF':
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)

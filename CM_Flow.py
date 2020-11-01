@@ -84,7 +84,7 @@ def visualize_CM_Flow_output(model, dataset, args):
             visualize_joint(output_copula, args.figures_path, name='output_copula_cm')
 
         # Sample from the true copula and visualize it
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
+        dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
         visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
 
         # Sample from the non-transformed copula (normal margins)

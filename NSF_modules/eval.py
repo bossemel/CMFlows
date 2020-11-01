@@ -25,7 +25,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     model.eval()
     with torch.no_grad():
         if cm_flow is True:
-            dataset = datasets.distributions.Copula_Distr(args, obs=10000)
+            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = dataset.xx
             print(data.shape)
             data = torch.tensor(data).float().to(device)
@@ -40,7 +40,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             else:
                 test_dict["jsd_test_copula"] = [current_jsd]
         else:
-            dataset = datasets.distributions.Copula_Distr(args, obs=10000)
+            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = torch.tensor(dataset.xx).float()
             print(data.shape)
             data = data.to(device)
@@ -120,8 +120,8 @@ def jsd_eval_1D(marginal, args, model, test_dict,
     """
     with torch.no_grad():
         # Get distributions
-        marginal_distr = datasets.distributions.Marginals(args)
-        samples = marginal_distr.sampler(args=args, obs=obs)
+        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
+        samples = marginal_distr.sampler(obs=obs)
 
         # Get Grid
         grid = np.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)
