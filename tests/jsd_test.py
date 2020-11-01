@@ -6,7 +6,7 @@ if __name__ == '__main__':
     # What i need: X_in_p, X_in_q, Y_in_p, Y_in_q
 
     # 1. case: p=q
-    mv_gaussian = mvnorm = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0],
+    mv_gaussian = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0],
                                                                              [0, 1.]])
     samples = mv_gaussian.rvs(100000)
     samples_2 = mv_gaussian.rvs(100000)
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
 
     # 2nd case:
-    mv_gaussian_2 = mvnorm = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0.5],
+    mv_gaussian_2 = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0.5],
                                                                                [0.5, 1.]])
     samples_2 = mv_gaussian_2.rvs(100000)
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
 
     # 3rd case:
-    mv_gaussian_2 = mvnorm = scipy.stats.multivariate_normal(mean=[10000, 10000], cov=[[10000., 0.5],
+    mv_gaussian_2 = scipy.stats.multivariate_normal(mean=[10000, 10000], cov=[[10000., 0.5],
                                                                                        [0.5, 10000.]])
     samples_2 = mv_gaussian_2.rvs(100000)
 

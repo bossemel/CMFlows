@@ -22,7 +22,7 @@ python NSF.py \
 --obs 10000 \
 --random_search \
 --flow_type marg_flow \
---continue_from 122
+--continue_from 97
 
 # echo 'Gamma - random Search'
 

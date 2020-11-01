@@ -4,6 +4,7 @@ import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import numpy as np
 from utils.visualizer import visualize_joint
+import datasets.distributions
 
 
 class FlowSequential(nn.Sequential):
@@ -147,24 +148,26 @@ class FlowSequential(nn.Sequential):
             # Prob X in both distributions
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu())
 
-            if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
-            else:
-                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
+            # if args.conditional_copula:
+            #     true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
+            # else:
+            #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
+            # Get true copula distribution
+            true_cop_distr = datasets.distributions.Copula_Distr(args)
 
             prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
 
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T.cpu()).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu())
             else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy().T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1).T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1))
                 prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs.cpu()], axis=1).cpu().numpy().T).T
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
             assert np.min(prob_X_in_p) >= 0

@@ -34,7 +34,7 @@ python NSF.py \
 --obs 10000 \
 --random_search \
 --flow_type marg_flow \
---continue_from 123
+--continue_from 163
 
 # echo 'Lognormal - random Search'
 

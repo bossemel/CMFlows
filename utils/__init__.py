@@ -139,13 +139,13 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     assert np.min(mix_X) >= 0
     assert np.min(mix_Y) >= 0
 
-    KL_PM = np.log(2 * prob_X_in_p) - np.log(mix_X)
+    KL_PM = np.log2(2 * prob_X_in_p) - np.log2(mix_X)
     KL_PM[mix_X == 0] = 0
     KL_PM[mix_Y == 0] = 0
 
     KL_PM = KL_PM.mean()
 
-    KL_QM = np.log(2 * prob_Y_in_q) - np.log(mix_Y)
+    KL_QM = np.log2(2 * prob_Y_in_q) - np.log2(mix_Y)
 
     KL_QM = KL_QM.mean()
 

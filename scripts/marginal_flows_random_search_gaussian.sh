@@ -9,7 +9,7 @@ python NSF.py \
 --obs 10000 \
 --random_search \
 --flow_type marg_flow \
---continue_from 112
+--continue_from 90
 
 # echo 'Uniform - random Search'
 

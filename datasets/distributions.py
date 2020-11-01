@@ -183,7 +183,7 @@ class Copula_Distr:
         self.copula = args.copula
         self.theta = args.theta
 
-    def sampler(args, transform, obs=None):
+    def sampler(args, transform=None, obs=None):
         """Produce obs samples of 2-dimensional Copula density distribution
         """
 
@@ -438,13 +438,18 @@ def copula_pdf(copula, theta, uu, vv):
         https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
     if copula == 'clayton':
+        assert np.min(uu) >= 0 and np.max(uu) <= 1
+        assert np.min(vv) >= 0 and np.max(vv) <= 1
+        #pdf = (theta + 1) * np.power( uu*vv, -1*(theta+1) ) * np.power( np.power(uu, -theta) + np.power(vv, -theta) - 1, -1*(2*theta+1)/theta )
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
         c = -(2 * theta + 1) / theta
         pdf = a * np.power(b, c)
-        assert pdf.all() >= 0
+        assert np.min(pdf) >= 0
         return pdf
     if copula == 'frank':
+        assert np.min(uu) >= 0 and np.max(uu) <= 1
+        assert np.min(vv) >= 0 and np.max(vv) <= 1
         if theta == 0:
             return np.multiply(uu, vv)
 
@@ -453,9 +458,11 @@ def copula_pdf(copula, theta, uu, vv):
             aux = np.multiply(_g(theta, uu), _g(theta, vv)) + _g(theta, 1)
             den = np.power(aux, 2)
             pdf = num / den
-            assert pdf.all() >= 0
+            assert np.min(pdf) >= 0
             return pdf
     if copula == 'gumbel':
+        assert np.min(uu) >= 0 and np.max(uu) <= 1
+        assert np.min(vv) >= 0 and np.max(vv) <= 1
         if theta == 1:
             return np.multiply(uu, vv)
 
@@ -466,4 +473,5 @@ def copula_pdf(copula, theta, uu, vv):
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
             d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
-            assert pdf.all() >= 0
+            assert np.min(pdf) >= 0
+            return pdf

@@ -7,6 +7,7 @@ from DDSF import build_model as build_model_DDSF
 from NSF import build_model as build_model_nsf
 import scipy.stats
 from utils.visualizer import visualize_joint
+import datasets.distribution
 eps = 0.0001
 
 
@@ -94,25 +95,27 @@ class CMFlow(nn.Module):
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
             # Define distributions
-            if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
-            else:
-                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+            # if args.conditional_copula:
+            #     true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
+            # else:
+            #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+            # Get true copula distribution
+            true_cop_distr = datasets.distributions.Copula_Distr(args)
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr.pdf(samples_pred.T).T
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred)
             else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred)
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs], axis=1).T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs], axis=1))
                 prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs], axis=1).cpu().numpy().T).T
 
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
             assert not np.isnan(np.sum(prob_X_in_p))

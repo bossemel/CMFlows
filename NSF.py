@@ -56,6 +56,8 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = args.continue_from
+    np.random.seed(ii)
+
     while ii < 200:
         args.n_layers = 5 * np.random.choice(range(1, 5))
         args.hidden_units = 2**np.random.choice(range(8))
