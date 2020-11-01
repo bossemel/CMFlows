@@ -245,16 +245,16 @@ class ConditionalFlow(nn.Module):
         """
         with torch.no_grad():
             if cm_flow:
-                if cond_inputs:
+                if cond_inputs is not None:
                     samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=device).cpu().numpy()
                 else:
                     samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
-                if cond_inputs:
+                if cond_inputs is not None:
                     samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=device).cpu().numpy()
                 else:
                     samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
-            if cond_inputs:
+            if cond_inputs is not None:
                 margin_x1 = cond_inputs
                 margin_x2 = samples
             else:

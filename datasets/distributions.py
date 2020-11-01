@@ -17,7 +17,7 @@ class Rvine_Joint():
         raise NotImplementedError
 
 
-def marginal_transform(inputs, marginal, args):
+def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
     """Transforms the uniform copula marginals into a different distribution.
 
     Params:
@@ -29,21 +29,21 @@ def marginal_transform(inputs, marginal, args):
         inputs: transformed samples vector
     """
     if marginal == 'gaussian':
-        assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
-        assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
-        norm = scipy.stats.norm(loc=args.mu, scale=args.var)
+        #assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
+        # assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
+        norm = scipy.stats.norm(loc=mu, scale=var)
         inputs = norm.ppf(inputs)
     elif marginal == 'uniform':
         return inputs
     elif marginal == 'lognormal':
-        assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
-        assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
+        #assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
+        #assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
 
-        lognorm = scipy.stats.lognorm(s=0.5, loc=args.mu, scale=args.var)
+        lognorm = scipy.stats.lognorm(s=0.5, loc=mu, scale=var)
         inputs = lognorm.ppf(inputs)
     elif marginal == 'gamma':
-        assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
-        gamma = scipy.stats.gamma(args.alpha)
+        #assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
+        gamma = scipy.stats.gamma(alpha)
         inputs = gamma.ppf(inputs)
     else:
         raise NotImplementedError
@@ -71,8 +71,8 @@ class Joint_Distr():
         """
         copula_xx = datasets.distributions.Copula_Distr.sampler(args=args, transform=False)
         assert not np.isnan(np.sum(copula_xx))
-        marginal_1 = marginal_transform(inputs=copula_xx[:, 0:1], marginal=args.marginal_1, args=args)
-        marginal_2 = marginal_transform(inputs=copula_xx[:, 1:2], marginal=args.marginal_2, args=args)
+        marginal_1 = marginal_transform(inputs=copula_xx[:, 0:1], marginal=args.marginal_1, mu=args.mu, var=args.var, alpha=args.alpha)
+        marginal_2 = marginal_transform(inputs=copula_xx[:, 1:2], marginal=args.marginal_2, mu=args.mu, var=args.var, alpha=args.alpha)
 
         xx = np.concatenate([marginal_1, marginal_2], axis=1)
         assert not np.isnan(np.sum(xx))

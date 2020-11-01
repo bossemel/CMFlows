@@ -7,7 +7,7 @@ from DDSF import build_model as build_model_DDSF
 from NSF import build_model as build_model_nsf
 import scipy.stats
 from utils.visualizer import visualize_joint
-import datasets.distribution
+import datasets.distributions
 eps = 0.0001
 
 
