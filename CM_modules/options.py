@@ -17,10 +17,10 @@ class TrainOptions():
         # CM Options
 
         # Architecture
-        parser.add_argument(
-            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
-        parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
+        # parser.add_argument(
+        #     '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
+        # parser.add_argument(
+        #     '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
 
@@ -30,7 +30,9 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=0.001, help='learning rate (default: 0.0001)')
+            '--lr_c', type=float, default=0.01, help='learning rate (default: 0.0001)')
+        parser.add_argument(
+            '--lr_m', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -40,11 +42,19 @@ class TrainOptions():
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-10, help='adam optimizer weight decay')
+            '--weight_decay_c', type=int, default=1e-10, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--weight_decay_m', type=int, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+        parser.add_argument(
+            '--random_search', action='store_true', help='random search over hyperparameters')
+        parser.add_argument(
+            '--continue_from', type=int, default=0, help='continue random search from iteration number')
+        parser.add_argument(
+            '--flow_type', type=str, default='cop_flow', choices=['cop_flow', 'marg_flow'])
 
         # Dataset options
         parser.add_argument(
@@ -104,17 +114,15 @@ class TrainOptions():
 
         # NSF Options marginal
         parser.add_argument(
-            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
+            '--n_layers_m', type=int, default=15, help='Number of spline layers in flow')
         parser.add_argument(
             '--hidden_units_m', type=int, default=128, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_m', type=int, default=2, help='Number of residual blocks in each spline layer')
+            '--n_blocks_m', type=int, default=3, help='Number of residual blocks in each spline layer')
         parser.add_argument(
             '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
         parser.add_argument(
-            '--dropout_m', type=float, default=0.15, help='Dropout probability in flow')
-        parser.add_argument(
-            '--tail_bound_m', type=float, default=8, help='Bounds of spline region')
+            '--tail_bound_m', type=float, default=4, help='Bounds of spline region')
 
         # Save options
         parser.add_argument(
