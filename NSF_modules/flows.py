@@ -23,7 +23,6 @@ class ConditionalFlow(nn.Module):
             self.n_layers_m = args.n_layers_m
             self.hidden_units_m = args.hidden_units_m
             self.n_blocks_m = args.n_blocks_m
-            self.dropout_m = args.dropout_m
             self.n_bins_m = args.n_bins_m
             self.tail_bound_m = args.tail_bound_m
 

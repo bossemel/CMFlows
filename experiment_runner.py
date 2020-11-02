@@ -171,7 +171,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         # Perform gradient clipping
         if args.clip_grad_norm:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-                # model.clip_grad_norm()
 
         if args.scheduler is None:
             args.optimizer.step()

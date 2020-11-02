@@ -34,7 +34,7 @@ class TrainOptions():
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--random_seed', type=int, default=58094, help='random seed')
+            '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(

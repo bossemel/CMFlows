@@ -30,17 +30,21 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--lr', type=float, default=0.001, help='learning rate (default: 0.0001)')
+            '--lr_c', type=float, default=0.01, help='learning rate (default: 0.0001)')
+        parser.add_argument(
+            '--lr_m', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
-            '--random_seed', type=int, default=58094, help='random seed')
+            '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-10, help='adam optimizer weight decay')
+            '--weight_decay_c', type=int, default=1e-10, help='adam optimizer weight decay')
+        parser.add_argument(
+            '--weight_decay_m', type=int, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -80,17 +84,17 @@ class TrainOptions():
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--n_layers_c', type=int, default=10, help='Number of spline layers in flow')
+            '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=256, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_c', type=int, default=1, help='Number of residual blocks in each spline layer')
+            '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=5, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
-            '--n_bins_c', type=int, default=5, help='Number of bins in piecewise spline transform')
+            '--n_bins_c', type=int, default=30, help='Number of bins in piecewise spline transform')
         parser.add_argument(
             '--min_bin_height', type=float, default=1e-3, help='Minimum bin height of piecewise transform')
         parser.add_argument(
@@ -108,17 +112,15 @@ class TrainOptions():
 
         # NSF Options marginal
         parser.add_argument(
-            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
+            '--n_layers_m', type=int, default=15, help='Number of spline layers in flow')
         parser.add_argument(
             '--hidden_units_m', type=int, default=128, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_m', type=int, default=2, help='Number of residual blocks in each spline layer')
+            '--n_blocks_m', type=int, default=3, help='Number of residual blocks in each spline layer')
         parser.add_argument(
             '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
         parser.add_argument(
-            '--dropout_m', type=float, default=0.15, help='Dropout probability in flow')
-        parser.add_argument(
-            '--tail_bound_m', type=float, default=8, help='Bounds of spline region')
+            '--tail_bound_m', type=float, default=4, help='Bounds of spline region')
 
         # Save options
         parser.add_argument(

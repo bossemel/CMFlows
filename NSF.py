@@ -57,48 +57,53 @@ def random_search(args):
     best_loss = 1000
     ii = args.continue_from
     np.random.seed(ii)
+    random.seed(ii)
 
     while ii < 200:
-        args.n_layers = 5 * np.random.choice(range(1, 5))
-        args.hidden_units = 2**np.random.choice(range(8))
-        args.n_blocks = np.random.choice(range(5))
-        args.n_bins = 5 * np.random.choice(range(2, 10))
+        n_layers = 5 * np.random.choice(range(1, 5))
+        hidden_units = 2**np.random.choice(range(8))
+        n_blocks = np.random.choice(range(5))
+        n_bins = 5 * np.random.choice(range(2, 10))
         lr_number = np.random.choice(range(2, 10))
-        args.lr = 1 / 10**lr_number
-        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
-        args.clip_grad_norm = np.random.choice([True, False])
-        args.tail_bound = 2**np.random.choice(range(6))
+        lr = 1 / 10**lr_number
+        weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+        tail_bound = 2**np.random.choice(range(6))
 
         if args.flow_type == 'cop_flow':
-            args.dropout = 0.05 * np.random.choice(range(1, 6))
-            args.n_layers_c = args.n_layers
-            args.hidden_units_c = args.hidden_units
-            args.n_blocks_c = args.n_blocks
-            args.n_bins_c = args.n_bins
-            args.dropout_c = args.dropout
+            dropout = 0.05 * np.random.choice(range(1, 6))
+            args.n_layers_c = n_layers
+            args.hidden_units_c = hidden_units
+            args.n_blocks_c = n_blocks
+            args.n_bins_c = n_bins
+            args.dropout_c = dropout
+            args.lr_c = lr
+            args.weight_decay_c = weight_decay
+            args.tail_bound_c = tail_bound
             current_hyperparams = (args.n_layers,
                                    args.hidden_units,
                                    args.n_blocks,
                                    args.n_bins,
                                    args.dropout,
-                                   args.lr,
-                                   args.weight_decay,
-                                   args.clip_grad_norm,
-                                   args.tail_bound)
+                                   args.lr_c,
+                                   args.weight_decay_c,
+                                   args.tail_bound_c)
 
         elif args.flow_type == 'marg_flow':
-            args.n_bins_m = int(2 ** np.random.choice(range(5)))
-            args.n_layers_m = args.n_layers
-            args.hidden_units_m = args.hidden_units
-            args.n_blocks_m = args.n_blocks
-            current_hyperparams = (args.n_layers,
-                                   args.hidden_units,
-                                   args.n_blocks,
+            args.n_layers_m = n_layers
+            args.hidden_units_m = hidden_units
+            args.n_blocks_m = n_blocks
+            args.n_bins_m = n_bins
+            args.lr_m = lr
+            args.weight_decay_m = weight_decay
+            args.tail_bound_m = tail_bound
+            current_hyperparams = (args.n_layers_m,
+                                   args.hidden_units_m,
+                                   args.n_blocks_m,
                                    args.n_bins_m,
-                                   args.lr,
-                                   args.weight_decay,
-                                   args.tail_bound,
-                                   args.clip_grad_norm)
+                                   args.lr_m,
+                                   args.weight_decay_m,
+                                   args.clip_grad_norm_m,
+                                   args.tail_bound_m)
         else:
             raise ValueError('Unknown Flow type')
 
@@ -154,7 +159,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Set optimizer
     #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c if args.flow_type == 'cop_flow' else args.lr_m,
+        weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
