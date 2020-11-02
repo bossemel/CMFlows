@@ -4,6 +4,7 @@ import numpy as np
 import scipy.stats
 import sys
 import scipy
+eps = 0.0001
 
 
 def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
@@ -437,6 +438,13 @@ def gumbel_cdf(theta, uu, vv):
         return cdfs
 
 
+def remove_0_1(array):
+    #print(array[array==0])
+    array[array == 0] = eps
+    array[array == 1] = 1 - eps
+    return array
+
+
 def copula_pdf(copula, theta, uu, vv):
     """Compute probability density function for given copula family.
     Args:
@@ -446,9 +454,12 @@ def copula_pdf(copula, theta, uu, vv):
     Source:
         https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
+    uu = remove_0_1(uu)
+    vv = remove_0_1(vv)
+    assert np.min(uu) > 0 and np.max(uu) < 1, 'min: {}, max: {}'.format(np.min(uu), np.max(uu))
+    assert np.min(vv) > 0 and np.max(vv) < 1, 'min: {}, max: {}'.format(np.min(vv), np.max(vv))
+
     if copula == 'clayton':
-        assert np.min(uu) >= 0 and np.max(uu) <= 1
-        assert np.min(vv) >= 0 and np.max(vv) <= 1
         #pdf = (theta + 1) * np.power( uu*vv, -1*(theta+1) ) * np.power( np.power(uu, -theta) + np.power(vv, -theta) - 1, -1*(2*theta+1)/theta )
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
@@ -457,8 +468,6 @@ def copula_pdf(copula, theta, uu, vv):
         assert np.min(pdf) >= 0
         return pdf
     if copula == 'frank':
-        assert np.min(uu) >= 0 and np.max(uu) <= 1
-        assert np.min(vv) >= 0 and np.max(vv) <= 1
         if theta == 0:
             return np.multiply(uu, vv)
 
@@ -470,8 +479,6 @@ def copula_pdf(copula, theta, uu, vv):
             assert np.min(pdf) >= 0
             return pdf
     if copula == 'gumbel':
-        assert np.min(uu) >= 0 and np.max(uu) <= 1
-        assert np.min(vv) >= 0 and np.max(vv) <= 1
         if theta == 1:
             return np.multiply(uu, vv)
 
