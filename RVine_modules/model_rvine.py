@@ -1,3 +1,7 @@
+# This module is inspired by: Yuan, Zhenfei and Taizhong Hu. "pyvine: The Python Package for
+# Regular Vine Copula Modeling, Sampling and Testing." Commun. Math. Stat., 13 Sept. 2019,
+# pp. 1-34, doi:10.1007/s40304-019-00195-2.
+
 import networkx as nx
 from itertools import combinations
 import scipy.stats
@@ -93,7 +97,7 @@ def initialize_graph(self):
         # Prepare dataset for node
         dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
         node_str = re.sub('[, ()]', '', str(node))
-        visualize_joint(np.concatenate([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1), self.args, name='rvine_pre_marginal_{}'.format(node_str))
+        visualize_joint(np.concatenate([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1), self.args.figures_path, name='rvine_pre_marginal_{}'.format(node_str))
         assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
@@ -208,7 +212,7 @@ def add_new_node(self, common_node, edge, plots):
 
     dataset, data_loaders = create_dataset(uncon_node_data, cond_node_data, self.args)
 
-    visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args, name='rvine_input_dataset_{}'.format(edge_str))
+    visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args.figures_path, name='rvine_input_dataset_{}'.format(edge_str))
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
@@ -243,12 +247,12 @@ def add_new_node(self, common_node, edge, plots):
             gaussian_inputs = torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu()
             uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
             edge_str = re.sub('[, ()]', '', str(edge))
-            visualize_joint(uniform_inputs, self.args, name='rvine_con_transform_uniform_{}'.format(edge_str))
-            visualize_joint(gaussian_inputs, self.args, name='rvine_con_transform_gaussian_{}'.format(edge_str))
+            visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
+            visualize_joint(gaussian_inputs, self.args.figures_path, name='rvine_con_transform_gaussian_{}'.format(edge_str))
 
             cond_inputs = torch.tensor(np.random.normal(size=(10000, 1))).float()
             con_samples = self.model_con.sample_copula(num_samples=10000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
-            visualize_joint(con_samples.cpu(), self.args, name='rvine_con_copula_{}'.format(edge_str))
+            visualize_joint(con_samples.cpu(), self.args.figures_path, name='rvine_con_copula_{}'.format(edge_str))
 
     return self
 
@@ -409,19 +413,19 @@ class RVine():
                 samples_target = normal_distr.cdf(sim_data)
                 # @Todo: remove before submitting code
             if visualize:
-                visualize_joint(samples_pred[:, :2].cpu(), self.args, name='samples_pred01')
-                visualize_joint(samples_target[:, :2], self.args, name='samples_target01')
-                visualize_joint(samples_pred[:, 1:3].cpu(), self.args, name='samples_pred12')
-                visualize_joint(samples_target[:, 1:3], self.args, name='samples_target12')
-                visualize_joint(samples_pred[:, 2:4].cpu(), self.args, name='samples_pred23')
-                visualize_joint(samples_target[:, 2:4], self.args, name='samples_target23')
+                visualize_joint(samples_pred[:, :2].cpu(), self.args.figures_path, name='samples_pred01')
+                visualize_joint(samples_target[:, :2], self.args.figures_path, name='samples_target01')
+                visualize_joint(samples_pred[:, 1:3].cpu(), self.args.figures_path, name='samples_pred12')
+                visualize_joint(samples_target[:, 1:3], self.args.figures_path, name='samples_target12')
+                visualize_joint(samples_pred[:, 2:4].cpu(), self.args.figures_path, name='samples_pred23')
+                visualize_joint(samples_target[:, 2:4], self.args.figures_path, name='samples_target23')
 
-                visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1).cpu(), self.args, name='samples_pred02')
-                visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), self.args, name='samples_target02')
-                visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1).cpu(), self.args, name='samples_pred13')
-                visualize_joint(np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), self.args, name='samples_target13')
-                visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1).cpu(), self.args, name='samples_pred03')
-                visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), self.args, name='samples_target03')
+                visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1).cpu(), self.args.figures_path, name='samples_pred02')
+                visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), self.args.figures_path, name='samples_target02')
+                visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred13')
+                visualize_joint(np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), self.args.figures_path, name='samples_target13')
+                visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
+                visualize_joint(np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
 
             if not args.error_bars:
                 calc_jsd(args, test_dict={}, samples_pred=samples_pred[:, :2].cpu(), samples_target=samples_target[:, :2], name='01')

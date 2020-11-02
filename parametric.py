@@ -23,7 +23,7 @@ def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+    true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
     # Prob X in both distributions
@@ -74,7 +74,7 @@ def train_and_evaluate(continue_from_mode, visualize):
     if visualize:
         samples = cop.random(viz_obs)  # simulate random number
         # Visualize samples
-        visualize_joint(samples, args, name='archmidean_samples')
+        visualize_joint(samples, args.figures_path, name='archmidean_samples')
 
     samples = cop.random(test_obs)  # simulate random number
 
@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = datasets.distributions.Joint_Distr(args)
+    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha)
     test_obs = dataset.tst.shape[0]
     viz_obs = 100000
 

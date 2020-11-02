@@ -18,11 +18,11 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
         obs: number of observations to samples
     """
     with torch.no_grad():
-        marginal_distr = datasets.distributions.Marginals(args)
+        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
 
         fig = plt.figure(figsize=(8, 6))
 
-        data = marginal_distr.sampler(args=args, obs=obs)
+        data = marginal_distr.sampler(obs=obs)
         sns.distplot(data, bins=100, kde=False, label='Test Samples', norm_hist=True, color='orange')
 
         res = obs

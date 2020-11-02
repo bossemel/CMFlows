@@ -21,7 +21,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
     model.eval()
     with torch.no_grad():
         if cm_flow is True:
-            dataset = datasets.distributions.Copula_Distr(args, obs=10000)
+            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = dataset.xx
             print(data.shape)
             data = torch.tensor(data).float().to(device)
@@ -36,7 +36,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             else:
                 test_dict["jsd_test_copula"] = [current_jsd]
         else:
-            dataset = datasets.distributions.Copula_Distr(args, obs=10000)
+            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = torch.tensor(dataset.xx).float()
             print(data.shape)
             data = data.to(device)
@@ -76,7 +76,7 @@ def margin_uniformity(args, epoch, model, cond_inputs=None, transform_fct=None, 
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args, num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow)
+            current_m_metric_x2 = model.t_metric_eval(num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
     if 't_1' in test_dict:
         test_dict["t_1"].append(current_t_metric_x1 / num_samples)
         test_dict["m_1"].append(current_m_metric_x1 / num_samples)

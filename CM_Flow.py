@@ -12,7 +12,7 @@ from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
 import CM_modules.flows as flows
 
-from NFS_modules.visualizer import visualize1D
+from NSF_modules.visualizer import visualize1D
 
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics, load_model
@@ -54,8 +54,8 @@ def visualize_marg_flow_output(model, dataset, args):
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
         normal_distr = torch.distributions.normal.Normal(0, 1)
         vizdata_uniform = normal_distr.cdf(vizdata)
-        visualize_joint(vizdata, args, name='marg_flow_output')
-        visualize_joint(vizdata_uniform, args, name='marg_flow_output_uniform')
+        visualize_joint(vizdata, args.figures_path, name='marg_flow_output')
+        visualize_joint(vizdata_uniform, args.figures_path, name='marg_flow_output_uniform')
 
 
 def visualize_cop_flow_output(model, dataset, args):
@@ -63,14 +63,14 @@ def visualize_cop_flow_output(model, dataset, args):
         if args.conditional_copula:
             cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
             output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
-            visualize_joint(output_copula, args, name='output_copula')
+            visualize_joint(output_copula, args.figures_path, name='output_copula')
             output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
-            visualize_joint(output_copula, args, name='output_copula_untransformed')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
         else:
             output_copula = model.cop_flow.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
-            visualize_joint(output_copula, args, name='output_copula')
+            visualize_joint(output_copula, args.figures_path, name='output_copula')
             output_copula = model.cop_flow.sample(num_samples=100000, transform=None, device=args.device).cpu()
-            visualize_joint(output_copula, args, name='output_copula_untransformed')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
 
 
 def visualize_CM_Flow_output(model, dataset, args):
@@ -79,20 +79,20 @@ def visualize_CM_Flow_output(model, dataset, args):
         output_copula = model.sample_copula(num_samples=100000).cpu()
         # Visualize the predicted copula
         if args.cuda:
-            visualize_joint(output_copula, args, name='output_copula_cm')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_cm')
         else:
-            visualize_joint(output_copula, args, name='output_copula_cm')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_cm')
 
         # Sample from the true copula and visualize it
-        dataset = datasets.distributions.Copula_Distr(args, transform=False)
-        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+        dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
+        visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
 
         # Sample from the non-transformed copula (normal margins)
         output_copula = model.sample(num_samples=100000).cpu()
         if args.cuda:
-            visualize_joint(output_copula, args, name='output_copula_normal_cm')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_normal_cm')
         else:
-            visualize_joint(output_copula, args, name='output_copula_normal_cm')
+            visualize_joint(output_copula, args.figures_path, name='output_copula_normal_cm')
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False, rvine=False):
@@ -107,7 +107,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         rvine: disables plotting and test set results for r-vine estimation
     """
     if not error_bars:
-        visualize_joint(dataset.trn, args, name='input_dataset')
+        visualize_joint(dataset.trn, args.figures_path, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)

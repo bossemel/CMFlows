@@ -145,7 +145,7 @@ def grid_search(args, dataset, data_loaders, transform_functions, num_inv_blocks
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
     if not grid_search and not rvine and not error_bars:
-        visualize_joint(dataset.trn, args, name='input_dataset')
+        visualize_joint(dataset.trn, args.figures_path, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args)
@@ -153,7 +153,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
     model.to(args.device)
 
     # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
+    #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
     best_dict, test_dict = train_val(model=model,
@@ -266,20 +268,20 @@ if __name__ == '__main__':
                 if args.conditional_copula:
                     cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
                     output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
-                    visualize_joint(output_copula, args, name='output_copula')
+                    visualize_joint(output_copula, args.figures_path, name='output_copula')
                     output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
-                    visualize_joint(output_copula, args, name='output_copula_untransformed')
+                    visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
                 else:
                     output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
-                    visualize_joint(output_copula, args, name='output_copula')
+                    visualize_joint(output_copula, args.figures_path, name='output_copula')
                     output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
-                    visualize_joint(output_copula, args, name='output_copula_untransformed')
+                    visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it
         obs = args.obs
         args.obs = 100000
-        dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
-        visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+        dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
+        visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
         args.obs = obs
 
         # Gather test losses and save statistics

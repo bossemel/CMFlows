@@ -37,8 +37,8 @@ kdevine = importr('kdevine')
 def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
     # Samples from both distributinos
 
-    visualize_joint(samples_pred[:, :2], args, name='samples_pred01')
-    visualize_joint(samples_target[:, :2], args, name='samples_target01')
+    visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
+    visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
     samples_pred[samples_pred < 0] = 0
     samples_pred[samples_pred > 1] = 1
 
@@ -95,9 +95,9 @@ def ecdf(x):
 
 
 def fit_copula(data):
-    visualize_joint(np.array(data), args, name='input_data')
+    visualize_joint(np.array(data), args.figures_path, name='input_data')
     data = vinecopula.pobs(data.numpy())
-    visualize_joint(np.array(data)[:, :2], args, name='pseudo_obs')
+    visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
     cop = kdevine.kdevinecop(data)
     return cop
 
@@ -108,7 +108,7 @@ def fit_and_evaluate(continue_from_mode, visualize):
     if visualize:
         #print('args viz', args.viz_obs)
         samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, cop)) #stats.simulate(cop, nsim=args.viz_obs))
-        visualize_joint(samples_pred, args, name='archmidean_samples')
+        visualize_joint(samples_pred, args.figures_path, name='archmidean_samples')
 
     #print(cop)
     #print(args.test_obs)

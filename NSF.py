@@ -17,8 +17,8 @@ from utils.load_and_save import save_statistics, load_statistics, load_model
 from experiment_runner import train_val
 import matplotlib
 
-from NFS_modules import flows
-from NFS_modules.options import TrainOptions
+from NSF_modules import flows
+from NSF_modules.options import TrainOptions
 from utils import HiddenPrints\
 
 
@@ -55,58 +55,64 @@ def random_search(args):
     results_dict = {}
     tested_combinations = []
     best_loss = 1000
-    ii = 0
-    while ii < 100:
-        args.n_layers = 5 * np.random.choice(range(1, 5))
-        args.hidden_units = 2**np.random.choice(range(8))
-        args.n_blocks = np.random.choice(range(5))
-        args.n_bins = 5 * np.random.choice(range(2, 10))
-        args.dropout = 0.05 * np.random.choice(range(1, 6))
+    ii = args.continue_from
+    np.random.seed(ii)
+    random.seed(ii)
+
+    while ii < 200:
+        n_layers = 5 * np.random.choice(range(1, 5))
+        hidden_units = 2**np.random.choice(range(8))
+        n_blocks = np.random.choice(range(5))
+        n_bins = 5 * np.random.choice(range(2, 10))
         lr_number = np.random.choice(range(2, 10))
-        args.lr = 1 / 10**lr_number
-        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
-        args.clip_grad_norm = np.random.choice([True, False])
-        args.tail_bound = 2**np.random.choice(range(6))
+        lr = 1 / 10**lr_number
+        weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+        tail_bound = 2**np.random.choice(range(6))
 
         if args.flow_type == 'cop_flow':
-            args.n_layers_c = args.n_layers
-            args.hidden_units_c = args.hidden_units
-            args.n_blocks_c = args.n_blocks
-            args.n_bins_c = args.n_bins
-            args.dropout_c = args.dropout
+            dropout = 0.05 * np.random.choice(range(1, 6))
+            args.n_layers_c = n_layers
+            args.hidden_units_c = hidden_units
+            args.n_blocks_c = n_blocks
+            args.n_bins_c = n_bins
+            args.dropout_c = dropout
+            args.lr_c = lr
+            args.weight_decay_c = weight_decay
+            args.tail_bound_c = tail_bound
             current_hyperparams = (args.n_layers,
                                    args.hidden_units,
                                    args.n_blocks,
                                    args.n_bins,
                                    args.dropout,
-                                   args.lr,
-                                   args.weight_decay,
-                                   args.clip_grad_norm,
-                                   args.tail_bound)
+                                   args.lr_c,
+                                   args.weight_decay_c,
+                                   args.tail_bound_c)
 
         elif args.flow_type == 'marg_flow':
-            args.n_bins_m = int(2 ** np.random.choice(range(5)))
-            args.n_layers_m = args.n_layers
-            args.hidden_units_m = args.hidden_units
-            args.n_blocks_m = args.n_blocks
-            args.dropout_m = args.dropout
-            current_hyperparams = (args.n_layers,
-                                   args.hidden_units,
-                                   args.n_blocks,
-                                   args.dropout,
-                                   args.lr,
-                                   args.weight_decay,
-                                   args.tail_bound,
-                                   args.clip_grad_norm,
-                                   args.n_bins_m)
+            args.n_layers_m = n_layers
+            args.hidden_units_m = hidden_units
+            args.n_blocks_m = n_blocks
+            args.n_bins_m = n_bins
+            args.lr_m = lr
+            args.weight_decay_m = weight_decay
+            args.tail_bound_m = tail_bound
+            current_hyperparams = (args.n_layers_m,
+                                   args.hidden_units_m,
+                                   args.n_blocks_m,
+                                   args.n_bins_m,
+                                   args.lr_m,
+                                   args.weight_decay_m,
+                                   args.clip_grad_norm_m,
+                                   args.tail_bound_m)
         else:
             raise ValueError('Unknown Flow type')
 
         if current_hyperparams not in tested_combinations:
-            print('n_layers, hidden_units, n_blocks, n_bins, dropout, \
-                lr, weight_decay, tail_bound: {}'.format(current_hyperparams))
-            if args.flow_type == 'marg_flow':
-                print('num bins: {}'.format(args.n_bins_m))
+            if args.flow_type == 'cop_flow':
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, dropout, lr, weight_decay, tail_bound'
+            else:
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, lr, weight_decay, tail_bound'
+            print('{}: {}'.format(hyperparams_string, current_hyperparams))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -116,26 +122,34 @@ def random_search(args):
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                  current_best_dict['best_validation_loss'])
             print(results_dict[current_hyperparams])
-            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                f.write(str(results_dict))
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w' if ii == 0 else 'a') as f:
+                if ii == 0:
+                    f.write(hyperparams_string + '\n' + str(current_hyperparams) + ': ' + str(results_dict[current_hyperparams]) + '\n')
+                else:
+                    f.write(str(current_hyperparams) + ': ' + str(results_dict[current_hyperparams]) + '\n')
+
             if current_best_dict['best_validation_loss'] < best_loss:
                 best_loss = current_best_dict['best_validation_loss']
                 best_hyperparams = current_hyperparams
                 best_dict = current_best_dict
             tested_combinations.append(current_hyperparams)
             ii += 1
-    print('Random search complete for {}'.format(args.copula))
-    print('Best hyperparams: {}'.format(best_hyperparams))
-    print('Lowest Val Loss: {}'.format(best_loss))
-    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
-    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
-        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    if args.continue_from == 0:
+        print('Random search complete for {}'.format(args.copula if args.flow_type == 'cop_flow' else args.marginal))
+        print('Best hyperparams: {}'.format(best_hyperparams))
+        print('Lowest Val Loss: {}'.format(best_loss))
+        print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
+        if args.continue_from == 0:
+            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
+                f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                        'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    else:
+        print('Random search complete. See random_search.txt for results.')
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
     if not grid_search and not rvine and not error_bars and args.flow_type == 'cop_flow':
-        visualize_joint(dataset.trn, args, name='input_dataset')
+        visualize_joint(dataset.trn, args.figures_path, name='input_dataset')
 
     # Build model and send to device
     model = build_model(args, flow_type=args.flow_type)
@@ -145,7 +159,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Set optimizer
     #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c if args.flow_type == 'cop_flow' else args.lr_m,
+        weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
@@ -266,20 +281,20 @@ if __name__ == '__main__':
                     if args.conditional_copula:
                         cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
                         output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
-                        visualize_joint(output_copula, args, name='output_copula')
+                        visualize_joint(output_copula, args.figures_path, name='output_copula')
                         output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
-                        visualize_joint(output_copula, args, name='output_copula_untransformed')
+                        visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
                     else:
                         output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
-                        visualize_joint(output_copula, args, name='output_copula')
+                        visualize_joint(output_copula, args.figures_path, name='output_copula')
                         output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
-                        visualize_joint(output_copula, args, name='output_copula_untransformed')
+                        visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
 
                     # Sample from true copula and visualize it
                     obs = args.obs
                     args.obs = 100000
-                    dataset = datasets.distributions.Copula_Distr(args=args, transform=False)
-                    visualize_joint(dataset.trn, args, name='true_{}_copula_cm'.format(args.copula))
+                    dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
+                    visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
                     args.obs = obs
 
             # Gather test losses and save statistics

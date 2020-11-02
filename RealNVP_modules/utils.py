@@ -16,7 +16,7 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Copula_Distr(args)
+    dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
     train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)

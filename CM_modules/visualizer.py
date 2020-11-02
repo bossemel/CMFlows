@@ -18,7 +18,7 @@ def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
         obs: number of observations to samples
     """
     with torch.no_grad():
-        marginal_distr = datasets.distributions.Marginals(args)
+        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
 
         def plotting_fct(grid, true_samples, pred_samples, which_marginal):
             fig = plt.figure(figsize=(8, 6))
@@ -42,9 +42,9 @@ def visualize1D_CM(model, epoch, args, best_val=False, obs=10000):
 
         # Get marginal samples
         args.marginal = args.marginal_1
-        true_samples_1 = marginal_distr.sampler(args=args, obs=obs)
+        true_samples_1 = marginal_distr.sampler(obs=obs)
         args.marginal = args.marginal_2
-        true_samples_2 = marginal_distr.sampler(args=args, obs=obs)
+        true_samples_2 = marginal_distr.sampler(obs=obs)
 
         # Get grid
         res = obs

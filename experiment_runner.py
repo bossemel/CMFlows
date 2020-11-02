@@ -4,13 +4,11 @@ import torch.utils.data
 from tqdm import tqdm
 import numpy as np
 
-#import cop_flow_modules.flows as fnn
-
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
-from NFS_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from NFS_modules.eval import jsd_eval_1D as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
-from NFS_modules.visualizer import visualize1D
+from NSF_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
+from NSF_modules.eval import jsd_eval_1D as jsd_eval_marginal #@Todo: replace with NSF module eval 1d
+from NSF_modules.visualizer import visualize1D
 from CM_modules.visualizer import visualize1D_CM
 from CM_modules.utils import jsd_eval_marginal_cm
 
@@ -173,7 +171,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         # Perform gradient clipping
         if args.clip_grad_norm:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-                # model.clip_grad_norm()
 
         if args.scheduler is None:
             args.optimizer.step()
@@ -423,7 +420,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
                                           model=model.cop_flow if cm_flow else model,
-                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]),
+                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]) if args.conditional_copula else None,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
@@ -488,7 +485,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
                                           model=model,
-                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]),
+                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples)
@@ -503,7 +500,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)
         if not error_bars and not grid_search and not rvine:
-            if model_name == 'marg_flow':
+            if model_name == 'marg_flow' or model_name == 'DDSF':
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)

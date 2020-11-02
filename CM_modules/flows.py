@@ -7,6 +7,7 @@ from DDSF import build_model as build_model_DDSF
 from NSF import build_model as build_model_nsf
 import scipy.stats
 from utils.visualizer import visualize_joint
+import datasets.distributions
 eps = 0.0001
 
 
@@ -38,13 +39,6 @@ class CMFlow(nn.Module):
         Returns:
             log density of the model
         """
-    # CM_Flow passes each dimension of the data through a DDSF, and then passes the output through the cop_flow
-
-        # self.n = inputs.shape[0]
-        # self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        # self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # outputs, log_jacob, __ = self.marg_flow_1.forward((inputs, self.logdets, self.context))
-        # density = flow_density(outputs, log_jacob.reshape(-1, 1))
         return self.marg_flow_1._forward(inputs)
 
     def log_density_DDSF_2(self, inputs, logdets=None, context=None):
@@ -56,23 +50,7 @@ class CMFlow(nn.Module):
         Returns:
             log density of the model
         """
-        # self.n = inputs.shape[0]
-        # self.context = torch.autograd.Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        # self.logdets = torch.autograd.Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # outputs, log_jacob, __ = self.marg_flow_2.forward((inputs, self.logdets, self.context))
-        # density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        # return density
         return self.marg_flow_2._forward(inputs)
-
-
-    # def log_density_RealNVP(self, inputs, cond_inputs=None, mode='direct', transform_inputs=False):
-    #     """Calculates log density of the flow
-    #     """
-    #     if transform_inputs:
-    #         raise NotImplementedError
-    #     outputs, log_jacob = self.cop_flow.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
-    #     density = flow_density(outputs, log_jacob)
-    #     return density
 
     def sample(self, num_samples=None, noise=None, cond_inputs=None):
         """Samples from the copula without transforming the marginals.
@@ -117,25 +95,27 @@ class CMFlow(nn.Module):
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
 
             # Define distributions
-            if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
-            else:
-                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+            # if args.conditional_copula:
+            #     true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
+            # else:
+            #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+            # Get true copula distribution
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
             # Prob X in both distributions
             prob_X_in_p = pred_distr.pdf(samples_pred.T).T
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred)
             else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred)
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs], axis=1).T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs], axis=1))
                 prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs], axis=1).cpu().numpy().T).T
 
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
             assert not np.isnan(np.sum(prob_X_in_p))
@@ -154,7 +134,7 @@ class CMFlow(nn.Module):
                                        prob_Y_in_q=prob_Y_in_q)
         return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=None):
+    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=None):
         """Evaluates the uniformity of the predicted marginals.
         """
         with torch.no_grad():

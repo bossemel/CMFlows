@@ -4,6 +4,7 @@ import scipy
 from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import numpy as np
 from utils.visualizer import visualize_joint
+import datasets.distributions
 
 
 class FlowSequential(nn.Sequential):
@@ -134,11 +135,11 @@ class FlowSequential(nn.Sequential):
                     cond_inputs = normal_distr.cdf(cond_inputs)
 
             if args.conditional_copula:
-                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args, name='samples_target_jsd')
-                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args, name='samples_pred_jsd')
+                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
             else:
-                visualize_joint(samples_target.cpu(), args, name='samples_target_jsd')
-                visualize_joint(samples_pred_viz.cpu(), args, name='samples_pred_jsd')
+                visualize_joint(samples_target.cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
 
             assert np.max(samples_target.cpu().numpy()) <= 1
             assert np.min(samples_target.cpu().numpy()) >= 0
@@ -147,24 +148,26 @@ class FlowSequential(nn.Sequential):
             # Prob X in both distributions
             pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu())
 
-            if args.conditional_copula:
-                true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
-            else:
-                true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
+            # if args.conditional_copula:
+            #     true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
+            # else:
+            #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
+            # Get true copula distribution
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
 
             prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
 
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.T.cpu()).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu())
             else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy().T).T
+                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1).T).T
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1))
                 prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs.cpu()], axis=1).cpu().numpy().T).T
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy().T).T
+                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
                 prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
 
             assert np.min(prob_X_in_p) >= 0
@@ -179,21 +182,21 @@ class FlowSequential(nn.Sequential):
 
             return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False):
+    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
             if cm_flow:
-                if args.conditional_copula:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=args.device).cpu().numpy()
+                if cond_inputs is not None:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=device).cpu().numpy()
                 else:
-                    samples = self.sample_copula(num_samples=num_samples, device=args.device).cpu().numpy()
+                    samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
-                if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=args.device).cpu().numpy()
+                if cond_inputs is not None:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=device).cpu().numpy()
                 else:
-                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=args.device).cpu().numpy()
-            if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
+            if cond_inputs is not None:
                 margin_x1 = cond_inputs
                 margin_x2 = samples
             else:
