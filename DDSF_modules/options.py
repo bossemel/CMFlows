@@ -40,7 +40,7 @@ class TrainOptions():
         parser.add_argument(
             '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
+            '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--exp_name', type=str, default='default_name_ddsf', help='experiment name to store plots and logs')
         parser.add_argument(

@@ -32,9 +32,9 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             if args.conditional_copula:
                 current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
                                         cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+                                        transform_fct=args.transform_fct).sum().item()
             else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct).sum().item()
             if 'jsd_test_copula' in test_dict:
                 test_dict["jsd_test_copula"].append(current_jsd)
             else:
@@ -47,9 +47,9 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
             if args.conditional_copula:
                 current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
                                         cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+                                        transform_fct=args.transform_fct).sum().item()
             else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct).sum().item()
             if 'jsd_test_copula' in test_dict:
                 test_dict["jsd_test_copula"].append(current_jsd)
             else:
@@ -132,9 +132,9 @@ def jsd_eval_1D(marginal, args, model, test_dict,
             prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
         else:
             if marginal_num == '1':
-                prob_vector_X = np.exp(model.log_density_DDSF_1(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
             elif marginal_num == '2':
-                prob_vector_X = np.exp(model.log_density_DDSF_2(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)

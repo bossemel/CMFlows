@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--theta', type=float, required=True, help='theta for copula sampling')
     parser.add_argument(
-        '--random_seed', type=int, default=58093, help='random seed')
+        '--random_seed', type=int, default=4, help='random seed')
 
     args = parser.parse_args()
 

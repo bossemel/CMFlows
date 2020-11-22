@@ -34,7 +34,7 @@ class TrainOptions():
         parser.add_argument(
             '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
+            '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(

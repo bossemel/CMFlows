@@ -123,6 +123,8 @@ class TrainOptions():
             '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
         parser.add_argument(
             '--tail_bound_m', type=float, default=4, help='Bounds of spline region')
+        parser.add_argument(
+            '--dropout_m', type=float, default=0.25, help='Dropout probability in flow')
 
         # Save options
         parser.add_argument(

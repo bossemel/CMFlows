@@ -12,8 +12,7 @@ python CM_Flow.py \
 --low 0 \
 --high 1 \
 --theta 2 \
---obs 10000 \
---pretrain_models
+--obs 10000
 
 
 echo 'Begin Copula: frank Marginal: gaussian Pretrain only'
@@ -28,8 +27,7 @@ python CM_Flow.py \
 --mu 0 \
 --var 1 \
 --theta 5 \
---obs 10000 \
---pretrain_models
+--obs 10000
 
 
 echo 'Begin Copula: frank Marginal: gamma Pretrain only'
@@ -45,8 +43,7 @@ python CM_Flow.py \
 --mu 0 \
 --var 1 \
 --theta 5 \
---obs 10000 \
---pretrain_models
+--obs 10000
 
 
 echo 'Begin Copula: frank Marginal: lognormal Pretrain only'
@@ -61,6 +58,5 @@ python CM_Flow.py \
 --mu 0 \
 --var 1 \
 --theta 5 \
---obs 10000 \
---pretrain_models
+--obs 10000
 

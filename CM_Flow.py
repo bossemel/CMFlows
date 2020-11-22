@@ -46,12 +46,11 @@ def build_model(args):
 def visualize_marg_flow_output(model, dataset, args):
     with torch.no_grad():
         vizdata = torch.tensor(dataset.trn)
-        # n = vizdata.shape[0]
-        # context = torch.FloatTensor(n, 1).zero_().to(args.device)
-        # logdets = torch.FloatTensor(n).zero_().to(args.device)
-        vizdata_1 = model.marg_flow_1._forward(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
-        vizdata_2 = model.marg_flow_2._forward(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
+
+        vizdata_1 = model.marg_flow_1.flow.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+        vizdata_2 = model.marg_flow_2.flow.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
+
         normal_distr = torch.distributions.normal.Normal(0, 1)
         vizdata_uniform = normal_distr.cdf(vizdata)
         visualize_joint(vizdata, args.figures_path, name='marg_flow_output')
@@ -143,9 +142,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                 name='marg_flow_1')
     for param in model.marg_flow_1.parameters():
         param.requires_grad = False
+
     for param in model.marg_flow_2.parameters():
         param.requires_grad = True
-    #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
@@ -167,14 +167,17 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                 args=args,
                 best_val=True,
                 name='marg_flow_2')
+
+    for param in model.marg_flow_2.parameters():
+        param.requires_grad = False
+
     # Visualize DDFS transformations
     if not error_bars and not rvine:
         visualize_marg_flow_output(model, dataset, args)
 
-    for param in model.marg_flow_2.parameters():
-        param.requires_grad = False
     for param in model.cop_flow.parameters():
         param.requires_grad = True
+
     # Train cop_flow
     # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
@@ -208,6 +211,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     epochs = sep.join(list([str(best_dict_marg_flow_1['best_validation_epoch']),
                             str(best_dict_marg_flow_2['best_validation_epoch']),
                             str(best_dict_cop_flow['best_validation_epoch'])]))
+
     if not rvine:
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format

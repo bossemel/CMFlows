@@ -79,11 +79,11 @@ def random_search(args):
             args.lr_c = lr
             args.weight_decay_c = weight_decay
             args.tail_bound_c = tail_bound
-            current_hyperparams = (args.n_layers,
-                                   args.hidden_units,
-                                   args.n_blocks,
-                                   args.n_bins,
-                                   args.dropout,
+            current_hyperparams = (args.n_layers_c,
+                                   args.hidden_units_c,
+                                   args.n_blocks_c,
+                                   args.n_bins_c,
+                                   args.dropout_c,
                                    args.lr_c,
                                    args.weight_decay_c,
                                    args.tail_bound_c)
@@ -277,6 +277,13 @@ if __name__ == '__main__':
                                best_dict['best_validation_epoch'])
             # Sample from predicted copual and visualize it
             with torch.no_grad():
+                if args.flow_type == 'marg_flow':
+                    norm = torch.distributions.normal.Normal(loc=0, scale=1)
+                    marg_flow_noise = model.flow.transform_to_noise(torch.tensor(dataset.trn)).reshape(-1, 1)
+                    visualize_joint(norm.cdf(torch.cat([marg_flow_noise, marg_flow_noise], axis=1)), args.figures_path, name='outputs_marginal_noise')
+                    sample = model.flow.sample(num_samples=10000).reshape(-1, 1)
+                    visualize_joint(norm.cdf(torch.cat([sample, sample], axis=1)), args.figures_path, name='outputs_marginal_sample')
+
                 if args.flow_type == 'cop_flow':
                     if args.conditional_copula:
                         cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()

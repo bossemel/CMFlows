@@ -23,7 +23,8 @@ python NSF.py \
 --obs 10000 \
 --random_search \
 --conditional_copula \
---flow_type cop_flow
+--flow_type cop_flow \
+--continue_from 175
 
 # echo 'Begin Gumbel Copula random Search'
 

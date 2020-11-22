@@ -461,11 +461,16 @@ def copula_pdf(copula, theta, uu, vv):
 
     if copula == 'clayton':
         #pdf = (theta + 1) * np.power( uu*vv, -1*(theta+1) ) * np.power( np.power(uu, -theta) + np.power(vv, -theta) - 1, -1*(2*theta+1)/theta )
+        assert not np.isnan(np.multiply(uu, vv).sum()), '{}'.format(np.multiply(uu, vv).sum())
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
+        assert not np.isnan(a.sum())
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
+        assert not np.isnan(b.sum())
         c = -(2 * theta + 1) / theta
-        pdf = a * np.power(b, c)
-        assert np.min(pdf) >= 0
+        assert not np.isnan(c)
+        assert not np.isnan(np.power(b, c).sum())
+        pdf = a * np.power(b, c, dtype=np.float)
+        assert np.min(pdf) > 0, 'clayton_{}_{}_b:{} c: {}'.format(np.min(pdf), theta, b, c)
         return pdf
     if copula == 'frank':
         if theta == 0:
@@ -474,20 +479,25 @@ def copula_pdf(copula, theta, uu, vv):
         else:
             num = np.multiply(np.multiply(-theta, _g(theta, 1)), 1 + _g(theta, np.add(uu, vv)))
             aux = np.multiply(_g(theta, uu), _g(theta, vv)) + _g(theta, 1)
-            den = np.power(aux, 2)
+            den = np.power(aux, 2, dtype=np.float)
             pdf = num / den
-            assert np.min(pdf) >= 0
+            assert np.min(pdf) >= 0, 'frank_{}'.format(np.min(pdf))
             return pdf
     if copula == 'gumbel':
         if theta == 1:
             return np.multiply(uu, vv)
 
         else:
-            a = np.power(np.multiply(uu, vv), -1)
+            a = np.power(np.multiply(uu, vv), -1, dtype=np.float)
+            assert not np.isnan(a.sum())
             tmp = np.power(-np.log(uu), theta) + np.power(-np.log(vv), theta)
-            b = np.power(tmp, -2 + 2.0 / theta)
+            b = np.power(tmp, -2 + 2.0 / theta, dtype=np.float)
+            assert not np.isnan(b.sum())
+
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
-            d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta)
+            assert not np.isnan(c.sum())
+
+            d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta, dtype=np.float)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
-            assert np.min(pdf) >= 0
+            assert np.min(pdf) >= 0, 'gumbel_{}'.format(np.min(pdf))
             return pdf

@@ -6,6 +6,7 @@ import os
 from sklearn import model_selection
 from torch.autograd import Variable
 import scipy.special
+import scipy.stats
 from utils.visualizer import visualize_joint
 
 
@@ -133,20 +134,20 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
         divergence: int, JS-Divergence
     """
 
-    mix_X = prob_X_in_p.reshape(-1,) + prob_X_in_q.reshape(-1,)
-    mix_Y = prob_Y_in_p.reshape(-1,) + prob_Y_in_q.reshape(-1,)
+    mix_X = prob_X_in_p + prob_X_in_q
+    mix_Y = prob_Y_in_p + prob_Y_in_q
 
     assert np.min(mix_X) >= 0
     assert np.min(mix_Y) >= 0
 
-    KL_PM = np.log2(2 * prob_X_in_p) - np.log2(mix_X)
-    KL_PM[mix_X == 0] = 0
-    KL_PM[mix_Y == 0] = 0
+    KL_PM = np.log2((2 * prob_X_in_p) / mix_X)
 
+    KL_PM[mix_X == 0] = 0
     KL_PM = KL_PM.mean()
 
-    KL_QM = np.log2(2 * prob_Y_in_q) - np.log2(mix_Y)
+    KL_QM = np.log2((2 * prob_Y_in_q) / mix_Y)
 
+    KL_QM[mix_Y == 0] = 0
     KL_QM = KL_QM.mean()
 
     divergence = (KL_PM + KL_QM) / 2
@@ -189,3 +190,8 @@ def normalize(dataset):
 def make_meshgrid(obs, dim, low, high):
     meshgrid = np.array(np.meshgrid(*[np.linspace(low, high, obs)] * dim))
     return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
+
+
+def gaussian_pdf_log(xx):
+    xx = np.array(xx)
+    return -0.5 * (np.log(2 * math.pi) + xx**2)

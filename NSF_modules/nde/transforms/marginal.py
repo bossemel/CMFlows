@@ -1,6 +1,6 @@
 
 import torch
-from torch.nn import functional as F, Parameter
+from torch.nn import Parameter
 
 from NSF_modules.nde import transforms
 from NSF_modules.nde.transforms import splines
@@ -15,15 +15,12 @@ def _share_across_batch(params, batch_size):
 
 class MarginalSpline(transforms.Transform):
     def __init__(self,
+                 transform_net_create_fn,
                  features,
-                 hidden_features,
                  num_bins=10,
                  tails=None,
                  tail_bound=1.,
                  num_blocks=2,
-                 # activation=F.relu,
-                 # dropout_probability=0.,
-                 # use_batch_norm=False,
                  min_bin_width=splines.rational_quadratic.DEFAULT_MIN_BIN_WIDTH,
                  min_bin_height=splines.rational_quadratic.DEFAULT_MIN_BIN_HEIGHT,
                  min_derivative=splines.rational_quadratic.DEFAULT_MIN_DERIVATIVE,
@@ -31,22 +28,12 @@ class MarginalSpline(transforms.Transform):
                  ):
         super().__init__()
 
-        # @Todo: use activation and dropout_probability and use_batch_norm somewhere
         self.num_bins = num_bins
         self.min_bin_width = min_bin_width
         self.min_bin_height = min_bin_height
         self.min_derivative = min_derivative
-        if tails is None:
-            self.spline_fn = splines.rational_quadratic_spline
-            self.spline_kwargs = {}
-        elif tails == 'linear':
-            self.spline_fn = splines.unconstrained_rational_quadratic_spline
-            self.spline_kwargs = {
-                'tails': tails,
-                'tail_bound': tail_bound
-            }
-        else:
-            raise ValueError
+        self.tails = tails
+        self.tail_bound = tail_bound
 
         if identity_init:
             self.unnormalized_widths = Parameter(torch.zeros(features, num_bins))
@@ -64,41 +51,38 @@ class MarginalSpline(transforms.Transform):
             self.unnormalized_derivatives = Parameter(torch.rand(features, num_derivatives))
 
     def forward(self, inputs, context=None):
-        batch_size = inputs.shape[0]
-
-        unnormalized_widths = _share_across_batch(self.unnormalized_widths, batch_size)
-        unnormalized_heights = _share_across_batch(self.unnormalized_heights, batch_size)
-        unnormalized_derivatives = _share_across_batch(self.unnormalized_derivatives, batch_size)
-
-        outputs, logabsdet = self.spline_fn(
-            inputs=inputs,
-            unnormalized_widths=unnormalized_widths,
-            unnormalized_heights=unnormalized_heights,
-            unnormalized_derivatives=unnormalized_derivatives,
-            inverse=False,
-            min_bin_width=self.min_bin_width,
-            min_bin_height=self.min_bin_height,
-            min_derivative=self.min_derivative,
-            **self.spline_kwargs
-        )
-        return outputs, utils.sum_except_batch(logabsdet)
+        return self.spline_transform(inputs, context, inverse=False)
 
     def inverse(self, inputs, context=None):
+        return self.spline_transform(inputs, context, inverse=True)
+
+    def spline_transform(self, inputs, context, inverse=False):
         batch_size = inputs.shape[0]
 
         unnormalized_widths = _share_across_batch(self.unnormalized_widths, batch_size)
         unnormalized_heights = _share_across_batch(self.unnormalized_heights, batch_size)
         unnormalized_derivatives = _share_across_batch(self.unnormalized_derivatives, batch_size)
 
-        outputs, logabsdet = self.spline_fn(
+        if self.tails is None:
+            spline_fn = splines.rational_quadratic_spline
+            spline_kwargs = {}
+        else:
+            spline_fn = splines.unconstrained_rational_quadratic_spline
+            spline_kwargs = {
+                'tails': self.tails,
+                'tail_bound': self.tail_bound
+            }
+
+        outputs, logabsdet = spline_fn(
             inputs=inputs,
             unnormalized_widths=unnormalized_widths,
             unnormalized_heights=unnormalized_heights,
             unnormalized_derivatives=unnormalized_derivatives,
-            inverse=True,
+            inverse=inverse,
             min_bin_width=self.min_bin_width,
             min_bin_height=self.min_bin_height,
             min_derivative=self.min_derivative,
-            **self.spline_kwargs
+            **spline_kwargs
         )
+
         return outputs, utils.sum_except_batch(logabsdet)
