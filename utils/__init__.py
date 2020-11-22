@@ -194,4 +194,4 @@ def make_meshgrid(obs, dim, low, high):
 
 def gaussian_pdf_log(xx):
     xx = np.array(xx)
-    return -0.5 * (np.log(2 * math.pi) + xx**2)
+    return -0.5 * np.log(2 * math.pi) - 0.5 * (xx**2)

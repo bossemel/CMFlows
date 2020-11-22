@@ -8,6 +8,7 @@ from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval, gaussian_pdf_log
 import datasets.distributions
+import matplotlib.pyplot as plt
 
 
 class ConditionalFlow(nn.Module):
@@ -219,13 +220,11 @@ class ConditionalFlow(nn.Module):
             # else:
             #     raise ValueError('Unknown flow type.')
 
-            print('transfom fct', args.transform_fct)
             if args.transform_fct == 'gaussian':
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 #samples_target_uni = normal_distr.cdf(inputs)
                 if args.conditional_copula:
                     cond_inputs_uni = normal_distr.cdf(cond_inputs)
-                    print(torch.min(cond_inputs), torch.max(cond_inputs))
             else:
                 raise NotImplementedError
 
@@ -246,17 +245,32 @@ class ConditionalFlow(nn.Module):
             assert np.max(samples_target_uni) <= 1
             assert np.min(samples_target_uni) >= 0
 
+            if args.conditional_copula:
+                assert torch.max(cond_inputs) > 1
+                assert torch.min(cond_inputs) < 0
+                assert torch.max(cond_inputs_uni) <= 1
+                assert torch.min(cond_inputs_uni) >= 0
+
             # Prob X in both distributions
             if args.conditional_copula:
                 prob_X_in_p = pred_distr(samples_pred_norm, self.flow._log_prob, cond_inputs)
             else:
                 prob_X_in_p = pred_distr(samples_pred_norm, self.flow._log_prob)
 
+            # plt.clf()
+            # new_x, new_y = zip(*sorted(zip(np.array(samples_pred_norm[:, 0]), prob_X_in_p)))
+            # plt.plot(new_x, new_y)
+            # plt.show()
+            # exit()
             if args.conditional_copula:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
             else:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
-
+            # plt.clf()
+            # new_x, new_y = zip(*sorted(zip(np.array(samples_pred_uni[:, 0]), prob_X_in_q)))
+            # plt.plot(new_x, new_y)
+            # plt.show()
+            # exit()
             # Prob Y in both distributions
             if args.conditional_copula:
                 prob_Y_in_p = pred_distr(torch.cat([samples_target_normal.cpu(), cond_inputs.cpu()], axis=1).cpu(), self.flow._log_prob, cond_inputs)
@@ -310,23 +324,20 @@ class ConditionalFlow(nn.Module):
 def pred_distr(inputs, log_prob_func, context=None):
     if context is not None:
         inputs = inputs[:, 0:1]
-    assert not np.isinf(inputs.sum())
-    assert not np.isnan(inputs.sum())
     if context is not None:
         context = torch.tensor(context).float()
         context_log_prob = gaussian_pdf_log(inputs).reshape(-1,)
-        assert not np.isinf(context_log_prob.sum())
-        assert not np.isnan(context_log_prob.sum())
     else:
         context_log_prob = 0
     log_prob = np.array(log_prob_func(torch.tensor(inputs).float(), context=context))
     lognormal_pdf = gaussian_pdf_log(inputs)
-
-    output = log_prob - lognormal_pdf.sum(axis=1) + context_log_prob
-
     if context is not None:
-        lognormal_pdf_2 = gaussian_pdf_log(context)
-        output += np.array(lognormal_pdf_2).reshape(-1,)
+        lognormal_pdf_2 = gaussian_pdf_log(context).reshape(-1,)
+    else:
+        lognormal_pdf_2 = 0
+
+    output = log_prob + context_log_prob - lognormal_pdf.sum(axis=1) - lognormal_pdf_2
+
     output = np.exp(output)
     assert not np.isnan(output.sum())
     assert not np.isinf(output.sum())
