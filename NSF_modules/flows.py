@@ -6,9 +6,10 @@ from NSF_modules.nde import distributions, flows, transforms
 import scipy.stats
 from utils.visualizer import visualize_joint
 import numpy as np
-from utils import js_divergence, t_m_metric_eval, gaussian_pdf_log
+from utils import js_divergence, t_m_metric_eval
 import datasets.distributions
 import matplotlib.pyplot as plt
+eps = 0.0001
 
 
 class ConditionalFlow(nn.Module):
@@ -166,7 +167,7 @@ class ConditionalFlow(nn.Module):
             noise = noise.to(device)
         samples, log_density = self.flow._transform.inverse(inputs=noise, context=cond_inputs)
         if cond_inputs is not None:
-            samples = torch.cat([cond_inputs, samples], axis=1)
+            samples = torch.cat([samples, cond_inputs], axis=1)
         if transform == 'sigmoid':
             raise NotImplementedError
             # samples = sigmoid(samples)
@@ -196,10 +197,8 @@ class ConditionalFlow(nn.Module):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
-            #samples_target = torch.tensor(inputs)
             # Define distributions
             normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
-            # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
 
             # Get true copula distribution
             true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
@@ -208,25 +207,13 @@ class ConditionalFlow(nn.Module):
             samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
             # Samples from both distributions
-            # if args.flow_type == 'cop_flow':
-            #     samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
-            #     samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
-            #     assert torch.max(samples_pred) <= 1
-            #     assert torch.min(samples_pred) >= 0
-            # elif args.flow_type == 'marg_flow':
             samples_pred_norm = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=None, device=args.device)
             samples_pred_uni = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
             samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
-            # else:
-            #     raise ValueError('Unknown flow type.')
 
-            if args.transform_fct == 'gaussian':
+            if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                #samples_target_uni = normal_distr.cdf(inputs)
-                if args.conditional_copula:
-                    cond_inputs_uni = normal_distr.cdf(cond_inputs)
-            else:
-                raise NotImplementedError
+                cond_inputs_uni = normal_distr.cdf(cond_inputs)
 
             if args.conditional_copula:
                 visualize_joint(torch.cat([samples_pred_uni, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
@@ -253,30 +240,20 @@ class ConditionalFlow(nn.Module):
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = pred_distr(samples_pred_norm, self.flow._log_prob, cond_inputs)
+                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, cond_inputs_uni.cpu())
             else:
-                prob_X_in_p = pred_distr(samples_pred_norm, self.flow._log_prob)
+                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni.cpu()), self._forward, args.device)
 
-            # plt.clf()
-            # new_x, new_y = zip(*sorted(zip(np.array(samples_pred_norm[:, 0]), prob_X_in_p)))
-            # plt.plot(new_x, new_y)
-            # plt.show()
-            # exit()
             if args.conditional_copula:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
             else:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
-            # plt.clf()
-            # new_x, new_y = zip(*sorted(zip(np.array(samples_pred_uni[:, 0]), prob_X_in_q)))
-            # plt.plot(new_x, new_y)
-            # plt.show()
-            # exit()
-            # Prob Y in both distributions
+
             if args.conditional_copula:
-                prob_Y_in_p = pred_distr(torch.cat([samples_target_normal.cpu(), cond_inputs.cpu()], axis=1).cpu(), self.flow._log_prob, cond_inputs)
+                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
             else:
-                prob_Y_in_p = pred_distr(samples_target_normal, self.flow._log_prob)
+                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni, self._forward, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0
@@ -321,25 +298,42 @@ class ConditionalFlow(nn.Module):
             return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
 
-def pred_distr(inputs, log_prob_func, context=None):
-    if context is not None:
-        inputs = inputs[:, 0:1]
-    if context is not None:
-        context = torch.tensor(context).float()
-        context_log_prob = gaussian_pdf_log(inputs).reshape(-1,)
+def gaussian_change_of_var_2D(inputs, original_pdf, device, context=None):
+    inputs[inputs == 0] = eps
+    inputs[inputs == 1] = 1 - eps
+    assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
+    assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
+    normal_distr = scipy.stats.norm()
+    if context is None:
+        recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
+        original_joint = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=None).cpu()))
+        determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
     else:
-        context_log_prob = 0
-    log_prob = np.array(log_prob_func(torch.tensor(inputs).float(), context=context))
-    lognormal_pdf = gaussian_pdf_log(inputs)
-    if context is not None:
-        lognormal_pdf_2 = gaussian_pdf_log(context).reshape(-1,)
-    else:
-        lognormal_pdf_2 = 0
-
-    output = log_prob + context_log_prob - lognormal_pdf.sum(axis=1) - lognormal_pdf_2
-
-    output = np.exp(output)
+        recast_inputs = normal_distr.ppf(inputs).reshape(-1, 1)
+        recast_context = normal_distr.ppf(context).reshape(-1, 1)
+        original_cond = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=torch.tensor(recast_context).float().to(device)).cpu())).reshape(-1,)
+        original_joint = original_cond * scipy.stats.norm.pdf(recast_context).reshape(-1,)
+        determinant = normal_distr.pdf(recast_inputs).reshape(-1,) * normal_distr.pdf(recast_context).reshape(-1,)
+    output = original_joint / determinant
     assert not np.isnan(output.sum())
     assert not np.isinf(output.sum())
-    assert np.min(output) >= 0
+    assert np.min(output) >= 0, '{}'.format(np.min(output))
     return output
+
+
+# def gaussian_change_of_var_1D(inputs, original_pdf, device):
+#     raise NotImplementedError
+#     inputs[inputs == 0] = eps
+#     inputs[inputs == 1] = 1 - eps
+#     assert np.max(inputs) < 1
+#     assert np.min(inputs) > 0
+#     normal_distr = scipy.stats.norm()
+
+#     recast_inputs = normal_distr.ppf(inputs)
+#     assert not np.isnan(recast_inputs.sum())
+#     assert not np.isinf(recast_inputs.sum())
+#     output = original_pdf(recast_inputs) / normal_distr.pdf(recast_inputs)
+#     assert not np.isnan(output.sum())
+#     assert not np.isinf(output.sum())
+#     assert np.min(output) >= 0
+#     return output

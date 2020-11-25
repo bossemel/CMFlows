@@ -40,7 +40,9 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         rv.plot()
         # Simulate and visualize
         samples = rv.sample(num_samples=args.viz_obs)
-
+        pdf = rv.pdf_normal(inputs=samples)
+        print(pdf[:10])
+        exit()
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
         normal_distr = torch.distributions.normal.Normal(0, 1)

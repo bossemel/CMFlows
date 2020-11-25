@@ -27,7 +27,6 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
         if cm_flow is True:
             dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = dataset.xx
-            print(data.shape)
             data = torch.tensor(data).float().to(device)
             if args.conditional_copula:
                 current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
@@ -42,7 +41,6 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
         else:
             dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
             data = torch.tensor(dataset.xx).float()
-            print(data.shape)
             data = data.to(device)
             if args.conditional_copula:
                 current_jsd = model.jsd(args=args, inputs=data[:, 0:1],

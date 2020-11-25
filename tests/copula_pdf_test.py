@@ -92,33 +92,3 @@ if __name__ == '__main__':
     Y_in_q = copula_distr_2.pdf(xx_2)
 
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
-
-    pred_distr = scipy.stats.gaussian_kde(xx_2.T)
-    xx_2_new = pred_distr.resample(10000)
-    print(xx_2_new.shape)
-    X_in_p = pred_distr.pdf(xx_2_new).T
-    X_in_q = copula_distr_2.pdf(xx_2_new.T)
-    Y_in_p = pred_distr.pdf(xx_2.T).T
-    Y_in_q = copula_distr_2.pdf(xx_2)
-    print('min pred distr', np.min(X_in_p), np.max(X_in_p))
-    print('min pred distr', np.min(Y_in_p), np.max(Y_in_p))
-
-    print('min pred distr', np.min(X_in_q), np.max(X_in_q))
-    print('min pred distr', np.min(Y_in_q), np.max(Y_in_q))
-
-    print('KDE: should be small: ')
-    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
-
-    pred_distr = scipy.stats.gaussian_kde(xx.T)
-    X_in_p = pred_distr.pdf(xx.T).T
-    X_in_q = copula_distr_2.pdf(xx)
-    Y_in_p = pred_distr.pdf(xx_2.T).T
-    Y_in_q = copula_distr_2.pdf(xx_2)
-    print('min pred distr', np.min(X_in_p), np.max(X_in_p))
-    print('min pred distr', np.min(Y_in_p), np.max(Y_in_p))
-
-    print('min pred distr', np.min(X_in_q), np.max(X_in_q))
-    print('min pred distr', np.min(Y_in_q), np.max(Y_in_q))
-
-    print('KDE: sould be big: ')
-    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))

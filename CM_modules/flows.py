@@ -18,6 +18,11 @@ class CMFlow(nn.Module):
         self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
         self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
         self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
+
+    def eval(self):
+        self.cop_flow.eval()
+        self.marg_flow_1.eval()
+        self.marg_flow_2.eval()
         # self.cop_flow = build_model_RealNVP(args)
         # self.marg_flow_1 = build_model_DDSF(args)
         # self.marg_flow_2 = build_model_DDSF(args)

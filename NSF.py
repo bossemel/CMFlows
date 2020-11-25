@@ -19,7 +19,7 @@ import matplotlib
 
 from NSF_modules import flows
 from NSF_modules.options import TrainOptions
-from utils import HiddenPrints\
+from utils import HiddenPrints
 
 
 matplotlib.rcParams.update({'figure.max_open_warning': 0})

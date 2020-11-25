@@ -190,8 +190,3 @@ def normalize(dataset):
 def make_meshgrid(obs, dim, low, high):
     meshgrid = np.array(np.meshgrid(*[np.linspace(low, high, obs)] * dim))
     return np.concatenate([vector.reshape(-1, 1) for vector in meshgrid], axis=1)
-
-
-def gaussian_pdf_log(xx):
-    xx = np.array(xx)
-    return -0.5 * np.log(2 * math.pi) - 0.5 * (xx**2)

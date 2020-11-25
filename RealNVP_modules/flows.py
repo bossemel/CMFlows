@@ -5,6 +5,7 @@ from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
 import numpy as np
 from utils.visualizer import visualize_joint
 import datasets.distributions
+eps = 0.0001
 
 
 class FlowSequential(nn.Sequential):
@@ -71,7 +72,7 @@ class FlowSequential(nn.Sequential):
             noise = noise.to(device)
         samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
-            samples = torch.cat([cond_inputs, samples], axis=1)
+            samples = torch.cat([samples, cond_inputs], axis=1)
         if not copula:
             if transform == 'sigmoid':
                 samples = sigmoid(samples)
@@ -95,90 +96,89 @@ class FlowSequential(nn.Sequential):
                 cond_inputs = cond_inputs.to(device)
         samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
-            samples = torch.cat([cond_inputs, samples], axis=1)
+            samples = torch.cat([samples, cond_inputs], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000, cm_flow=False):
+
+    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000): #, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
-            samples_target = torch.tensor(inputs)
             # Define distributions
-            normal_distr = scipy.stats.norm(0, 1)
-            # true_cop_distr = datasets.distributions.Copula_Distr(args=args, transform=False)
+            normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
 
-            # Samples from both distributinos
-            print(inputs.shape)
-            if cm_flow is True:
-                samples_pred = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
-                samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
-            else:
-                samples_pred = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
-                samples_pred_viz = self.sample(num_samples=10000, cond_inputs=cond_inputs, transform=transform_fct, device=args.device)
-
-            if not cm_flow:
-                if transform_fct == 'sigmoid':
-                    samples_target = sigmoid(inputs)
-                    if args.conditional_copula:
-                        cond_inputs = sigmoid(cond_inputs)
-                elif transform_fct == 'gaussian':
-                    normal_distr = torch.distributions.normal.Normal(0, 1)
-                    samples_target = normal_distr.cdf(inputs)
-                    if args.conditional_copula:
-                        cond_inputs = normal_distr.cdf(cond_inputs)
-            else:
-                normal_distr = torch.distributions.normal.Normal(0, 1)
-                samples_target = normal_distr.cdf(inputs)
-                if args.conditional_copula:
-                    cond_inputs = normal_distr.cdf(cond_inputs)
-
-            if args.conditional_copula:
-                visualize_joint(torch.cat([samples_target, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
-                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
-            else:
-                visualize_joint(samples_target.cpu(), args.figures_path, name='samples_target_jsd')
-                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
-
-            assert np.max(samples_target.cpu().numpy()) <= 1
-            assert np.min(samples_target.cpu().numpy()) >= 0
-            assert np.max(samples_pred.cpu().numpy()) <= 1
-            assert np.min(samples_pred.cpu().numpy()) >= 0
-            # Prob X in both distributions
-            pred_distr = scipy.stats.gaussian_kde(samples_pred.T.cpu())
-
-            # if args.conditional_copula:
-            #     true_cop_distr = scipy.stats.gaussian_kde(torch.cat([samples_target, cond_inputs], axis=1).cpu().numpy().T)
-            # else:
-            #     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T.cpu())
             # Get true copula distribution
             true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
+            true_cop_distr.sampler(obs=10000)
+            samples_target_uni = true_cop_distr.xx
+            samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
-            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            # Samples from both distributions
+            samples_pred_norm = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=None, device=args.device)
+            samples_pred_uni = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
+            samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
 
             if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu())
-            else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred.cpu().numpy())
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                cond_inputs_uni = normal_distr.cdf(cond_inputs)
 
-            # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target.cpu().numpy(), cond_inputs.cpu()], axis=1))
-                prob_Y_in_p = pred_distr.pdf(torch.cat([samples_target.cpu(), cond_inputs.cpu()], axis=1).cpu().numpy().T).T
+                visualize_joint(torch.cat([samples_pred_uni, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
             else:
-                prob_Y_in_q = true_cop_distr.pdf(samples_target.cpu().numpy())
-                prob_Y_in_p = pred_distr.pdf(samples_target.cpu().numpy().T).T
+                visualize_joint(samples_pred_uni.cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
+
+            assert torch.max(samples_pred_uni) <= 1
+            assert torch.min(samples_pred_uni) >= 0
+            assert torch.max(samples_pred_norm) > 1
+            assert torch.min(samples_pred_norm) < 0
+
+            assert torch.max(samples_target_normal) > 1
+            assert torch.min(samples_target_normal) < 0
+            assert np.max(samples_target_uni) <= 1
+            assert np.min(samples_target_uni) >= 0
+
+            if args.conditional_copula:
+                assert torch.max(cond_inputs) > 1
+                assert torch.min(cond_inputs) < 0
+                assert torch.max(cond_inputs_uni) <= 1
+                assert torch.min(cond_inputs_uni) >= 0
+
+            # Prob X in both distributions
+            if args.conditional_copula:
+                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, cond_inputs_uni.cpu())
+            else:
+                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
+
+            if args.conditional_copula:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+            else:
+                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+
+            if args.conditional_copula:
+                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
+            else:
+                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni, self.log_density, args.device)
+                prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
             assert np.min(prob_Y_in_p) >= 0
             assert np.min(prob_Y_in_q) >= 0
 
-            divergence = js_divergence(prob_X_in_p=prob_X_in_p.reshape(-1,),
-                                       prob_X_in_q=prob_X_in_q.reshape(-1,),
-                                       prob_Y_in_p=prob_Y_in_p.reshape(-1,),
-                                       prob_Y_in_q=prob_Y_in_q.reshape(-1,))
+            assert prob_X_in_p.shape == (inputs.shape[0],), '{}'.format(prob_X_in_p.shape)
+            assert prob_X_in_q.shape == (inputs.shape[0],)
+            assert prob_Y_in_p.shape == (inputs.shape[0],)
+            assert prob_Y_in_q.shape == (inputs.shape[0],)
+
+            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q)
 
             return divergence
 
@@ -205,6 +205,29 @@ class FlowSequential(nn.Sequential):
             t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
             t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
             return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
+
+
+def gaussian_change_of_var_2D(inputs, original_pdf, device, context=None):
+    inputs[inputs == 0] = eps
+    inputs[inputs == 1] = 1 - eps
+    assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
+    assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
+    normal_distr = scipy.stats.norm()
+    if context is None:
+        recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
+        original_joint = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), cond_inputs=None).cpu()))
+        determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
+    else:
+        recast_inputs = normal_distr.ppf(inputs).reshape(-1, 1)
+        recast_context = normal_distr.ppf(context).reshape(-1, 1) #@ Todo: implement this line, change input context to uniform
+        original_cond = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), cond_inputs=torch.tensor(recast_context).float().to(device)).cpu())).reshape(-1,)
+        original_joint = original_cond * scipy.stats.norm.pdf(recast_context).reshape(-1,)
+        determinant = normal_distr.pdf(recast_inputs).reshape(-1,) * normal_distr.pdf(recast_context).reshape(-1,)
+    output = original_joint.reshape(-1,) / determinant
+    assert not np.isnan(output.sum())
+    assert not np.isinf(output.sum())
+    assert np.min(output) >= 0, '{}'.format(np.min(output))
+    return output
 
 
 class CouplingLayer(nn.Module):

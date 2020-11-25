@@ -313,6 +313,9 @@ def train_val(model, model_name, args, data_loaders, dataset,
     model = load_model(model, args.experiment_saved_models, 'train_model',
                        best_dict['best_validation_epoch'])
 
+    #
+    model.eval()
+
     if not grid_search and not rvine:
 
         # # Load model with best validation epoch
