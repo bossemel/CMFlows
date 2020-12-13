@@ -45,18 +45,26 @@ class MarginalSpline(transforms.Transform):
                                                                             num_derivatives))
         else:
             self.unnormalized_widths = Parameter(torch.rand(features, num_bins))
+
             self.unnormalized_heights = Parameter(torch.rand(features, num_bins))
 
             num_derivatives = (num_bins - 1) if tails == 'linear' else (num_bins + 1)
             self.unnormalized_derivatives = Parameter(torch.rand(features, num_derivatives))
 
+        #self.transform_net = transform_net_create_fn(in_features=1, out_features=1)
+
     def forward(self, inputs, context=None):
+        #inputs = inputs + context
         return self.spline_transform(inputs, context, inverse=False)
+        #return outputs, logabsdet
 
     def inverse(self, inputs, context=None):
+        #inputs = inputs - context
         return self.spline_transform(inputs, context, inverse=True)
+        #return outputs, logabsdet
 
     def spline_transform(self, inputs, context, inverse=False):
+
         batch_size = inputs.shape[0]
 
         unnormalized_widths = _share_across_batch(self.unnormalized_widths, batch_size)
@@ -72,6 +80,7 @@ class MarginalSpline(transforms.Transform):
                 'tails': self.tails,
                 'tail_bound': self.tail_bound
             }
+        #inputs = self.transform_net(inputs, context)
 
         outputs, logabsdet = spline_fn(
             inputs=inputs,
@@ -84,5 +93,7 @@ class MarginalSpline(transforms.Transform):
             min_derivative=self.min_derivative,
             **spline_kwargs
         )
+
+        #outputs = outputs[:, :-context.shape[1]]
 
         return outputs, utils.sum_except_batch(logabsdet)

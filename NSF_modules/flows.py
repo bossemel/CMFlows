@@ -8,7 +8,6 @@ from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval
 import datasets.distributions
-import matplotlib.pyplot as plt
 eps = 0.0001
 
 
@@ -47,7 +46,7 @@ class ConditionalFlow(nn.Module):
         self.device = args.device
 
         self.base_transform_type = 'notaffine'
-        distribution = distributions.StandardNormal([dim]).to(args.device) #distributions.TweakedUniform(high=0.999, low=0.001) #.to(args.device) # distributions.StandardNormal([dim]).to(args.device)
+        distribution = distributions.StandardNormal([dim]).to(args.device)
         transform = transforms.CompositeTransform([
             self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
         self.flow = flows.Flow(transform, distribution).to(args.device)
@@ -55,8 +54,7 @@ class ConditionalFlow(nn.Module):
     def create_transform(self, ii):
         """Create invertible rational quadratic transformations."""
         if self.context_dim > 0:
-            linear = transforms.RandomPermutation(features=self.dim).to(self.device)
-            base = transforms.PiecewiseRationalQuadraticCouplingTransform(
+            return transforms.PiecewiseRationalQuadraticCouplingTransform(
                 mask=utils.create_mid_split_binary_mask(features=self.dim),
                 transform_net_create_fn=lambda in_features, out_features:
                     nn_.ResidualNet(
@@ -75,8 +73,7 @@ class ConditionalFlow(nn.Module):
                 min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
-            return transforms.CompositeTransform([linear, base], self.device)
-        elif self.dim == 2:
+        if self.dim == 2:
             return transforms.PiecewiseRationalQuadraticCouplingTransform(
                 mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
                 transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
@@ -92,20 +89,6 @@ class ConditionalFlow(nn.Module):
                 num_bins=self.n_bins_c,
                 apply_unconditional_transform=self.unconditional_transform
             )
-        # elif self.dim == 1 and self.context_dim == 1:
-        #     return transforms.MarginalSpline(transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-        #             in_features=in_features,
-        #             out_features=out_features,
-        #             context_features=self.context_dim,
-        #             hidden_features=self.hidden_units_c,
-        #             num_blocks=self.n_blocks_c,
-        #             dropout_probability=self.dropout_c,
-        #             use_batch_norm=self.use_batch_norm),
-        #         features=self.dim,
-        #         num_bins=self.n_bins_c,
-        #         tails=self.tails,
-        #         tail_bound=self.tail_bound_c,
-        #         num_blocks=self.n_blocks_c)
         elif self.dim == 1:
             return transforms.MarginalSpline(transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
                     in_features=in_features,
@@ -131,18 +114,9 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    # def _forward_copula(self, inputs, context=None):
-    #     """Forward pass in density estimation direction.
-    #     Args:
-    #         inputs (torch.Tensor): [N, dim] tensor of data.
-    #         context (torch.Tensor): [N, context_dim] tensor of context."""
-    #     normal_distr = torch.distributions.normal.Normal(0, 1)
-    #     zz = normal_distr.ppf(x)
-    #     aa = self.forward(zz)
-    #     bb = torch.log()
-    #     log_density = self.flow.log_prob(inputs, context)
-    #     log_density = _forward(normal_distr.ppf(inputs)) +
-    #     return log_density
+    def transform_to_noise(self, inputs, context):
+        noise, _ = self._transform.forward(inputs, context=context)
+        return noise
 
     def loss(self, inputs, cond_inputs=None):
         """Forward pass to negative log likelihood (NLL).
@@ -170,7 +144,6 @@ class ConditionalFlow(nn.Module):
             samples = torch.cat([samples, cond_inputs], axis=1)
         if transform == 'sigmoid':
             raise NotImplementedError
-            # samples = sigmoid(samples)
         elif transform == 'gaussian':
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
@@ -193,33 +166,31 @@ class ConditionalFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000): #, cm_flow=False):
+    def jsd(self, args, transform_fct=None, num_samples=10000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
-            # Define distributions
-            normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
-
-            # Get true copula distribution
-            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-            true_cop_distr.sampler(obs=10000)
+            # Get ground truth
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+            true_cop_distr.sampler(obs=num_samples)
             samples_target_uni = true_cop_distr.xx
             samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
             # Samples from both distributions
-            samples_pred_norm = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=None, device=args.device)
-            samples_pred_uni = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
-            samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
-
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                cond_inputs_uni = normal_distr.cdf(cond_inputs)
+                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+                cond_inputs_uni = normal_distr.cdf(cond_inputs_normal)
+
+            samples_pred_norm = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, transform=None, device=args.device)
+            samples_pred_uni = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
+            samples_pred_viz = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
 
             if args.conditional_copula:
-                visualize_joint(torch.cat([samples_pred_uni, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
-                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
+                visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
             else:
-                visualize_joint(samples_pred_uni.cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
                 visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
 
             assert torch.max(samples_pred_uni) <= 1
@@ -233,8 +204,8 @@ class ConditionalFlow(nn.Module):
             assert np.min(samples_target_uni) >= 0
 
             if args.conditional_copula:
-                assert torch.max(cond_inputs) > 1
-                assert torch.min(cond_inputs) < 0
+                assert torch.max(cond_inputs_normal) > 1
+                assert torch.min(cond_inputs_normal) < 0
                 assert torch.max(cond_inputs_uni) <= 1
                 assert torch.min(cond_inputs_uni) >= 0
 
@@ -261,10 +232,10 @@ class ConditionalFlow(nn.Module):
             assert np.min(prob_Y_in_p) >= 0
             assert np.min(prob_Y_in_q) >= 0
 
-            assert prob_X_in_p.shape == (inputs.shape[0],), '{}'.format(prob_X_in_p.shape)
-            assert prob_X_in_q.shape == (inputs.shape[0],)
-            assert prob_Y_in_p.shape == (inputs.shape[0],)
-            assert prob_Y_in_q.shape == (inputs.shape[0],)
+            assert prob_X_in_p.shape == (num_samples,), '{}'.format(prob_X_in_p.shape)
+            assert prob_X_in_q.shape == (num_samples,)
+            assert prob_Y_in_p.shape == (num_samples,)
+            assert prob_Y_in_q.shape == (num_samples,)
 
             divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                        prob_X_in_q=prob_X_in_q,
@@ -273,18 +244,23 @@ class ConditionalFlow(nn.Module):
 
             return divergence
 
-    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
+    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
+            # Samples from both distributions
+            if args.conditional_copula:
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+
             if cm_flow:
-                if cond_inputs is not None:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=device).cpu().numpy()
+                if args.conditional_copula:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal, device=device).cpu().numpy()
                 else:
                     samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
-                if cond_inputs is not None:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=device).cpu().numpy()
+                if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal, transform=transform_fct, device=device).cpu().numpy()
                 else:
                     samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
             if cond_inputs is not None:

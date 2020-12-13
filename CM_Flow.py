@@ -182,7 +182,6 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
-    model.cop_flow.train()
 
     best_dict_cop_flow, test_dict = train_val(model,
                                               model_name='cop_flow',

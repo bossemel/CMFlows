@@ -24,40 +24,17 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     model.eval()
     with torch.no_grad():
-        if cm_flow is True:
-            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
-            data = dataset.xx
-            data = torch.tensor(data).float().to(device)
-            if args.conditional_copula:
-                current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
-                                        cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct).sum().item()
-            else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct).sum().item()
-            if 'jsd_test_copula' in test_dict:
-                test_dict["jsd_test_copula"].append(current_jsd)
-            else:
-                test_dict["jsd_test_copula"] = [current_jsd]
+        current_jsd = model.jsd(args=args, transform_fct=args.transform_fct).sum().item()
+        if 'jsd_test_copula' in test_dict:
+            test_dict["jsd_test_copula"].append(current_jsd)
         else:
-            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
-            data = torch.tensor(dataset.xx).float()
-            data = data.to(device)
-            if args.conditional_copula:
-                current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
-                                        cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct).sum().item()
-            else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct).sum().item()
-            if 'jsd_test_copula' in test_dict:
-                test_dict["jsd_test_copula"].append(current_jsd)
-            else:
-                test_dict["jsd_test_copula"] = [current_jsd]
+            test_dict["jsd_test_copula"] = [current_jsd]
 
     print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["jsd_test_copula"])))
     return test_dict
 
 
-def margin_uniformity(args, epoch, model, cond_inputs=None, transform_fct=None, test_dict=None, num_samples=100000, cm_flow=False):
+def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, num_samples=10000, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -73,12 +50,10 @@ def margin_uniformity(args, epoch, model, cond_inputs=None, transform_fct=None, 
     model.eval()
 
     with torch.no_grad():
-        if args.conditional_copula:
-            num_samples = cond_inputs.shape[0]
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(num_samples=num_samples, cond_inputs=cond_inputs, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
+            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
     if 't_1' in test_dict:
         test_dict["t_1"].append(current_t_metric_x1 / num_samples)
         test_dict["m_1"].append(current_m_metric_x1 / num_samples)

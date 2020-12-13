@@ -42,7 +42,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip', type=float, default=5.0)
         parser.add_argument(
-            '--weight_decay_c', type=int, default=1e-7, help='adam optimizer weight decay')
+            '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(
             '--weight_decay_m', type=int, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
@@ -86,9 +86,9 @@ class TrainOptions():
         parser.add_argument(
             '--n_layers_c', type=int, default=15, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=16, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=8, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
+            '--n_blocks_c', type=int, default=3, help='Number of residual blocks in each spline layer')
         parser.add_argument(
             '--tail_bound_c', type=float, default=8, help='Bounds of spline region')
         parser.add_argument(
@@ -104,9 +104,9 @@ class TrainOptions():
         parser.add_argument(
             '--dropout_c', type=float, default=0.15, help='Dropout probability in flow')
         parser.add_argument(
-            '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
+            '--use_batch_norm', type=int, default=True, help='Use batch norm in spline layers')
         parser.add_argument(
-            '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
+            '--unconditional_transform', type=int, default=False, help='Unconditionally transform identity features')
         parser.add_argument(
             '--no_tails', action='store_true', default=False, help='No tails')
 

@@ -20,36 +20,12 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     model.eval()
     with torch.no_grad():
-        if cm_flow is True:
-            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
-            data = dataset.xx
-            print(data.shape)
-            data = torch.tensor(data).float().to(device)
-            if args.conditional_copula:
-                current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
-                                        cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
-            else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
-            if 'jsd_test_copula' in test_dict:
-                test_dict["jsd_test_copula"].append(current_jsd)
-            else:
-                test_dict["jsd_test_copula"] = [current_jsd]
+        current_jsd = model.jsd(args=args, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
+
+        if 'jsd_test_copula' in test_dict:
+            test_dict["jsd_test_copula"].append(current_jsd)
         else:
-            dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=10000)
-            data = torch.tensor(dataset.xx).float()
-            print(data.shape)
-            data = data.to(device)
-            if args.conditional_copula:
-                current_jsd = model.jsd(args=args, inputs=data[:, 0:1],
-                                        cond_inputs=data[:, 1:2],
-                                        transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
-            else:
-                current_jsd = model.jsd(args=args, inputs=data, transform_fct=args.transform_fct, cm_flow=cm_flow).sum().item()
-            if 'jsd_test_copula' in test_dict:
-                test_dict["jsd_test_copula"].append(current_jsd)
-            else:
-                test_dict["jsd_test_copula"] = [current_jsd]
+            test_dict["jsd_test_copula"] = [current_jsd]
 
     print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["jsd_test_copula"])))
     return test_dict

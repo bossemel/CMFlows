@@ -50,7 +50,7 @@ class FlowSequential(nn.Sequential):
     def loss(self, inputs, cond_inputs=None):
         """Return negative log likelihood/density
         """
-        return - self.log_density(inputs, cond_inputs)
+        return (- self.log_density(inputs, cond_inputs)).mean()
 
     def transform(self, inputs, cond_inputs, mode='direct', device=None):
         if device is not None:
@@ -58,7 +58,7 @@ class FlowSequential(nn.Sequential):
             cond_inputs = cond_inputs.to(device)
         return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)[0]
 
-    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, copula=False, device=None):
+    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, device=None):
         """Returns an output sample without transformation
         """
         if num_inputs is not None:
@@ -73,13 +73,9 @@ class FlowSequential(nn.Sequential):
         samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
         if cond_inputs is not None:
             samples = torch.cat([samples, cond_inputs], axis=1)
-        if not copula:
-            if transform == 'sigmoid':
-                samples = sigmoid(samples)
-            elif transform == 'gaussian':
-                normal_distr = torch.distributions.normal.Normal(0, 1)
-                samples = normal_distr.cdf(samples)
-        else:
+        if transform == 'sigmoid':
+            raise NotImplementedError
+        elif transform == 'gaussian':
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
         return samples
@@ -101,8 +97,7 @@ class FlowSequential(nn.Sequential):
         samples = normal_distr.cdf(samples)
         return samples
 
-
-    def jsd(self, args, inputs, cond_inputs=None, transform_fct=None, obs=1000): #, cm_flow=False):
+    def jsd(self, args, transform_fct=None, num_samples=10000): #, cm_flow=False):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
@@ -110,25 +105,26 @@ class FlowSequential(nn.Sequential):
             normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
 
             # Get true copula distribution
-            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-            true_cop_distr.sampler(obs=10000)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+            true_cop_distr.sampler(obs=num_samples)
             samples_target_uni = true_cop_distr.xx
             samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
             # Samples from both distributions
-            samples_pred_norm = self.sample(num_samples=inputs.shape[0], cond_inputs=cond_inputs, transform=None, device=args.device)
-            samples_pred_uni = self.sample_copula(num_samples=inputs.shape[0], cond_inputs=cond_inputs, device=args.device)
-            samples_pred_viz = self.sample_copula(num_samples=10000, cond_inputs=cond_inputs, device=args.device)
-
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                cond_inputs_uni = normal_distr.cdf(cond_inputs)
+                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+                cond_inputs_uni = normal_distr.cdf(cond_inputs_normal)
+
+            samples_pred_norm = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, transform=None, device=args.device)
+            samples_pred_uni = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
+            samples_pred_viz = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
 
             if args.conditional_copula:
-                visualize_joint(torch.cat([samples_pred_uni, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_target_jsd')
-                visualize_joint(torch.cat([samples_pred_viz, cond_inputs], axis=1).cpu(), args.figures_path, name='samples_pred_jsd')
+                visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
             else:
-                visualize_joint(samples_pred_uni.cpu(), args.figures_path, name='samples_target_jsd')
+                visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
                 visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
 
             assert torch.max(samples_pred_uni) <= 1
@@ -142,8 +138,8 @@ class FlowSequential(nn.Sequential):
             assert np.min(samples_target_uni) >= 0
 
             if args.conditional_copula:
-                assert torch.max(cond_inputs) > 1
-                assert torch.min(cond_inputs) < 0
+                assert torch.max(cond_inputs_normal) > 1
+                assert torch.min(cond_inputs_normal) < 0
                 assert torch.max(cond_inputs_uni) <= 1
                 assert torch.min(cond_inputs_uni) >= 0
 
@@ -170,10 +166,10 @@ class FlowSequential(nn.Sequential):
             assert np.min(prob_Y_in_p) >= 0
             assert np.min(prob_Y_in_q) >= 0
 
-            assert prob_X_in_p.shape == (inputs.shape[0],), '{}'.format(prob_X_in_p.shape)
-            assert prob_X_in_q.shape == (inputs.shape[0],)
-            assert prob_Y_in_p.shape == (inputs.shape[0],)
-            assert prob_Y_in_q.shape == (inputs.shape[0],)
+            assert prob_X_in_p.shape == (num_samples,), '{}'.format(prob_X_in_p.shape)
+            assert prob_X_in_q.shape == (num_samples,)
+            assert prob_Y_in_p.shape == (num_samples,)
+            assert prob_Y_in_q.shape == (num_samples,)
 
             divergence = js_divergence(prob_X_in_p=prob_X_in_p,
                                        prob_X_in_q=prob_X_in_q,
@@ -182,18 +178,23 @@ class FlowSequential(nn.Sequential):
 
             return divergence
 
-    def t_metric_eval(self, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
+    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
+            # Samples from both distributions
+            if args.conditional_copula:
+                normal_distr = torch.distributions.normal.Normal(0, 1)
+                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+
             if cm_flow:
-                if cond_inputs is not None:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs, device=device).cpu().numpy()
+                if args.conditional_copula:
+                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal, device=device).cpu().numpy()
                 else:
                     samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
-                if cond_inputs is not None:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs, transform=transform_fct, device=device).cpu().numpy()
+                if args.conditional_copula:
+                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal, transform=transform_fct, device=device).cpu().numpy()
                 else:
                     samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
             if cond_inputs is not None:

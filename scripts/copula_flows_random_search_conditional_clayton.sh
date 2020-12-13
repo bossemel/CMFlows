@@ -10,8 +10,7 @@ python NSF.py \
 --obs 10000 \
 --random_search \
 --conditional_copula \
---flow_type cop_flow \
---continue_from 110
+--flow_type cop_flow
 
 # echo 'Begin Frank Copula random Search'
 
