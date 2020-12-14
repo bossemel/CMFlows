@@ -47,8 +47,12 @@ def visualize_marg_flow_output(model, dataset, args):
     with torch.no_grad():
         vizdata = torch.tensor(dataset.trn)
 
-        vizdata_1 = model.marg_flow_1.flow.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
-        vizdata_2 = model.marg_flow_2.flow.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
+        if args.marg_flow == 'NSF':
+            vizdata_1 = model.marg_flow_1.flow.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+            vizdata_2 = model.marg_flow_2.flow.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
+        elif args.marg_flow == 'DDSF':
+            vizdata_1 = model.marg_flow_1.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+            vizdata_2 = model.marg_flow_2.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
 
         normal_distr = torch.distributions.normal.Normal(0, 1)

@@ -51,7 +51,7 @@ class MAF(nn.Sequential):
         outputs, __, __ = self((inputs, self.logdets, self.context))
         return outputs
 
-    def transform(self, inputs):
+    def transform_to_noise(self, inputs):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)

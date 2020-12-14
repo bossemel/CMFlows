@@ -9,12 +9,19 @@ class CMFlow(nn.Module):
     def __init__(self, transform,
                  device, batch_size, args):
         super(CMFlow, self).__init__()
-        self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
-        # self.cop_flow = build_model_RealNVP(args)
-        self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
-        self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
-        # self.marg_flow_1 = build_model_DDSF(args)
-        # self.marg_flow_2 = build_model_DDSF(args)
+        if args.cop_flow == 'NSF':
+            self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
+        elif args.cop_flow == 'RealNVP':
+            self.cop_flow = build_model_RealNVP(args)
+        else:
+            raise ValueError('Copula Flow type unknown.')
+
+        if args.marg_flow == 'NSF':
+            self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
+            self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
+        elif args.marg_flow == 'DDSF':
+            self.marg_flow_1 = build_model_DDSF(args)
+            self.marg_flow_2 = build_model_DDSF(args)
 
     def train(self):
         self.cop_flow.train()

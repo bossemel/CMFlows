@@ -24,8 +24,12 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
     elif model_name == 'cop_flow':
         if transform_inputs is True:
             with torch.no_grad():
-                output_marg_flow_1 = model.marg_flow_1.flow.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
-                output_marg_flow_2 = model.marg_flow_2.flow.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
+                if args.marg_flow == 'NSF':
+                    output_marg_flow_1 = model.marg_flow_1.flow.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
+                    output_marg_flow_2 = model.marg_flow_2.flow.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
+                elif args.marg_flow == 'DDSF':
+                    output_marg_flow_1 = model.marg_flow_1.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
+                    output_marg_flow_2 = model.marg_flow_2.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
             if not args.conditional_copula:
                 outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
                 loss = model.cop_flow.loss(outputs_marg_flows)

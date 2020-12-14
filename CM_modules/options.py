@@ -23,6 +23,10 @@ class TrainOptions():
         #     '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
+        parser.add_argument(
+            '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
+        parser.add_argument(
+            '--marg_flow', default='NSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
 
         # Training options
         parser.add_argument(
