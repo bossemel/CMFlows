@@ -98,6 +98,133 @@ def visualize_CM_Flow_output(model, dataset, args):
             visualize_joint(output_copula, args.figures_path, name='output_copula_normal_cm')
 
 
+def train_marginals(model, disable_tqdm, error_bars, rvine):
+    # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
+    # Train marg_flows
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+
+    for param in model.marg_flow_2.parameters():
+        param.requires_grad = False
+    for param in model.cop_flow.parameters():
+        param.requires_grad = False
+
+    best_dict_marg_flow_1, test_dict = train_val(model=model,
+                                                 model_name='marg_flow_1',
+                                                 args=args,
+                                                 data_loaders=data_loaders,
+                                                 dataset=dataset,
+                                                 transform_inputs=True,
+                                                 disable_tqdm=disable_tqdm,
+                                                 error_bars=error_bars,
+                                                 rvine=rvine,
+                                                 cm_flow=True)
+
+    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+                       best_dict_marg_flow_1['best_validation_epoch'])
+    visualize1D(model=model.marg_flow_1,
+                epoch=best_dict_marg_flow_1['best_validation_epoch'],
+                args=args,
+                best_val=True,
+                name='marg_flow_1')
+
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
+
+    for param in model.marg_flow_1.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_2.parameters():
+        param.requires_grad = True
+    for param in model.cop_flow.parameters():
+        param.requires_grad = False
+
+    best_dict_marg_flow_2, test_dict = train_val(model=model,
+                                                 model_name='marg_flow_2',
+                                                 args=args,
+                                                 data_loaders=data_loaders,
+                                                 dataset=dataset,
+                                                 transform_inputs=True,
+                                                 disable_tqdm=disable_tqdm,
+                                                 error_bars=error_bars,
+                                                 rvine=rvine,
+                                                 cm_flow=True)
+
+    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+                       best_dict_marg_flow_2['best_validation_epoch'])
+
+    visualize1D(model=model.marg_flow_2,
+                epoch=best_dict_marg_flow_2['best_validation_epoch'],
+                args=args,
+                best_val=True,
+                name='marg_flow_2')
+
+    for param in model.marg_flow_2.parameters():
+        param.requires_grad = False
+
+    # Visualize DDFS transformations
+    if not error_bars and not rvine:
+        visualize_marg_flow_output(model, dataset, args)
+
+    return model, best_dict_marg_flow_1, best_dict_marg_flow_2
+
+
+def transform_dataset(model, train_dataset):
+    with torch.no_grad():
+        if args.marg_flow == 'NSF':
+            marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+            marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+        elif args.marg_flow == 'DDSF':
+            marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+            marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+
+        train_dataset = torch.cat((marg_flow_1_output, marg_flow_2_output), dim=1).cpu()
+        kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            **kwargs)
+
+        data_loaders['train_loader'] = train_loader
+        dataset.trn = train_dataset
+
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        train_dataset_uniform = normal_distr.cdf(train_dataset)
+        visualize_joint(train_dataset, args.figures_path, name='marg_flow_transform_output')
+        visualize_joint(train_dataset_uniform, args.figures_path, name='marg_flow_transform_output_uniform')
+    return data_loaders, dataset.trn
+
+
+def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, transform_full_ds):
+    # Train cop_flow
+    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
+
+    data_loaders, dataset.trn = transform_dataset(model, train_dataset)
+
+    best_dict_cop_flow, test_dict = train_val(model,
+                                              model_name='cop_flow',
+                                              args=args,
+                                              data_loaders=data_loaders,
+                                              dataset=dataset,
+                                              transform_inputs=False if transform_full_ds else True,
+                                              disable_tqdm=disable_tqdm,
+                                              error_bars=error_bars,
+                                              rvine=rvine,
+                                              cm_flow=True)
+
+    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+                       best_dict_cop_flow['best_validation_epoch'])
+
+    best_dict = best_dict_cop_flow
+
+    if not error_bars and not rvine:
+        visualize_cop_flow_output(model, dataset, args)
+    return model, best_dict, test_dict, best_dict_cop_flow
+
+
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False, rvine=False):
     """Trains the CM Flow, saves test set results and plots.
 
@@ -117,95 +244,12 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.state = dict()
     model.to(args.device)
 
-    # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
-    # Train marg_flows
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
-
-    for param in model.marg_flow_2.parameters():
-        param.requires_grad = False
-    for param in model.cop_flow.parameters():
-        param.requires_grad = False
-    best_dict_marg_flow_1, test_dict = train_val(model=model,
-                                                 model_name='marg_flow_1',
-                                                 args=args,
-                                                 data_loaders=data_loaders,
-                                                 dataset=dataset,
-                                                 transform_inputs=True,
-                                                 disable_tqdm=disable_tqdm,
-                                                 error_bars=error_bars,
-                                                 rvine=rvine,
-                                                 cm_flow=True)
-
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                       best_dict_marg_flow_1['best_validation_epoch'])
-    visualize1D(model=model.marg_flow_1,
-                epoch=best_dict_marg_flow_1['best_validation_epoch'],
-                args=args,
-                best_val=True,
-                name='marg_flow_1')
-    for param in model.marg_flow_1.parameters():
-        param.requires_grad = False
-
-    for param in model.marg_flow_2.parameters():
-        param.requires_grad = True
-
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
-
-    best_dict_marg_flow_2, test_dict = train_val(model=model,
-                                                 model_name='marg_flow_2',
-                                                 args=args,
-                                                 data_loaders=data_loaders,
-                                                 dataset=dataset,
-                                                 transform_inputs=True,
-                                                 disable_tqdm=disable_tqdm,
-                                                 error_bars=error_bars,
-                                                 rvine=rvine,
-                                                 cm_flow=True)
-
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                       best_dict_marg_flow_2['best_validation_epoch'])
-    visualize1D(model=model.marg_flow_2,
-                epoch=best_dict_marg_flow_2['best_validation_epoch'],
-                args=args,
-                best_val=True,
-                name='marg_flow_2')
-
-    for param in model.marg_flow_2.parameters():
-        param.requires_grad = False
-
-    # Visualize DDFS transformations
-    if not error_bars and not rvine:
-        visualize_marg_flow_output(model, dataset, args)
+    model, best_dict_marg_flow_1, best_dict_marg_flow_2 = train_marginals(model, disable_tqdm, error_bars, rvine)
 
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    # Train cop_flow
-    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
-
-    best_dict_cop_flow, test_dict = train_val(model,
-                                              model_name='cop_flow',
-                                              args=args,
-                                              data_loaders=data_loaders,
-                                              dataset=dataset,
-                                              test_dict=test_dict,
-                                              transform_inputs=True,
-                                              disable_tqdm=disable_tqdm,
-                                              error_bars=error_bars,
-                                              rvine=rvine,
-                                              cm_flow=True)
-
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-                       best_dict_cop_flow['best_validation_epoch'])
-
-    best_dict = best_dict_cop_flow
-
-    if not error_bars and not rvine:
-        visualize_cop_flow_output(model, dataset, args)
+    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, args.transform_full_ds)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -220,37 +264,6 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
 
-    # # Train the CM Flow
-    # if args.train_cm_flow:
-
-    #     # Set optimizer
-    #     args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=args.betas)
-
-    #     # Train model, and perform validation and test
-    #     best_dict, test_dict = train_val(model,
-    #                                      model_name='CM_Flow',
-    #                                      args=args,
-    #                                      data_loaders=data_loaders,
-    #                                      dataset=dataset,
-    #                                      disable_tqdm=disable_tqdm,
-    #                                      error_bars=error_bars)
-
-    #     model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
-    #                        best_dict['best_validation_epoch'])
-
-    #     if not error_bars and not rvine:
-    #         visualize_CM_Flow_output(model, dataset, args)
-
-    #     # Visualize DDFS transformations
-    #     if not error_bars and not rvine:
-    #         visualize_marg_flow_output(model, dataset, args)
-
-    #     # Gather test losses and save statistics
-    #     test_losses = {key: [np.mean(value)] for key, value in
-    #                    test_dict.items()}  # save test set metrics in dict format
-    #     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-    #                     # save test set metrics on disk in .csv format
-    #                     stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
     return best_dict
 
 

@@ -27,6 +27,9 @@ class TrainOptions():
             '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
         parser.add_argument(
             '--marg_flow', default='NSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+        parser.add_argument(
+            '--transform_full_ds', action='store_true', help='transform dataset in full, or at every batch')
+
 
         # Training options
         parser.add_argument(

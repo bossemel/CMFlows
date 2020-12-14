@@ -89,19 +89,11 @@ class ConditionalFlow(nn.Module):
                 apply_unconditional_transform=self.unconditional_transform
             )
         elif self.dim == 1:
-            return transforms.MarginalSpline(transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
-                    in_features=in_features,
-                    out_features=out_features,
-                    context_features=self.context_dim,
-                    hidden_features=self.hidden_units_m,
-                    num_blocks=self.n_blocks_m,
-                    dropout_probability=self.dropout_m,
-                    use_batch_norm=self.use_batch_norm),
-                features=self.dim,
+            return transforms.PiecewiseRationalQuadraticCDF(
+                shape=[self.dim],
                 num_bins=self.n_bins_m,
                 tails=self.tails,
-                tail_bound=self.tail_bound_m,
-                num_blocks=self.n_blocks_m)
+                tail_bound=self.tail_bound_m)
         else:
             raise ValueError('unknown dimensionality')
 
@@ -113,8 +105,8 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def transform_to_noise(self, inputs, context):
-        noise, _ = self._transform.forward(inputs, context=context)
+    def transform_to_noise(self, inputs, context=None):
+        noise, _ = self.flow._transform.forward(inputs, context=context)
         return noise
 
     def loss(self, inputs, cond_inputs=None):
