@@ -31,7 +31,7 @@ def build_model(args):
     args.dimh = args.batch_size
     args.act = nn.ELU()
     args.dim = 1
-    args.betas = (args.beta1, args.beta2)
+    #args.betas = (args.beta1, args.beta2)
 
     sequels = [nn_.SequentialFlow(
         flows.IAF_DDSF(dim=args.dim,

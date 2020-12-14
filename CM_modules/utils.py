@@ -33,20 +33,20 @@ def load_data(args):
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.batch_size,
-        shuffle=False,
+        shuffle=True,
         **kwargs)
 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=args.batch_size,
-        shuffle=False,
+        shuffle=True,
         drop_last=False,
         **kwargs)
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=args.batch_size,
-        shuffle=False,
+        shuffle=True,
         drop_last=False,
         **kwargs)
 

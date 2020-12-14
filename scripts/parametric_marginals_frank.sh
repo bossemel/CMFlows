@@ -9,7 +9,8 @@ python parametric.py \
 --marginal_2 uniform \
 --alpha 5 \
 --theta 2 \
---obs 10000
+--obs 10000 \
+--error_bars
 
 echo 'Begin Copula: Parametric estimation'
 
@@ -21,7 +22,8 @@ python parametric.py \
 --marginal_2 gaussian \
 --alpha 5 \
 --theta 2 \
---obs 10000
+--obs 10000 \
+--error_bars
 
 echo 'Begin Copula: Parametric estimation'
 
@@ -33,7 +35,8 @@ python parametric.py \
 --marginal_2 gamma \
 --alpha 5 \
 --theta 2 \
---obs 10000
+--obs 10000 \
+--error_bars
 
 echo 'Begin Copula: Parametric estimation'
 
@@ -45,16 +48,5 @@ python parametric.py \
 --marginal_2 lognormal \
 --alpha 5 \
 --theta 2 \
---obs 10000
-
-echo 'Begin Copula: Parametric estimation'
-
-python parametric.py \
---exp_name parametric_frank_bimodal_gaussian \
---copula frank \
---assumed_copula gaussian \
---marginal_1 bimodal_gaussian \
---marginal_2 bimodal_gaussian \
---alpha 5 \
---theta 2 \
---obs 10000
+--obs 10000 \
+--error_bars

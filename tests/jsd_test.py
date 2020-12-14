@@ -8,8 +8,8 @@ if __name__ == '__main__':
     # 1. case: p=q
     mv_gaussian = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0],
                                                                              [0, 1.]])
-    samples = mv_gaussian.rvs(100000)
-    samples_2 = mv_gaussian.rvs(100000)
+    samples = mv_gaussian.rvs(10000)
+    samples_2 = mv_gaussian.rvs(10000)
 
     X_in_p = mv_gaussian.pdf(samples)
     X_in_q = mv_gaussian.pdf(samples)
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # 2nd case:
     mv_gaussian_2 = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., 0.5],
                                                                                [0.5, 1.]])
-    samples_2 = mv_gaussian_2.rvs(100000)
+    samples_2 = mv_gaussian_2.rvs(10000)
 
     X_in_p = mv_gaussian.pdf(samples)
     X_in_q = mv_gaussian_2.pdf(samples)
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # 3rd case:
     mv_gaussian_2 = scipy.stats.multivariate_normal(mean=[10000, 10000], cov=[[10000., 0.5],
                                                                                        [0.5, 10000.]])
-    samples_2 = mv_gaussian_2.rvs(100000)
+    samples_2 = mv_gaussian_2.rvs(10000)
 
     X_in_p = mv_gaussian.pdf(samples)
     X_in_q = mv_gaussian_2.pdf(samples)

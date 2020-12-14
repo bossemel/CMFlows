@@ -42,7 +42,14 @@ class MAF(nn.Sequential):
     def loss(self, inputs):
         """Loss is negative log density
         """
-        return - self.log_density(inputs)
+        return (- self.log_density(inputs)).mean()
+
+    def _forward(self, inputs):
+        self.n = inputs.shape[0]
+        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        outputs, __, __ = self((inputs, self.logdets, self.context))
+        return outputs
 
     def transform(self, inputs):
         self.n = inputs.shape[0]

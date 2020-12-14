@@ -159,7 +159,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name='RealNVP',
+                                     model_name='cop_flow',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Specify, that this RealNVP is not part of a CM_Flow
-    args.RealNVP_part_of_CM_Flow = False
+    args.cop_flow_part_of_CM_Flow = False
 
     # Set up data loader
     dataset, data_loaders = utils.load_data(args)

@@ -32,7 +32,7 @@ class TrainOptions():
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
-            '--random_seed', type=int, default=58093, help='random seed')
+            '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--theta', type=int, default=2)
         parser.add_argument(

@@ -13,7 +13,7 @@ python CM_Flow.py \
 --high 1 \
 --theta 2 \
 --obs 10000 \
---pretrain_models
+--conditional
 
 
 echo 'Begin Copula: clayton Marginal: gaussian Pretrain only'
@@ -27,9 +27,9 @@ python CM_Flow.py \
 --marginal_2 gaussian \
 --mu 0 \
 --var 1 \
---theta 5 \
+--theta 2 \
 --obs 10000 \
---pretrain_models
+--conditional
 
 
 echo 'Begin Copula: clayton Marginal: gamma Pretrain only'
@@ -44,9 +44,9 @@ python CM_Flow.py \
 --alpha 5 \
 --mu 0 \
 --var 1 \
---theta 5 \
+--theta 2 \
 --obs 10000 \
---pretrain_models
+--conditional
 
 
 echo 'Begin Copula: clayton Marginal: lognormal Pretrain only'
@@ -60,6 +60,6 @@ python CM_Flow.py \
 --marginal_2 lognormal \
 --mu 0 \
 --var 1 \
---theta 5 \
+--theta 2 \
 --obs 10000 \
---pretrain_models
+--conditional

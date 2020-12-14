@@ -1,6 +1,6 @@
 """Basic definitions for the flows module."""
 
-import utils
+import NSF_modules.utils as utils
 
 from NSF_modules.nde import distributions
 

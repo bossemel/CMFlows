@@ -15,91 +15,31 @@ from CM_modules.utils import jsd_eval_marginal_cm
 eps = 0.0001
 
 
-# def marg_flow_1_forward(model, data, device):
-#     # logdets, context = empty_logdets_context(data, device)
-#     return model.marg_flow_1.forward(data[:, 0: 1]) # , logdets, context))
-
-
-# def marg_flow_2_forward(model, data, device):
-#     # logdets, context = empty_logdets_context(data, device)
-#     return model.marg_flow_2.forward(data[:, 1:2]) #, logdets, context))
-
-
-def cm_flow_forward(model, data, device):
-    raise NotImplementedError
-    # @Todo: do i need this function?
-    # CM_Flow passes each dimension of the data through a marg_flow, and then passes the output through the cop_flow
-    output_marg_flow_1 = model.marg_flow_1._forward(data[:, 0: 1])
-    output_marg_flow_2 = model.marg_flow_2._forward(data[:, 1: 2])
-    loss_marg_flow_1 = -torch.mean(output_marg_flow_1)
-    loss_marg_flow_2 = -torch.mean(output_marg_flow_2)
-
-    with torch.no_grad():
-        outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
-
-    output_cop_flow = model.cop_flow.forward(inputs=outputs_marg_flows) #, mode='direct')
-
-    # Calculate losses using Change of Variable Theorem and a normal prior
-    # loss_marg_flow_1 = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
-    # loss_marg_flow_2 = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
-    loss_cop_flow = -torch.mean(output_cop_flow)
-    assert loss_cop_flow >= 0
-    assert loss_marg_flow_1 >= 0
-    assert loss_marg_flow_2 >= 0
-
-    loss = loss_cop_flow + loss_marg_flow_1 + loss_marg_flow_2
-    return model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow
-
-
 def single_model_forward(args, model, model_name, data, transform_inputs, device, cond_data=None):
     # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
     if model_name == 'marg_flow_1':
         loss = model.marg_flow_1.loss(data[:, 0: 1])
-        # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
-        # loss = -flow_density(output_marg_flow_1, logdets_marg_flow_1.reshape(-1, 1)).mean()
     elif model_name == 'marg_flow_2':
         loss = model.marg_flow_2.loss(data[:, 1: 2])
-        # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
-        # loss = -flow_density(output_marg_flow_2, logdets_marg_flow_2.reshape(-1, 1)).mean()
     elif model_name == 'cop_flow':
         if transform_inputs is True:
             with torch.no_grad():
                 output_marg_flow_1 = model.marg_flow_1.flow.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
-                # output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, data, device)
                 output_marg_flow_2 = model.marg_flow_2.flow.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
-                # output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, data, device)
-                outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), axis=1)
-            if args.conditional_copula:
-                loss = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2) #, mode='direct')
+            if not args.conditional_copula:
+                outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
+                loss = model.cop_flow.loss(outputs_marg_flows)
             else:
-                loss = model.cop_flow.loss(outputs_marg_flows) #, mode='direct')
-            # loss = losses.mean()
+                loss = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2)
         else:
             if args.conditional_copula:
-                losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
+                loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
             else:
-                losses = model.loss(data)
-            loss = losses.mean()
-    elif model_name == 'rvine_cop_flow':
-        losses = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
-        loss = losses.mean()
+                loss = model.loss(data)
     else:
-        losses = model.loss(data)
-        loss = losses.mean()
-        # del losses
+        loss = model.loss(data)
 
     return model, loss
-
-
-# def move_transformed_outputs(args, train_loader, device, model, data):
-#     logdets, context = empty_logdets_context(train_loader.dataset.tensors[0], device)
-#     output_marg_flow_1, logdets_marg_flow_1, __ = marg_flow_1_forward(model, train_loader.dataset.tensors[0], device)
-#     output_marg_flow_2, logdets_marg_flow_2, __ = marg_flow_2_forward(model, train_loader.dataset.tensors[0], device)
-#     if args.conditional_copula:
-#         model.cop_flow.forward(inputs=output_marg_flow_1.to(data.device), cond_inputs=output_marg_flow_2.to(data.device))
-#     else:
-#         train_loader_tensor = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
-#         model.cop_flow.forward(train_loader_tensor.to(data.device))
 
 
 def train(args, epoch, model, train_loader, current_epoch_losses, device,
@@ -116,68 +56,49 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     Returns:
         current_epoch_losses: updated training loss dictionary
     """
-    model.train()
 
     pbar = tqdm(total=len(train_loader.dataset), disable=disable_tqdm)
 
     for batch_idx, data in enumerate(train_loader):
+        model.train()
+
         if isinstance(data, list):
             data = data[0]
         data = data.to(device)
+        args.optimizer.zero_grad()
+
         assert not torch.isnan(torch.sum(data))
+        model, loss = single_model_forward(args,
+                                           model,
+                                           model_name,
+                                           data,
+                                           transform_inputs,
+                                           device)
 
-        if model_name == 'CM_Flow':
-            model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
-                                                                                  data,
-                                                                                  device)
-            # Append Training loss to current_epoch_losses dictionary
-            if 'train_loss' in current_epoch_losses:
-                current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
-            else:
-                current_epoch_losses['train_loss'] = []
-
-            # Perform backwards calculation for each loss on its own, retaining the first two graphs. Since the outputs
-            # of the marg_flow's are inputs to cop_flow, the cop_flow loss contains the marg_flow weights as well.
-            loss_marg_flow_1.backward(retain_graph=True)
-            loss_marg_flow_2.backward(retain_graph=True)
-            loss_cop_flow.backward()
-
-            # if args.clip_grad_norm:
-            #     model.clip_grad_norm()
-
+        if 'train_loss' in current_epoch_losses:
+            current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
         else:
-            if model_name in ['marg_flow_1', 'marg_flow_2', 'cop_flow', 'rvine_cop_flow']:
-                model, loss = single_model_forward(args,
-                                                   model,
-                                                   model_name,
-                                                   data,
-                                                   transform_inputs,
-                                                   device)
-            elif model_name == 'DDSF_1':
-                losses = model.model_DDSF_1.loss(data[:, 0: 1])
-                loss = losses.mean()
+            current_epoch_losses['train_loss'] = [loss.item()]
 
-            else:
-                losses = model.loss(data)
-                loss = losses.mean()
-
-            if 'train_loss' in current_epoch_losses:
-                current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
-            else:
-                current_epoch_losses['train_loss'] = [loss.item()]
-
-            loss.backward()
+        loss.backward()
 
         # Perform gradient clipping
         if args.clip_grad_norm:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            if model_name == 'marg_flow_1':
+                torch.nn.utils.clip_grad_norm_(model.marg_flow_1.parameters(), args.clip)
+            elif model_name == 'marg_flow_2':
+                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip)
+            elif model_name == 'cop_flow':
+                if transform_inputs:
+                    torch.nn.utils.clip_grad_norm_(model.cop_flow.parameters(), args.clip)
+                else:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
         if args.scheduler is None:
             args.optimizer.step()
         else:
             args.optimizer.step()
             args.scheduler.step()
-        args.optimizer.zero_grad()
 
         pbar.update(data.size(0))
         pbar.set_description('{} Train, Log likelihood: {:.6f}'.format(model_name, loss))
@@ -226,28 +147,24 @@ def validate(args, epoch, model, loader, device,
         current_epoch_losses: updated current_epoch_losses
         best_dict: updated best_dict
     """
-    model.eval() # @Todo: einzelne modelle in eval versetzen?
 
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
+        model.eval()
+
         if isinstance(data, list):
             data = data[0]
 
         data = data.to(device)
 
         with torch.no_grad():
-            if model_name == 'CM_Flow':
-                model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
-                                                                                      data,
-                                                                                      device)
-            else:
-                model, loss = single_model_forward(args,
-                                                   model,
-                                                   model_name,
-                                                   data,
-                                                   transform_inputs,
-                                                   device)
+            model, loss = single_model_forward(args,
+                                               model,
+                                               model_name,
+                                               data,
+                                               transform_inputs,
+                                               device)
 
         if 'val_loss' in current_epoch_losses:
             current_epoch_losses["val_loss"].append(loss.item())  # add current iter loss to val loss list.
@@ -292,17 +209,12 @@ def test(args, epoch, model, loader, device,
 
         data = data.to(device)
         with torch.no_grad():
-            if model_name == 'CM_Flow':
-                model, loss, loss_marg_flow_1, loss_marg_flow_2, loss_cop_flow = cm_flow_forward(model,
-                                                                                      data,
-                                                                                      device)
-            else:
-                model, loss = single_model_forward(args,
-                                                   model,
-                                                   model_name,
-                                                   data,
-                                                   transform_inputs,
-                                                   device)
+            model, loss = single_model_forward(args,
+                                               model,
+                                               model_name,
+                                               data,
+                                               transform_inputs,
+                                               device)
         test_loss_name = model_name + '_test_loss'
         if 'test_loss' in test_dict:
             test_dict[test_loss_name].append(loss.item())  # add current iter loss to test loss list.
@@ -388,6 +300,9 @@ def train_val(model, model_name, args, data_loaders, dataset,
     model = load_model(model, args.experiment_saved_models, 'train_model',
                        best_dict['best_validation_epoch'])
 
+    #
+    model.eval()
+
     if not grid_search and not rvine:
 
         # # Load model with best validation epoch
@@ -420,7 +335,6 @@ def train_val(model, model_name, args, data_loaders, dataset,
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
                                           model=model.cop_flow if cm_flow else model,
-                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1: 2]) if args.conditional_copula else None,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
@@ -446,7 +360,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             args.marginal = args.marginal_1
             test_dict = jsd_eval_marginal(marginal=args.marginal_1,
                                           args=args,
-                                          model=model,
+                                          model=model.marg_flow_1,
                                           test_dict=test_dict,
                                           plotname='jsd_pretrain_marginal_0',
                                           cm_flow=True,
@@ -457,45 +371,45 @@ def train_val(model, model_name, args, data_loaders, dataset,
             args.marginal = args.marginal_2
             test_dict = jsd_eval_marginal(marginal=args.marginal_2,
                                           args=args,
-                                          model=model,
+                                          model=model.marg_flow_2,
                                           test_dict=test_dict,
                                           plotname='jsd_pretrain_marginal_1',
                                           cm_flow=True,
                                           marginal_num='1')
 
-        if model_name == 'CM_Flow':
-            # args.marginal = args.marginal_1
-            test_dict = jsd_eval_copula(args,
-                                        best_dict['best_validation_epoch'],
-                                        model,
-                                        data_loaders['test_loader'],
-                                        device=args.device,
-                                        test_dict=test_dict,
-                                        cm_flow=args.cop_flow_part_of_CM_Flow)
+        # if model_name == 'CM_Flow':
+        #     # args.marginal = args.marginal_1
+        #     test_dict = jsd_eval_copula(args,
+        #                                 best_dict['best_validation_epoch'],
+        #                                 model,
+        #                                 data_loaders['test_loader'],
+        #                                 device=args.device,
+        #                                 test_dict=test_dict,
+        #                                 cm_flow=args.cop_flow_part_of_CM_Flow)
 
-            test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
-                                             marginal_2=args.marginal_2,
-                                             args=args,
-                                             model=model,
-                                             test_dict=test_dict,
-                                             plotname='jsd_cm_flow_marginal')
+        #     test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
+        #                                      marginal_2=args.marginal_2,
+        #                                      args=args,
+        #                                      model=model,
+        #                                      test_dict=test_dict,
+        #                                      plotname='jsd_cm_flow_marginal')
             # args.marginal = args.marginal_2
 
-            # Evaluate copula margins on test set
-            test_dict = margin_uniformity(args=args,
-                                          epoch=best_dict['best_validation_epoch'],
-                                          model=model,
-                                          cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
-                                          transform_fct=args.transform_fct,
-                                          test_dict=test_dict,
-                                          num_samples=num_samples)
+            # # Evaluate copula margins on test set
+            # test_dict = margin_uniformity(args=args,
+            #                               epoch=best_dict['best_validation_epoch'],
+            #                               model=model,
+            #                               cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
+            #                               transform_fct=args.transform_fct,
+            #                               test_dict=test_dict,
+            #                               num_samples=num_samples)
 
-            if not error_bars:
-                # Visualize the marginals
-                visualize1D_CM(model=model,
-                               epoch=best_dict['best_validation_epoch'],
-                               args=args,
-                               best_val=True)
+            # if not error_bars:
+            #     # Visualize the marginals
+            #     visualize1D_CM(model=model,
+            #                    epoch=best_dict['best_validation_epoch'],
+            #                    args=args,
+            #                    best_val=True)
 
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)

@@ -13,8 +13,7 @@ python CM_Flow.py \
 --high 1 \
 --theta 2 \
 --obs 10000 \
---pretrain_models
-
+--conditional
 
 echo 'Begin Copula: gumbel Marginal: gaussian Pretrain only'
 
@@ -29,8 +28,7 @@ python CM_Flow.py \
 --var 1 \
 --theta 5 \
 --obs 10000 \
---pretrain_models
-
+--conditional
 
 echo 'Begin Copula: gumbel Marginal: gamma Pretrain only'
 
@@ -46,8 +44,7 @@ python CM_Flow.py \
 --var 1 \
 --theta 5 \
 --obs 10000 \
---pretrain_models
-
+--conditional
 
 echo 'Begin Copula: gumbel Marginal: lognormal Pretrain only'
 
@@ -62,4 +59,4 @@ python CM_Flow.py \
 --var 1 \
 --theta 5 \
 --obs 10000 \
---pretrain_models
+--conditional

@@ -293,9 +293,6 @@ class RVine():
         self.tree_list = []
         self.num_inputs = data.shape[1]
 
-
-
-
         # Initialize empty results dictionary
         self.results_dict = {}
 
@@ -386,6 +383,52 @@ class RVine():
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
         return samples
+
+    def pdf_normal(self, inputs):
+        """Samples from the trained R-Vine.
+
+        Params:
+            num_sampels: how many samples to create
+            transform: whether to transform the outputs using the normal distr. cdf
+
+        Returns:
+            samples
+        """
+        with torch.no_grad():
+            pdf = 1
+            # first: sample multivariate uniform distribution. then, transform the samples accordingly.
+
+            # for each tree, find out which variable was transformed and transform it 'back'
+            for ii in reversed(range(1, len(self.tree_list))):
+                # print('tree number', ii)
+                # dim to be transformed: the one that has no common edge in the previous tree,
+                # the common edge is the condtional input
+                for node in self.tree_list[ii].nodes():
+                    n0, n1 = node
+                    common_node = self.tree_list[ii].nodes[node]['common_node']
+                    if not isinstance(common_node, int):
+                        con_input_node = next(flatten(common_node))
+                    else:
+                        con_input_node = common_node
+                    uncon_input_node = next(flatten(node))
+
+                    cond_node_data = inputs[:, con_input_node:con_input_node + 1]
+                    uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1]
+
+                    best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
+                    model_loader(self.model_con,
+                                 self.args, node,
+                                 best_dict_con['best_validation_epoch'],
+                                 add_name='cop_con',
+                                 send_to_device=True)
+                    self.model_con.to(self.args.device)
+
+                    # pdf
+                    pdf *= np.exp(np.array(self.model_con._forward(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device)).cpu()))
+                    # transformed_marginal = self.model_con._forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device)).reshape(-1, 1)
+                    #samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
+
+        return pdf
 
     def jsd_vinecopula(self, args, true_rvine, obs=10000, sim_data=None, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
