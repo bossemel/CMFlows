@@ -10,6 +10,7 @@ class CMFlow(nn.Module):
                  device, batch_size, args):
         super(CMFlow, self).__init__()
         self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
+        # self.cop_flow = build_model_RealNVP(args)
         self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
         self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
         # self.marg_flow_1 = build_model_DDSF(args)
@@ -24,4 +25,3 @@ class CMFlow(nn.Module):
         self.cop_flow.eval()
         self.marg_flow_1.eval()
         self.marg_flow_2.eval()
-

@@ -45,7 +45,6 @@ class ConditionalFlow(nn.Module):
         self.unconditional_transform = args.unconditional_transform
         self.device = args.device
 
-        self.base_transform_type = 'notaffine'
         distribution = distributions.StandardNormal([dim]).to(args.device)
         transform = transforms.CompositeTransform([
             self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
@@ -68,9 +67,9 @@ class ConditionalFlow(nn.Module):
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
-                min_bin_height=self.min_bin_height,
-                min_bin_width=self.min_bin_width,
-                min_derivative=self.min_derivative,
+                # min_bin_height=self.min_bin_height,
+                # min_bin_width=self.min_bin_width,
+                # min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
         if self.dim == 2:
