@@ -29,7 +29,7 @@ def train_and_plot(visualize=True, continue_from_mode=False):
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
     else:
         rv.estimate_rvine()
-    rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=visualize)
+    rv.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in
                    rv.results_dict.items()}  # save test set metrics in dict format
@@ -40,9 +40,9 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         rv.plot()
         # Simulate and visualize
         samples = rv.sample(num_samples=args.viz_obs)
-        pdf = rv.pdf_normal(inputs=samples)
-        print(pdf[:10])
-        exit()
+        pdf = torch.exp(rv.log_pdf_normal(inputs=samples))
+        #print(pdf[:10])
+
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
         normal_distr = torch.distributions.normal.Normal(0, 1)

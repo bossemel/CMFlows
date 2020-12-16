@@ -10,6 +10,32 @@ import scipy.stats
 from utils.visualizer import visualize_joint
 eps = 0.0001
 
+
+def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
+    inputs[inputs == 0] = eps
+    inputs[inputs == 1] = 1 - eps
+    assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
+    assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
+    normal_distr = scipy.stats.norm()
+    if context is None:
+        recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
+        original_joint = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=None).cpu()))
+        determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
+    elif context is not None and inputs.shape[1] == 1:
+        recast_inputs = normal_distr.ppf(inputs).reshape(-1, 1)
+        recast_context = normal_distr.ppf(context).reshape(-1, 1)
+        original_cond = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=torch.tensor(recast_context).float().to(device)).cpu())).reshape(-1,)
+        original_joint = original_cond * scipy.stats.norm.pdf(recast_context).reshape(-1,)
+        determinant = normal_distr.pdf(recast_inputs).reshape(-1,) * normal_distr.pdf(recast_context).reshape(-1,)
+    else:
+        raise NotImplementedError
+    output = original_joint / determinant
+    assert not np.isnan(output.sum())
+    assert not np.isinf(output.sum())
+    assert np.min(output) >= 0, '{}'.format(np.min(output))
+    return output
+
+
 def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
     visualize_joint(samples_target, args.figures_path, name='samples_target_jsd_{}'.format(name))
     visualize_joint(samples_pred, args.figures_path, name='samples_pred_jsd_{}'.format(name))
@@ -185,6 +211,12 @@ def empty_logdets_context(inputs, device):
 
 def normalize(dataset):
     mean, std = np.mean(dataset), np.std(dataset)
+    dataset = dataset - mean
+    dataset = dataset / std
+    return dataset
+
+def normalize_torch(dataset):
+    mean, std = torch.mean(dataset), torch.std(dataset)
     dataset = dataset - mean
     dataset = dataset / std
     return dataset

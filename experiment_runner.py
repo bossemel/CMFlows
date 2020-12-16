@@ -36,6 +36,8 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
                 loss = model.cop_flow.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
             else:
                 loss = model.cop_flow.loss(data)
+    elif model_name == 'rvine_cop_flow':
+        loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
     else:
         loss = model.loss(data)
 
@@ -74,7 +76,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
                                            data,
                                            transform_inputs,
                                            device)
-
+        assert not torch.isnan(loss)
         if 'train_loss' in current_epoch_losses:
             current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
         else:
@@ -89,10 +91,9 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             elif model_name == 'marg_flow_2':
                 torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip)
             elif model_name == 'cop_flow':
-                if transform_inputs:
-                    torch.nn.utils.clip_grad_norm_(model.cop_flow.parameters(), args.clip)
-                else:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+                torch.nn.utils.clip_grad_norm_(model.cop_flow.parameters(), args.clip)
+            else:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
         if args.scheduler is None:
             args.optimizer.step()

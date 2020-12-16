@@ -246,6 +246,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
 
     model, best_dict_marg_flow_1, best_dict_marg_flow_2 = train_marginals(model, disable_tqdm, error_bars, rvine)
 
+    model.marg_flow_1.eval()
+    model.marg_flow_2.eval()
+
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 

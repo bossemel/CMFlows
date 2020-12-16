@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import scipy
-from utils import sigmoid, t_m_metric_eval, flow_density, js_divergence
+from utils import t_m_metric_eval, flow_density, js_divergence, gaussian_change_of_var_ND
 import numpy as np
 from utils.visualizer import visualize_joint
 import datasets.distributions
@@ -40,10 +40,10 @@ class FlowSequential(nn.Sequential):
 
         return inputs, logdets
 
-    def log_density(self, inputs, cond_inputs=None):
+    def log_density(self, inputs, context=None):
         """Calculates log density of the flow
         """
-        outputs, log_jacob = self(inputs=inputs, cond_inputs=cond_inputs)
+        outputs, log_jacob = self(inputs=inputs, cond_inputs=context)
         density = flow_density(outputs, log_jacob)
         return density
 
@@ -145,9 +145,9 @@ class FlowSequential(nn.Sequential):
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, cond_inputs_uni.cpu())
+                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, cond_inputs_uni.cpu())
             else:
-                prob_X_in_p = gaussian_change_of_var_2D(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
+                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
 
             if args.conditional_copula:
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
@@ -155,10 +155,10 @@ class FlowSequential(nn.Sequential):
                 prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
             if args.conditional_copula:
-                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
+                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
             else:
-                prob_Y_in_p = gaussian_change_of_var_2D(samples_target_uni, self.log_density, args.device)
+                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self.log_density, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0
@@ -206,29 +206,6 @@ class FlowSequential(nn.Sequential):
             t_metric_x1, m_metric_x1 = t_m_metric_eval(margin_x1, intervals)
             t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
             return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
-
-
-def gaussian_change_of_var_2D(inputs, original_pdf, device, context=None):
-    inputs[inputs == 0] = eps
-    inputs[inputs == 1] = 1 - eps
-    assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
-    assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
-    normal_distr = scipy.stats.norm()
-    if context is None:
-        recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
-        original_joint = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), cond_inputs=None).cpu()))
-        determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
-    else:
-        recast_inputs = normal_distr.ppf(inputs).reshape(-1, 1)
-        recast_context = normal_distr.ppf(context).reshape(-1, 1) #@ Todo: implement this line, change input context to uniform
-        original_cond = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), cond_inputs=torch.tensor(recast_context).float().to(device)).cpu())).reshape(-1,)
-        original_joint = original_cond * scipy.stats.norm.pdf(recast_context).reshape(-1,)
-        determinant = normal_distr.pdf(recast_inputs).reshape(-1,) * normal_distr.pdf(recast_context).reshape(-1,)
-    output = original_joint.reshape(-1,) / determinant
-    assert not np.isnan(output.sum())
-    assert not np.isinf(output.sum())
-    assert np.min(output) >= 0, '{}'.format(np.min(output))
-    return output
 
 
 class CouplingLayer(nn.Module):
