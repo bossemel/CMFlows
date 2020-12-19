@@ -8,12 +8,14 @@ from torch.autograd import Variable
 import scipy.special
 import scipy.stats
 from utils.visualizer import visualize_joint
-eps = 0.0001
+eps = 1e-4
 
 
 def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
     inputs[inputs == 0] = eps
     inputs[inputs == 1] = 1 - eps
+    # inputs[inputs == 0.0] = eps
+    # inputs[inputs == 1.0] = 1 - eps
     assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
     assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
     normal_distr = scipy.stats.norm()

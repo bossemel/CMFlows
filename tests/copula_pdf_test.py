@@ -5,7 +5,6 @@ import random
 from utils import js_divergence
 import matplotlib.pyplot as plt
 import seaborn as sns
-import scipy.stats
 
 
 def visualize_joint(data, axis_1_name=None, axis_2_name=None):
