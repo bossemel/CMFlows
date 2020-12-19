@@ -38,14 +38,18 @@ def build_model(args, flow_type='cop_flow'):
             num_inputs = 1
             num_cond_inputs = 1
         else:
-            num_inputs = 2
-            num_cond_inputs = 0
+            if args.four_dim:
+                num_inputs = 4
+                num_cond_inputs = 0
+            else:
+                num_inputs = 2
+                num_cond_inputs = 0
     elif flow_type == 'marg_flow':
         num_inputs = 1
         num_cond_inputs = 0
     else:
         raise ValueError('Unknown flow type')
-
+    print('num inputs', num_inputs)
     flow = flows.ConditionalFlow(dim=num_inputs,
                                  context_dim=num_cond_inputs, args=args)
     return flow

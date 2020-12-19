@@ -22,13 +22,22 @@ class CMFlow(nn.Module):
         elif args.marg_flow == 'DDSF':
             self.marg_flow_1 = build_model_DDSF(args)
             self.marg_flow_2 = build_model_DDSF(args)
+        if args.four_dim:
+            self.marg_flow_1 = build_model_DDSF(args)
+            self.marg_flow_2 = build_model_DDSF(args)
+            self.marg_flow_3 = build_model_DDSF(args)
+            self.marg_flow_4 = build_model_DDSF(args)
 
     def train(self):
         self.cop_flow.train()
         self.marg_flow_1.train()
         self.marg_flow_2.train()
+        self.marg_flow_3.train()
+        self.marg_flow_4.train()
 
     def eval(self):
         self.cop_flow.eval()
         self.marg_flow_1.eval()
         self.marg_flow_2.eval()
+        self.marg_flow_3.eval()
+        self.marg_flow_4.eval()

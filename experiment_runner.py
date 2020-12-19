@@ -21,6 +21,10 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
         loss = model.marg_flow_1.loss(data[:, 0: 1])
     elif model_name == 'marg_flow_2':
         loss = model.marg_flow_2.loss(data[:, 1: 2])
+    elif model_name == 'marg_flow_3':
+        loss = model.marg_flow_3.loss(data[:, 1: 2])
+    elif model_name == 'marg_flow_4':
+        loss = model.marg_flow_4.loss(data[:, 1: 2])
     elif model_name == 'cop_flow':
         if transform_inputs is True:
             with torch.no_grad():
@@ -89,6 +93,10 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             if model_name == 'marg_flow_1':
                 torch.nn.utils.clip_grad_norm_(model.marg_flow_1.parameters(), args.clip)
             elif model_name == 'marg_flow_2':
+                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip)
+            elif model_name == 'marg_flow_3':
+                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip)
+            elif model_name == 'marg_flow_4':
                 torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip)
             elif model_name == 'cop_flow':
                 torch.nn.utils.clip_grad_norm_(model.cop_flow.parameters(), args.clip)

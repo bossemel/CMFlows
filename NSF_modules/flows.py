@@ -8,6 +8,8 @@ from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval, gaussian_change_of_var_ND
 import datasets.distributions
+from RVine_modules.utils import gen_mv_copula
+
 eps = 0.0001
 
 
@@ -72,7 +74,7 @@ class ConditionalFlow(nn.Module):
                 # min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
-        if self.dim == 2:
+        if self.dim >= 2:
             return transforms.PiecewiseRationalQuadraticCouplingTransform(
                 mask=utils.create_alternating_binary_mask(features=self.dim, even=(ii % 2 == 0)),
                 transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
@@ -162,9 +164,15 @@ class ConditionalFlow(nn.Module):
         """
         with torch.no_grad():
             # Get ground truth
-            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
-            true_cop_distr.sampler(obs=num_samples)
-            samples_target_uni = true_cop_distr.xx
+            if not args.four_dim:
+                true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+                true_cop_distr.sampler(obs=num_samples)
+                samples_target_uni = true_cop_distr.xx
+            else:
+                dataset_trn, dim, pv_cop = gen_mv_copula(args)
+                true_cop_distr = pv_cop
+                samples_target_uni = pv_cop.simulate(num_samples)
+
             #samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
             # Samples from both distributions
