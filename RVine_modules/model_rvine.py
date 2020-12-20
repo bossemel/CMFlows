@@ -444,6 +444,13 @@ class RVine():
 
             return torch.from_numpy(pdf)
 
+    def pdf_normal(self, inputs, context=None):
+        return torch.exp(self.log_pdf(inputs, context=context))
+
+    def log_pdf_uniform(self, inputs, context=None):
+        # @Todo: remove log and hcange gaussian change of var accordingly
+        return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
+
     def jsd_vinecopula(self, args, true_cop_distr, num_samples=10000, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
 

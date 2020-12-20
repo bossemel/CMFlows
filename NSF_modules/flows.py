@@ -107,6 +107,13 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
+    def pdf_normal(self, inputs, context=None):
+        return torch.exp(self._forward(inputs, context=context))
+
+    def log_pdf_uniform(self, inputs, context=None):
+        # @Todo: remove log and hcange gaussian change of var accordingly
+        return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
+
     def transform_to_noise(self, inputs, context=None):
         noise, _ = self.flow._transform.forward(inputs, context=context)
         return noise
@@ -149,6 +156,8 @@ class ConditionalFlow(nn.Module):
             self.num_inputs = num_inputs
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
+
+
             noise = noise.to(device)
             if cond_inputs is not None:
                 cond_inputs = cond_inputs.to(device)

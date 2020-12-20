@@ -5,7 +5,8 @@ from datasets.distributions import marginal_transform
 from utils import normalize
 import numpy as np
 import torch
-
+import scipy.stats
+eps = 0.001
 
 def gen_mv_copula(args, theta):
     if args.mix is False:
@@ -36,6 +37,37 @@ def gen_mv_copula(args, theta):
             copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha))
     assert not np.isnan(np.sum(copula_samples)), '{}'.format(copula_samples[np.isnan(copula_samples)])
     return torch.from_numpy(copula_samples), copula_samples.shape[1], copula
+
+
+def jsd_changevar(pdf_1, samples_1, pdf_2, samples_2, text):
+    # Prob X in both distributions
+    X_in_p = gaussian_change_of_var_ND(samples_1, pdf_1)
+    X_in_q = gaussian_change_of_var_ND(samples_1, pdf_2)
+
+    # Prob Y in both distributions
+    Y_in_p = gaussian_change_of_var_ND(samples_2, pdf_1)
+    Y_in_q = gaussian_change_of_var_ND(samples_2, pdf_2)
+
+    print(text)
+    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
+
+
+def gaussian_change_of_var_ND(inputs, original_pdf):
+    inputs[inputs == 0] = eps
+    inputs[inputs == 1] = 1 - eps
+    # inputs[inputs == 0.0] = eps
+    # inputs[inputs == 1.0] = 1 - eps
+    assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
+    assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
+    normal_distr = scipy.stats.norm()
+    recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
+    original_joint = np.array(original_pdf(recast_inputs))
+    determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
+    output = original_joint / determinant
+    assert not np.isnan(output.sum())
+    assert not np.isinf(output.sum())
+    assert np.min(output) >= 0, '{}'.format(np.min(output))
+    return output
 
 
 if __name__ == '__main__':
@@ -110,3 +142,14 @@ if __name__ == '__main__':
     Y_in_q = pv_cop_2.pdf(untransformed_samples_2)
 
     print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
+
+    # Should be bigger:
+    print('Should be just as big: ')
+    args.copula = 'clayton'
+    __, __, pv_cop_2 = gen_mv_copula(args, theta=27)
+    untransformed_samples_2 = pv_cop_2.simulate(args.viz_obs)
+    normal = scipy.stats.norm()
+    untransformed_samples = normal.cdf(untransformed_samples)
+    untransformed_samples_2 = normal.cdf(untransformed_samples_2)
+
+    print(jsd_changevar(pv_cop.pdf, untransformed_samples, pv_cop_2.pdf, untransformed_samples_2, 'JSD Change var: '))

@@ -1,93 +1,81 @@
 import datasets.distributions
-import argparse
 import numpy as np
 import random
 from utils import js_divergence
-import matplotlib.pyplot as plt
-import seaborn as sns
+import unittest
 
 
-def visualize_joint(data, axis_1_name=None, axis_2_name=None):
-    """Visualize 2D distribution as a seaborn jointplot.
-    """
-    if axis_1_name is None:
-        axis_1_name = 'X1'
-    if axis_2_name is None:
-        axis_2_name = 'X2'
+class Test_Copula_PDF(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(Test_Copula_PDF, self).__init__(*args, **kwargs)
+        self.obs = 10000
+        self.theta = 2
+        self.transform_fct = 'gaussian'
+        self.copula = 'clayton'
 
-    fig = plt.figure()
-    fig = sns.jointplot(data[:, 0], data[:, 1], kind='hex', stat_func=None)
-    fig.set_axis_labels(axis_1_name, axis_2_name, fontsize=16)
-    plt.show()
+    def test_one_copula_same_sample(self):
+        copula_distr = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr.sampler(obs=self.obs)
+        xx = copula_distr.xx
+        X_in_p = copula_distr.pdf(xx)
+        X_in_q = copula_distr.pdf(xx)
+        jsd_X = js_divergence(X_in_p, X_in_q, X_in_p, X_in_q)
+        self.assertEqual(jsd_X, 0)
+
+    def test_different_theta(self):
+        copula_distr_1 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_1.sampler(obs=self.obs)
+        xx_1 = copula_distr_1.xx
+        self.theta = 1.5
+        copula_distr_2 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_2.sampler(obs=self.obs)
+        xx_2 = copula_distr_2.xx
+
+        X_in_p = copula_distr_1.pdf(xx_1)
+        X_in_q = copula_distr_2.pdf(xx_1)
+        Y_in_p = copula_distr_1.pdf(xx_2)
+        Y_in_q = copula_distr_2.pdf(xx_2)
+        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+        self.assertTrue(jsd_X_Y > 0 and jsd_X_Y <= 0.01)
+
+    def test_clayton_frank(self):
+        self.theta = 2
+        copula_distr_1 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_1.sampler(obs=self.obs)
+        xx_1 = copula_distr_1.xx
+        self.copula = 'frank'
+        copula_distr_2 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_2.sampler(obs=self.obs)
+        xx_2 = copula_distr_2.xx
+
+        X_in_p = copula_distr_1.pdf(xx_1)
+        X_in_q = copula_distr_2.pdf(xx_1)
+        Y_in_p = copula_distr_1.pdf(xx_2)
+        Y_in_q = copula_distr_2.pdf(xx_2)
+        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+        self.assertTrue(jsd_X_Y > 0 and jsd_X_Y <= 0.2)
+
+    def test_clayton_gumbel(self):
+        self.theta = 2
+        copula_distr_1 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_1.sampler(obs=self.obs)
+        xx_1 = copula_distr_1.xx
+        self.theta = 5
+        self.copula = 'gumbel'
+        copula_distr_2 = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
+        copula_distr_2.sampler(obs=self.obs)
+        xx_2 = copula_distr_2.xx
+
+        X_in_p = copula_distr_1.pdf(xx_1)
+        X_in_q = copula_distr_2.pdf(xx_1)
+        Y_in_p = copula_distr_1.pdf(xx_2)
+        Y_in_q = copula_distr_2.pdf(xx_2)
+        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+        self.assertTrue(jsd_X_Y > 0 and jsd_X_Y <= 0.3)
 
 
 if __name__ == '__main__':
-
-    args = argparse.ArgumentParser(description='PyTorch Flows')
-    args.random_seed = 2
-
-    # Set Seed
-    np.random.seed(args.random_seed)
-    random.seed(args.random_seed)
-
-    args.theta = 2
-    args.obs = 10000
-    args.transform_fct = 'gaussian'
-    args.copula = 'clayton'
-    copula_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-    copula_distr.sampler(obs=10000)
-    xx = copula_distr.xx
-
-    cop_pdf_values = copula_distr.pdf(xx)
-    print(cop_pdf_values.shape)
-    print(cop_pdf_values[:10])
-
-    print('Should be zero:')
-
-    X_in_p = copula_distr.pdf(xx)
-    X_in_q = copula_distr.pdf(xx)
-    Y_in_p = copula_distr.pdf(xx)
-    Y_in_q = copula_distr.pdf(xx)
-
-    print(js_divergence(X_in_p, X_in_q, X_in_p, X_in_q))
-
-    print('Should be small:')
-    args.theta = 1.5
-    copula_distr_2 = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-    copula_distr_2.sampler(obs=10000)
-    xx_2 = copula_distr_2.xx
-
-    X_in_p = copula_distr.pdf(xx)
-    X_in_q = copula_distr_2.pdf(xx)
-    Y_in_p = copula_distr.pdf(xx_2)
-    Y_in_q = copula_distr_2.pdf(xx_2)
-
-    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
-
-    print('Should be bigger:')
-    args.theta = 2
-    args.copula = 'frank'
-    copula_distr_2 = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-    copula_distr_2.sampler(obs=10000)
-    xx_2 = copula_distr_2.xx
-
-    X_in_p = copula_distr.pdf(xx)
-    X_in_q = copula_distr_2.pdf(xx)
-    Y_in_p = copula_distr.pdf(xx_2)
-    Y_in_q = copula_distr_2.pdf(xx_2)
-
-    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
-
-    print('Should be bigger:')
-    args.theta = 5
-    args.copula = 'gumbel'
-    copula_distr_2 = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs)
-    copula_distr_2.sampler(obs=10000)
-    xx_2 = copula_distr_2.xx
-
-    X_in_p = copula_distr.pdf(xx)
-    X_in_q = copula_distr_2.pdf(xx)
-    Y_in_p = copula_distr.pdf(xx_2)
-    Y_in_q = copula_distr_2.pdf(xx_2)
-
-    print(js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q))
+    for random_seed in range(5):
+        np.random.seed(random_seed)
+        random.seed(random_seed)
+        unittest.main()
