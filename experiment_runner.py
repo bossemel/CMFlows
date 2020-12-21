@@ -35,11 +35,11 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
                 loss = model.cop_flow.loss(outputs_marg_flows)
             else:
                 loss = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2)
+    elif model_name == 'cop_flow_NSF':
+        if args.conditional_copula:
+            loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
         else:
-            if args.conditional_copula:
-                loss = model.cop_flow.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
-            else:
-                loss = model.cop_flow.loss(data)
+            loss = model.loss(data)
     elif model_name == 'rvine_cop_flow':
         loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
     else:
@@ -332,7 +332,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
         num_samples = int(0.2 * args.obs)
 
         # Calculate Jensen-Shannon Divergence of copula
-        if model_name == 'cop_flow':
+        if model_name == 'cop_flow' or model_name == 'cop_flow_NSF':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
                                         model.cop_flow if cm_flow else model,

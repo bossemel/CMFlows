@@ -14,23 +14,18 @@ eps = 1e-4
 def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
     inputs[inputs == 0] = eps
     inputs[inputs == 1] = 1 - eps
-    # inputs[inputs == 0.0] = eps
-    # inputs[inputs == 1.0] = 1 - eps
     assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
     assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
     normal_distr = scipy.stats.norm()
-    if context is None:
-        recast_inputs = np.apply_along_axis(normal_distr.ppf, 1, inputs)
-        original_joint = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=None).cpu()))
-        determinant = normal_distr.pdf(recast_inputs).prod(axis=1)
-    elif context is not None and inputs.shape[1] == 1:
-        recast_inputs = normal_distr.ppf(inputs).reshape(-1, 1)
-        recast_context = normal_distr.ppf(context).reshape(-1, 1)
-        original_cond = np.exp(np.array(original_pdf(torch.tensor(recast_inputs).float().to(device), context=torch.tensor(recast_context).float().to(device)).cpu())).reshape(-1,)
-        original_joint = original_cond * scipy.stats.norm.pdf(recast_context).reshape(-1,)
-        determinant = normal_distr.pdf(recast_inputs).reshape(-1,) * normal_distr.pdf(recast_context).reshape(-1,)
+    recast_context = None if context is None else torch.from_numpy(normal_distr.ppf(context).reshape(-1, 1)).float()
+    if inputs.shape != (inputs.shape[0],):
+        recast_inputs = torch.from_numpy(np.apply_along_axis(normal_distr.ppf, 1, inputs)).float().to(device)
     else:
-        raise NotImplementedError
+        recast_inputs = torch.from_numpy(normal_distr.ppf(inputs).reshape(-1, 1)).float().to(device)
+    original_joint = np.array(original_pdf(recast_inputs, context=recast_context).cpu())
+    determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1)
+    if context is not None:
+        determinant *= normal_distr.pdf(recast_context).reshape(-1,)
     output = original_joint / determinant
     assert not np.isnan(output.sum())
     assert not np.isinf(output.sum())

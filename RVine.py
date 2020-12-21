@@ -39,8 +39,8 @@ def train_and_plot(visualize=True, continue_from_mode=False):
     if visualize:
         rv.plot()
         # Simulate and visualize
-        samples = rv.sample(num_samples=args.viz_obs)
-        pdf = torch.exp(rv.log_pdf(inputs=samples))
+        samples = rv.sample(num_samples=args.viz_obs, transform=True)
+        pdf = rv.pdf_uniform(inputs=samples.numpy())
         #print(pdf[:10])
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)

@@ -20,6 +20,7 @@ class ConditionalFlow(nn.Module):
         self.dim = dim
         self.num_inputs = dim
         self.context_dim = context_dim
+        self.device = args.device
 
         if context_dim == 0 and dim == 1:
             args.flow_type = 'marg_flow'
@@ -108,11 +109,15 @@ class ConditionalFlow(nn.Module):
         return log_density
 
     def pdf_normal(self, inputs, context=None):
-        return torch.exp(self._forward(inputs, context=context))
+        # Here: context normally distirbuted
+        normal_distr = scipy.stats.norm()
+        if context is None:
+            return torch.exp(self._forward(inputs, context=context))
+        else:
+            return torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
 
-    def log_pdf_uniform(self, inputs, context=None):
-        # @Todo: remove log and hcange gaussian change of var accordingly
-        return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
+    def pdf_uniform(self, inputs, context=None):
+        return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
 
     def transform_to_noise(self, inputs, context=None):
         noise, _ = self.flow._transform.forward(inputs, context=context)
@@ -188,7 +193,10 @@ class ConditionalFlow(nn.Module):
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
-                cond_inputs_uni = normal_distr.cdf(cond_inputs_normal)
+                cond_inputs_uni = normal_distr.cdf(cond_inputs_normal).cpu()
+            else:
+                cond_inputs_normal = None
+                cond_inputs_uni = None
 
             #samples_pred_norm = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, transform=None, device=args.device)
             samples_pred_uni = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
@@ -217,21 +225,21 @@ class ConditionalFlow(nn.Module):
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, cond_inputs_uni.cpu())
+                prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0].cpu()), context=cond_inputs_uni)
+                #gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, cond_inputs_uni.cpu())
             else:
-                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self._forward, args.device)
+                prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
 
-            if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
-            else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+            prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
+                prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=torch.tensor(samples_target_uni[:, 1:2]).float())
+                #gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
             else:
-                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self._forward, args.device)
+                prob_Y_in_p = self.pdf_uniform(samples_target_uni)
+                #gaussian_change_of_var_ND(samples_target_uni, self._forward, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0

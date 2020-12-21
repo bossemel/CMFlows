@@ -49,7 +49,6 @@ def build_model(args, flow_type='cop_flow'):
         num_cond_inputs = 0
     else:
         raise ValueError('Unknown flow type')
-    print('num inputs', num_inputs)
     flow = flows.ConditionalFlow(dim=num_inputs,
                                  context_dim=num_cond_inputs, args=args)
     return flow
@@ -169,7 +168,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name=args.flow_type,
+                                     model_name=args.flow_type + '_NSF',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,

@@ -386,7 +386,6 @@ class RVine():
 
                     # inverse H-function
                     transformed_marginal, __ = self.cop_flow.flow._transform.inverse(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                    # transformed_marginal = self.cop_flow._forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device)).reshape(-1, 1)
                     samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
         if transform:
@@ -395,7 +394,7 @@ class RVine():
         return samples
 
 
-    def log_pdf(self, inputs, context=None):
+    def pdf_normal(self, inputs, context=None):
         """Samples from the trained R-Vine.
 
         Params:
@@ -406,11 +405,11 @@ class RVine():
             samples
         """
         with torch.no_grad():
-            pdf = np.zeros((inputs.shape[0]))
-
+            pdf = torch.ones((inputs.shape[0]))
+            assert torch.max(inputs) > 1
             normal = scipy.stats.norm()
             # for dim in range(inputs.shape[1]):
-            #     pdf += np.log(normal.pdf(inputs[:, dim].cpu()).reshape(-1,))
+            #     pdf *= normal.pdf(inputs[:, dim].cpu()).reshape(-1,)
             for ii in range(1, len(self.tree_list)):
                 for node in self.tree_list[ii].nodes():
                     n0, n1 = node
@@ -421,8 +420,8 @@ class RVine():
                         con_input_node = common_node
                     uncon_input_node = next(flatten(node))
                     print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
-                    cond_node_data = inputs[:, con_input_node:con_input_node + 1]
-                    uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1]
+                    cond_node_data = inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
+                    uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1].to(self.args.device)
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.cop_flow,
@@ -431,25 +430,29 @@ class RVine():
                                  add_name='cop_con',
                                  send_to_device=True)
                     self.cop_flow.to(self.args.device)
-
-                    pdf += np.array(self.cop_flow._forward(uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device)).cpu())
-                    pdf += np.log(normal.pdf(cond_node_data.cpu()).reshape(-1,))
+                    pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
+                    #pdf += np.array(self.cop_flow._forward(uncon_node_data, context=cond_node_data.to(self.args.device)).cpu())
+                    pdf *= normal.pdf(uncon_node_data.cpu()).reshape(-1,)
                     assert pdf.shape == (inputs.shape[0],)
                     #  H-function
-                    #transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                    #inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+                    # transformed_marginal, __ = self.cop_flow.flow._transform.inverse(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
+                    # inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
+                    transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
+                    inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
 
-            assert np.min(np.exp(pdf)) > 0
+            assert torch.min(pdf) >= 0
             #pdf += np.log(normal.pdf(cond_node_data.cpu()).reshape(-1,))
 
-            return torch.from_numpy(pdf)
+            return pdf
 
-    def pdf_normal(self, inputs, context=None):
-        return torch.exp(self.log_pdf(inputs, context=context))
+    # def pdf_normal(self, inputs, context=None):
+    #     return torch.exp(self.log_pdf(inputs, context=context))
+    def pdf_uniform(self, inputs):
+        return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.args.device)
 
-    def log_pdf_uniform(self, inputs, context=None):
-        # @Todo: remove log and hcange gaussian change of var accordingly
-        return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
+    # def log_pdf_uniform(self, inputs, context=None):
+    #     # @Todo: remove log and hcange gaussian change of var accordingly
+    #     return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
 
     def jsd_vinecopula(self, args, true_cop_distr, num_samples=10000, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
@@ -513,26 +516,18 @@ class RVine():
             assert np.min(samples_target_uni) >= 0
 
             # Prob X in both distributions
-            prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_pdf, args.device)
+            prob_X_in_p = self.pdf_uniform(samples_pred_uni.cpu().numpy())
+            #gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_pdf, args.device)
             prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
             # Prob Y in both distributions
-            prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self.log_pdf, args.device)
+            prob_Y_in_p = self.pdf_uniform(samples_target_uni) #gaussian_change_of_var_ND(samples_target_uni, self.log_pdf, args.device)
             prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
-            # # RealNVP outputs the density directly, but not the transformation to
-            # # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-            # pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
-            # true_rvine = scipy.stats.gaussian_kde(samples_target.T)
-            # # Note, that uniform samples means the transformed samples
-
-            # # Prob X in both distributions
-            # prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
-            # prob_X_in_q = true_rvine.pdf(samples_pred.cpu().numpy().T).T
-
-            # # Prob Y in both distributions
-            # prob_Y_in_q = true_rvine.pdf(samples_target.T).T
-            # prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            print('prob_X_in_p', prob_X_in_p.mean())
+            print('prob_X_in_q', prob_X_in_q.mean())
+            print('prob_Y_in_p', prob_Y_in_p.mean())
+            print('prob_Y_in_q', prob_Y_in_q.mean())
 
             assert np.min(prob_X_in_p) >= 0
             assert np.min(prob_X_in_q) >= 0
@@ -552,6 +547,25 @@ class RVine():
             print('MC-JSD Vine Copula: {}'.format(divergence))
 
             self.results_dict['MC_JSD Vine Copula'] = divergence
+
+            # RealNVP outputs the density directly, but not the transformation to
+            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+            pred_distr = scipy.stats.gaussian_kde(samples_pred_uni.cpu().numpy().T)
+            true_rvine = scipy.stats.gaussian_kde(samples_target_uni.T)
+            # Note, that uniform samples means the transformed samples
+
+            # Prob X in both distributions
+            prob_X_in_p = pred_distr.pdf(samples_pred_uni.cpu().numpy().T).T
+            prob_X_in_q = true_rvine.pdf(samples_pred_uni.cpu().numpy().T).T
+
+            # Prob Y in both distributions
+            prob_Y_in_q = true_rvine.pdf(samples_target_uni.T).T
+            prob_Y_in_p = pred_distr.pdf(samples_target_uni.T).T
+            divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
+                                       prob_X_in_q=prob_X_in_q,
+                                       prob_Y_in_p=prob_Y_in_p,
+                                       prob_Y_in_q=prob_Y_in_q)
+            print(divergence_2)
             return divergence
 
     def plot(self):

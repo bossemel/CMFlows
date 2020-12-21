@@ -23,6 +23,8 @@ class TrainOptions():
             '--train_cm_flow', action='store_true', help='whether to train combined nsf Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
+        parser.add_argument(
+            '--four_dim', action='store_true')
 
         # Training options
         parser.add_argument(
