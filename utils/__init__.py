@@ -22,8 +22,16 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
         recast_inputs = torch.from_numpy(np.apply_along_axis(normal_distr.ppf, 1, inputs)).float().to(device)
     else:
         recast_inputs = torch.from_numpy(normal_distr.ppf(inputs).reshape(-1, 1)).float().to(device)
-    original_joint = np.array(original_pdf(recast_inputs, context=recast_context).cpu())
-    determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1)
+    if context is not None:
+        original_joint = np.array(original_pdf(recast_inputs, context=recast_context).cpu()).reshape(-1,)
+    else:
+        original_joint = np.array(original_pdf(recast_inputs)).reshape(-1,)
+
+    if inputs.shape != (inputs.shape[0],):
+        determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1).reshape(-1,)
+    else:
+        determinant = normal_distr.pdf(recast_inputs.cpu()).reshape(-1,)
+
     if context is not None:
         determinant *= normal_distr.pdf(recast_context).reshape(-1,)
     output = original_joint / determinant

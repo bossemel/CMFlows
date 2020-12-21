@@ -110,14 +110,16 @@ class ConditionalFlow(nn.Module):
 
     def pdf_normal(self, inputs, context=None):
         # Here: context normally distirbuted
-        normal_distr = scipy.stats.norm()
-        if context is None:
-            return torch.exp(self._forward(inputs, context=context))
-        else:
-            return torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
+        with torch.no_grad():
+            normal_distr = scipy.stats.norm()
+            if context is None:
+                return torch.exp(self._forward(inputs, context=context))
+            else:
+                return torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
 
     def pdf_uniform(self, inputs, context=None):
-        return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
+        with torch.no_grad():
+            return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
 
     def transform_to_noise(self, inputs, context=None):
         noise, _ = self.flow._transform.forward(inputs, context=context)

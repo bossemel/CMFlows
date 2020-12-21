@@ -141,7 +141,7 @@ class TrainOptions():
         parser.add_argument(
             '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path', type=str, default='figures_rvine', help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
         parser.add_argument(
@@ -186,10 +186,10 @@ class TrainOptions():
         message += '----------------- End -------------------'
         print(message)
 
-    def parse(self):
+    def parse(self, print=True):
         """Parse our options, create checkpoints directory suffix, and set up gpu device."""
         opt = self.gather_options()
-
-        self.print_options(opt)
+        if print:
+            self.print_options(opt)
         self.opt = opt
         return self.opt

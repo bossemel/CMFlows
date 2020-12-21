@@ -164,7 +164,7 @@ def add_new_node(self, common_node, edge, plots):
         edge: edge to train flow for
         plots: boolean indicating whether to create plots
     """
-    cond_node_data, uncon_node_data, edge = assign_distr_to_nodes(edge, common_node, self.current_tree, tree_num=len(self.tree_list))
+    uncon_node_data, cond_node_data, edge = assign_distr_to_nodes(edge, common_node, self.current_tree, tree_num=len(self.tree_list))
     edge_str = re.sub('[, ()]', '', str(edge))
 
     dataset, data_loaders = create_dataset(uncon_node_data, cond_node_data, self.args)
@@ -232,8 +232,9 @@ def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
         edge: edge, possible switched around to allow the very first entry to be the conditional
     """
     n0, n1 = edge
+    print('n0, n1, common node', n0, n1, common_node)
+    print('Tree {}, common node {}'.format(tree_num, common_node))
     if n0 == common_node or n0 in common_node:
-        print('Tree {}, common node {}'.format(tree_num, common_node))
         cond_node_data = current_tree.nodes[n0]['node_data']
         uncon_node_data = current_tree.nodes[n1]['node_data']
         edge = n1, n0
@@ -242,7 +243,7 @@ def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
         uncon_node_data = current_tree.nodes[n0]['node_data']
     else:
         raise ValueError('No common node found.')
-    return cond_node_data, uncon_node_data, edge
+    return uncon_node_data, cond_node_data, edge
 
 
 class RVine():
@@ -297,52 +298,6 @@ class RVine():
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
             self.graph_list.append(self.current_graph)
 
-    # def sample(self, num_samples=1000, transform=False):
-    #     """Samples from the trained R-Vine.
-    #     Params:
-    #         num_sampels: how many samples to create
-    #         transform: whether to transform the outputs using the normal distr. cdf
-    #     Returns:
-    #         samples
-    #     """
-    #     with torch.no_grad():
-    #         # first: sample multivariate uniform distribution. then, transform the samples accordingly.
-    #         samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-
-    #         # for each tree, find out which variable was transformed and transform it 'back'
-    #         for ii in reversed(range(1, len(self.tree_list))):
-    #             # print('tree number', ii)
-    #             # dim to be transformed: the one that has no common edge in the previous tree,
-    #             # the common edge is the condtional input
-    #             for node in self.tree_list[ii].nodes():
-    #                 n0, n1 = node
-    #                 common_node = self.tree_list[ii].nodes[node]['common_node']
-    #                 if not isinstance(common_node, int):
-    #                     con_input_node = next(flatten(common_node))
-    #                 else:
-    #                     con_input_node = common_node
-    #                 uncon_input_node = next(flatten(node))
-
-    #                 cond_node_data = samples[:, con_input_node:con_input_node + 1]
-    #                 uncon_node_data = samples[:, uncon_input_node:uncon_input_node + 1]
-
-    #                 best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
-    #                 model_loader(self.cop_flow,
-    #                              self.args, node,
-    #                              best_dict_con['best_validation_epoch'],
-    #                              add_name='rvine_cop_flow',
-    #                              send_to_device=True)
-    #                 self.cop_flow.to(self.args.device)
-
-    #                 # inverse H-function
-    #                 transformed_marginal, __ = self.cop_flow.flow._transform.inverse(uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
-    #                 # transformed_marginal = self.model_con._forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device)).reshape(-1, 1)
-    #                 samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
-
-    #     if transform:
-    #         normal_distr = torch.distributions.normal.Normal(0, 1)
-    #         samples = normal_distr.cdf(samples)
-    #     return samples
 
     def sample(self, num_samples=1000, transform=False):
         """Samples from the trained R-Vine.
@@ -355,9 +310,10 @@ class RVine():
             samples
         """
         with torch.no_grad():
+            transformed = []
+
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
@@ -365,6 +321,7 @@ class RVine():
                 # dim to be transformed: the one that has no common edge in the previous tree,
                 # the common edge is the condtional input
                 for node in self.tree_list[ii].nodes():
+                    print('tree', ii, 'node', node)
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
                     if not isinstance(common_node, int):
@@ -372,27 +329,29 @@ class RVine():
                     else:
                         con_input_node = common_node
                     uncon_input_node = next(flatten(node))
-                    print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
-                    cond_node_data = samples[:, con_input_node:con_input_node + 1]
-                    uncon_node_data = samples[:, uncon_input_node:uncon_input_node + 1]
+                    if uncon_input_node not in transformed:
 
-                    best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
-                    model_loader(self.cop_flow,
-                                 self.args, node,
-                                 best_dict_con['best_validation_epoch'],
-                                 add_name='cop_con',
-                                 send_to_device=True)
-                    self.cop_flow.to(self.args.device)
+                        print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
+                        cond_node_data = samples[:, con_input_node:con_input_node + 1]
+                        uncon_node_data = samples[:, uncon_input_node:uncon_input_node + 1]
 
-                    # inverse H-function
-                    transformed_marginal, __ = self.cop_flow.flow._transform.inverse(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                    samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
+                        best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
+                        model_loader(self.cop_flow,
+                                     self.args, node,
+                                     best_dict_con['best_validation_epoch'],
+                                     add_name='cop_con',
+                                     send_to_device=True)
+                        self.cop_flow.to(self.args.device)
+
+                        # inverse H-function
+                        transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
+                        samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
+                        transformed.append(uncon_input_node)
 
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
             samples = normal_distr.cdf(samples)
         return samples
-
 
     def pdf_normal(self, inputs, context=None):
         """Samples from the trained R-Vine.
@@ -405,13 +364,13 @@ class RVine():
             samples
         """
         with torch.no_grad():
+            normal_distr = scipy.stats.norm()
+            transformed = []
             pdf = torch.ones((inputs.shape[0]))
             assert torch.max(inputs) > 1
-            normal = scipy.stats.norm()
-            # for dim in range(inputs.shape[1]):
-            #     pdf *= normal.pdf(inputs[:, dim].cpu()).reshape(-1,)
             for ii in range(1, len(self.tree_list)):
                 for node in self.tree_list[ii].nodes():
+                    print('tree', ii, 'node', node)
                     n0, n1 = node
                     common_node = self.tree_list[ii].nodes[node]['common_node']
                     if not isinstance(common_node, int):
@@ -419,36 +378,36 @@ class RVine():
                     else:
                         con_input_node = common_node
                     uncon_input_node = next(flatten(node))
-                    print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
-                    cond_node_data = inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
-                    uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1].to(self.args.device)
+                    if uncon_input_node not in transformed:
+                        print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
+                        cond_node_data = inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
+                        uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1].to(self.args.device)
 
-                    best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
-                    model_loader(self.cop_flow,
-                                 self.args, node,
-                                 best_dict_con['best_validation_epoch'],
-                                 add_name='cop_con',
-                                 send_to_device=True)
-                    self.cop_flow.to(self.args.device)
-                    pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
-                    #pdf += np.array(self.cop_flow._forward(uncon_node_data, context=cond_node_data.to(self.args.device)).cpu())
-                    pdf *= normal.pdf(uncon_node_data.cpu()).reshape(-1,)
-                    assert pdf.shape == (inputs.shape[0],)
-                    #  H-function
-                    # transformed_marginal, __ = self.cop_flow.flow._transform.inverse(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                    # inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
-                    transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                    inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+                        best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
+                        model_loader(self.cop_flow,
+                                     self.args, node,
+                                     best_dict_con['best_validation_epoch'],
+                                     add_name='cop_con',
+                                     send_to_device=True)
+                        self.cop_flow.to(self.args.device)
+                        pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
+                        #pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,)
+                        assert pdf.shape == (inputs.shape[0],)
+
+                        transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
+                        inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+
+                        transformed.append(uncon_input_node)
 
             assert torch.min(pdf) >= 0
-            #pdf += np.log(normal.pdf(cond_node_data.cpu()).reshape(-1,))
-
+            print('pdf', pdf)
             return pdf
 
     # def pdf_normal(self, inputs, context=None):
     #     return torch.exp(self.log_pdf(inputs, context=context))
     def pdf_uniform(self, inputs):
-        return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.args.device)
+        with torch.no_grad():
+            return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.args.device)
 
     # def log_pdf_uniform(self, inputs, context=None):
     #     # @Todo: remove log and hcange gaussian change of var accordingly
@@ -562,9 +521,9 @@ class RVine():
             prob_Y_in_q = true_rvine.pdf(samples_target_uni.T).T
             prob_Y_in_p = pred_distr.pdf(samples_target_uni.T).T
             divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
-                                       prob_X_in_q=prob_X_in_q,
-                                       prob_Y_in_p=prob_Y_in_p,
-                                       prob_Y_in_q=prob_Y_in_q)
+                                         prob_X_in_q=prob_X_in_q,
+                                         prob_Y_in_p=prob_Y_in_p,
+                                         prob_Y_in_q=prob_Y_in_q)
             print(divergence_2)
             return divergence
 
@@ -602,19 +561,19 @@ class Rvine_data():
         self.val = val.float().cpu()
 
 
-def create_dataset(dim1, dim2, args):
+def create_dataset(uncon_node_data, con_node_data, args):
     """Creates a two dimensional dataset as needed for CM Flows given the data from each edge.
 
     Params:
-        dim1: data from first dimension
-        dim2: data from second dimension
+        uncon_node_data: data from first dimension
+        con_node_data: data from second dimension
         args: passed arguments
 
     Returns:
         dataset: full dataset
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
-    dataset = Rvine_data(dim1, dim2)
+    dataset = Rvine_data(uncon_node_data, con_node_data)
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     # train_tensor = torch.from_numpy(dataset.trn)
@@ -632,7 +591,7 @@ def create_dataset(dim1, dim2, args):
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
         batch_size=args.batch_size,
-        shuffle=False,
+        shuffle=True,
         drop_last=False,
         **kwargs)
 
