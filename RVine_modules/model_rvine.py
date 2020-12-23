@@ -96,6 +96,7 @@ def initialize_graph(self):
 
             # Transform inputs using the trained marginal flow
             with torch.no_grad():
+                self.marg_flow.eval()
                 self.data = self.data.to(self.args.device)
                 if self.args.marg_flow == 'NSF':
                     transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
@@ -200,6 +201,7 @@ def add_new_node(self, common_node, edge, plots):
     model_loader(self.cop_flow, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
+        self.cop_flow.eval()
         node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
         self.new_graph.add_node(edge,
                                 node_data=node_data,
@@ -342,6 +344,7 @@ class RVine():
                                      add_name='cop_con',
                                      send_to_device=True)
                         self.cop_flow.to(self.args.device)
+                        self.cop_flow.eval()
 
                         # inverse H-function
                         transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
@@ -367,7 +370,7 @@ class RVine():
             normal_distr = scipy.stats.norm()
             transformed = []
             pdf = torch.ones((inputs.shape[0]))
-            assert torch.max(inputs) > 1
+            #assert torch.max(inputs) > 1
             for ii in range(1, len(self.tree_list)):
                 for node in self.tree_list[ii].nodes():
                     print('tree', ii, 'node', node)
@@ -390,8 +393,10 @@ class RVine():
                                      add_name='cop_con',
                                      send_to_device=True)
                         self.cop_flow.to(self.args.device)
+                        self.cop_flow.eval()
+
                         pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
-                        #pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,)
+                        #pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,) # @Todo: find out if this is neccessary
                         assert pdf.shape == (inputs.shape[0],)
 
                         transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
@@ -400,18 +405,11 @@ class RVine():
                         transformed.append(uncon_input_node)
 
             assert torch.min(pdf) >= 0
-            print('pdf', pdf)
             return pdf
 
-    # def pdf_normal(self, inputs, context=None):
-    #     return torch.exp(self.log_pdf(inputs, context=context))
-    def pdf_uniform(self, inputs):
+    def pdf_uniform(self, inputs, device=None):
         with torch.no_grad():
             return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.args.device)
-
-    # def log_pdf_uniform(self, inputs, context=None):
-    #     # @Todo: remove log and hcange gaussian change of var accordingly
-    #     return gaussian_change_of_var_ND(inputs, self.log_pdf, self.args.device)
 
     def jsd_vinecopula(self, args, true_cop_distr, num_samples=10000, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.

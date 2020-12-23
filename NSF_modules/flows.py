@@ -113,9 +113,10 @@ class ConditionalFlow(nn.Module):
         with torch.no_grad():
             normal_distr = scipy.stats.norm()
             if context is None:
-                return torch.exp(self._forward(inputs, context=context))
+                pdf = torch.exp(self._forward(inputs, context=context))
             else:
-                return torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
+                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
+            return pdf
 
     def pdf_uniform(self, inputs, context=None):
         with torch.no_grad():
@@ -227,7 +228,7 @@ class ConditionalFlow(nn.Module):
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0].cpu()), context=cond_inputs_uni)
+                prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=cond_inputs_uni.numpy())
                 #gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, cond_inputs_uni.cpu())
             else:
                 prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
@@ -236,7 +237,7 @@ class ConditionalFlow(nn.Module):
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=torch.tensor(samples_target_uni[:, 1:2]).float())
+                prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
                 #gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
             else:

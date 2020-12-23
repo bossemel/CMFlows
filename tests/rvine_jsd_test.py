@@ -81,14 +81,12 @@ class Test_Rvine_2D(unittest.TestCase):
         self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 1
+        self.args.epochs = 20
         self.args.obs = 10000
         self.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
         self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
 
-        #self.args.exp_name = 'rvine_test_2d'
-        #create_paths(self.args)
         self.theta = 2
         self.obs = 10000
         self.transform_fct = 'gaussian'
@@ -96,92 +94,236 @@ class Test_Rvine_2D(unittest.TestCase):
         self.distr_2D_target = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
         self.distr_2D_target.sampler(obs=self.obs)
         self.samples_2D_target = self.distr_2D_target.xx
-        visualize_joint(self.samples_2D_target, 'tests/plots', '2D_cop_samples')
+        visualize_joint(self.samples_2D_target, 'tests', '2D_cop_samples')
         self.rv = RVine(args=self.args, data=torch.from_numpy(self.samples_2D_target))
         self.rv.estimate_rvine()
 
-        cond_noise = torch.Tensor(self.obs, 1).normal_()
-        self.samples_2D_cop_flow = self.rv.cop_flow.sample(self.obs, transform='gaussian', cond_inputs=cond_noise, num_inputs=1).detach()
+        cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+        self.samples_2D_cop_flow = self.rv.cop_flow.sample(self.obs,
+                                                           transform='gaussian',
+                                                           cond_inputs=cond_noise,
+                                                           num_inputs=1,
+                                                           device=self.args.device).detach().cpu()
         assert torch.max(self.samples_2D_cop_flow) <= 1
         assert torch.min(self.samples_2D_cop_flow) >= 0
-        self.samples_2D_cop_flow = torch.cat([self.samples_2D_cop_flow[:, 1:2], self.samples_2D_cop_flow[:, 0:1]], axis=1)
-        visualize_joint(self.samples_2D_cop_flow, 'tests/plots', '2D_cop_flow_samples')
+        visualize_joint(self.samples_2D_cop_flow.cpu(), 'tests', '2D_cop_flow_samples')
 
         self.samples_2D_rv = self.rv.sample(self.obs, transform=True).detach()
         assert torch.max(self.samples_2D_rv) <= 1
         assert torch.min(self.samples_2D_rv) >= 0
-        visualize_joint(self.samples_2D_rv, 'tests/plots', '2D_rvine_samples')
+        visualize_joint(self.samples_2D_rv, 'tests', '2D_rvine_samples')
 
-    def test_2D_cop_flow(self):
-        # Should be zero:
-        X_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_cop_flow[:, 1:2].numpy(), self.samples_2D_cop_flow[:, 0:1].numpy()))
-        X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_cop_flow.numpy()))
-        Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_target[:, 1:2], self.samples_2D_target[:, 0:1]))
-        Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+    def test_2D_rv_cop_flow(self):
+        with torch.no_grad():
+            print('samples rv', self.samples_2D_rv.mean())
+            print('samples cop flow', self.samples_2D_cop_flow.mean())
+            self.assertTrue(np.abs(self.samples_2D_rv.mean() - self.samples_2D_cop_flow.mean()) < 0.01)
+            self.assertTrue(np.abs(self.samples_2D_rv.std() - self.samples_2D_cop_flow.std()) < 0.01)
 
-        print('X_in_p', X_in_p.mean())
-        print('X_in_q', X_in_q.mean())
-        print('Y_in_p', Y_in_p.mean())
-        print('Y_in_q', Y_in_q.mean())
+            # Random Normal samples, PDF normal of RV and Cop flow
+            dim_0 = torch.Tensor(self.obs, 1).normal_()
+            dim_1 = (torch.Tensor(self.obs, 1).normal_() - 0.2) * 0.5
+            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_normal(inputs=dim_1.to(self.args.device), context=dim_0.to(self.args.device)))
+            X_in_p_rv = np.array(self.rv.pdf_normal(torch.cat([dim_0, dim_1], axis=1).to(self.args.device)))
+            self.assertAlmostEqual(X_in_p_cop_flow.mean(), X_in_p_rv.mean())
+            print('X_in_p_rv', X_in_p_rv.mean())
+            # Random uniform samples, PDF uniform of RV and Cop flow
+            dim_0 = torch.Tensor(self.obs, 1).uniform_()
+            dim_1 = torch.Tensor(self.obs, 1).uniform_()
+            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=dim_1.numpy(), context=dim_0.numpy()))
+            X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([dim_0, dim_1], axis=1).cpu().numpy()))
+            self.assertTrue(np.abs(X_in_p_cop_flow.mean() - X_in_p_rv.mean()) < 0.01)
+            print('X_in_p_rv', X_in_p_rv.mean())
 
-        print('with cop flow samples and cop flow pdf: ')
-        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-        print(jsd_X_Y)
-        self.assertTrue(jsd_X_Y >= 0)
-        self.assertTrue(jsd_X_Y <= 1)
+            # Cop Flow samples, PDF uniform of RV and Cop flow
+            samples = self.samples_2D_cop_flow.detach().clone()
+            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples[:, 1:2].numpy(), context=samples[:, 0:1].numpy()))
+            samples = self.samples_2D_cop_flow.detach().clone()
+            X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([samples[:, 0:1], samples[:, 1:2]], axis=1).cpu().numpy()))
+            self.assertTrue(np.abs(X_in_p_cop_flow.mean() - X_in_p_rv.mean()) < 0.01)
+            print('X_in_p_rv', X_in_p_rv.mean())
 
-    def test_2D_rv_pdf(self):
-        X_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_cop_flow.numpy()))
-        X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_cop_flow.numpy()))
-        Y_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_target))
-        Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+            # RV samples, PDF uniform of RV and Cop flow
+            samples = self.samples_2D_rv.detach().clone()
+            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples[:, 1:2].numpy(), context=samples[:, 0:1].numpy()))
+            samples = self.samples_2D_rv.detach().clone()
+            X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([samples[:, 0:1], samples[:, 1:2]], axis=1).cpu().numpy()))
+            self.assertTrue(np.abs(X_in_p_cop_flow.mean() - X_in_p_rv.mean()) < 0.01)
+            print('X_in_p_rv', X_in_p_rv.mean())
 
-        print('X_in_p', X_in_p.mean())
-        print('X_in_q', X_in_q.mean())
-        print('Y_in_p', Y_in_p.mean())
-        print('Y_in_q', Y_in_q.mean())
+    def test_2D_pred_target(self):
+        with torch.no_grad():
+            # Comparison target and prediction: rv samples and pdf
+            self.distr_2D_target.sampler(obs=self.obs)
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_rv = self.rv.sample(self.obs, transform=True)
+            samples_pred = samples_rv.detach().clone()
 
-        print('with cop flow samples and rv pdf: ')
-        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-        print(jsd_X_Y)
-        self.assertTrue(jsd_X_Y >= 0)
-        self.assertTrue(jsd_X_Y <= 1)
+            X_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_pred[:, 1:2].numpy(), context=samples_pred[:, 0:1].numpy()))
+            X_in_q = np.array(self.distr_2D_target.pdf(samples_pred.numpy()))
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_pred = self.samples_2D_rv.detach().clone()
+            Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
+            Y_in_q = np.array(self.distr_2D_target.pdf(samples_target))
 
-    def test_2D_rv_samples(self):
-        # Should be zero:
-        X_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_rv[:, 1:2].numpy(), self.samples_2D_rv[:, 0:1].numpy()))
-        X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_rv.numpy()))
-        Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_target[:, 1:2], self.samples_2D_target[:, 0:1]))
-        Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+            print('X_in_p', X_in_p.mean())
+            print('X_in_q', X_in_q.mean())
+            print('Y_in_p', Y_in_p.mean())
+            print('Y_in_q', Y_in_q.mean())
 
-        print('X_in_p', X_in_p.mean())
-        print('X_in_q', X_in_q.mean())
-        print('Y_in_p', Y_in_p.mean())
-        print('Y_in_q', Y_in_q.mean())
+            print('with rv samples and cop_flow pdf: ')
+            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+            print(jsd_X_Y)
+            self.assertTrue(jsd_X_Y >= 0)
 
-        print('with rv samples and cop flow pdf: ')
-        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-        print(jsd_X_Y)
-        self.assertTrue(jsd_X_Y >= 0)
-        self.assertTrue(jsd_X_Y <= 1)
+            # Comparison target and prediction: rv samples and pdf
+            self.distr_2D_target.sampler(obs=self.obs)
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_rv = self.rv.sample(self.obs, transform=True)
+            samples_pred = samples_rv.detach().clone()
 
-    def test_2D_rv(self):
-        # Should be zero:
-        X_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_rv.numpy()))
-        X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_rv.numpy()))
-        Y_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_target))
-        Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+            X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
+            X_in_q = np.array(self.distr_2D_target.pdf(samples_pred.numpy()))
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_pred = self.samples_2D_rv.detach().clone()
+            Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
+            Y_in_q = np.array(self.distr_2D_target.pdf(samples_target))
 
-        print('X_in_p', X_in_p.mean())
-        print('X_in_q', X_in_q.mean())
-        print('Y_in_p', Y_in_p.mean())
-        print('Y_in_q', Y_in_q.mean())
+            print('X_in_p', X_in_p.mean())
+            print('X_in_q', X_in_q.mean())
+            print('Y_in_p', Y_in_p.mean())
+            print('Y_in_q', Y_in_q.mean())
 
-        print('with rv samples and rv pdf: ')
-        jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-        print(jsd_X_Y)
-        self.assertTrue(jsd_X_Y >= 0)
-        self.assertTrue(jsd_X_Y <= 1)
+            print('with rv samples and rv pdf: ')
+            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+            print(jsd_X_Y)
+            self.assertTrue(jsd_X_Y >= 0)
+
+            # Comparison target and prediction: rv samples and pdf
+            self.distr_2D_target.sampler(obs=self.obs)
+            samples_target = self.distr_2D_target.xx.copy()
+            cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+            samples_cop_flow = self.rv.cop_flow.sample(self.obs,
+                                                       transform='gaussian',
+                                                       cond_inputs=cond_noise,
+                                                       num_inputs=1,
+                                                       device=self.args.device).detach().cpu()
+            samples_pred = samples_cop_flow.detach().clone()
+            samples_pred = torch.cat([samples_pred[:, 1:2], samples_pred[:, 0:1]], axis=1)
+
+            X_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_pred[:, 1:2].numpy(), context=samples_pred[:, 0:1].numpy()))
+            X_in_q = np.array(self.distr_2D_target.pdf(samples_pred.numpy()))
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_pred = self.samples_2D_rv.detach().clone()
+            Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
+            Y_in_q = np.array(self.distr_2D_target.pdf(samples_target))
+
+            print('X_in_p', X_in_p.mean())
+            print('X_in_q', X_in_q.mean())
+            print('Y_in_p', Y_in_p.mean())
+            print('Y_in_q', Y_in_q.mean())
+
+            print('with cop flow samples and cop_flow pdf: ')
+            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+            print(jsd_X_Y)
+            self.assertTrue(jsd_X_Y >= 0)
+
+            # Comparison target and prediction: rv samples and pdf
+            self.distr_2D_target.sampler(obs=self.obs)
+            samples_target = self.distr_2D_target.xx.copy()
+            cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+            samples_cop_flow = self.rv.cop_flow.sample(self.obs,
+                                                       transform='gaussian',
+                                                       cond_inputs=cond_noise,
+                                                       num_inputs=1,
+                                                       device=self.args.device).detach().cpu()
+            samples_pred = samples_cop_flow.detach().clone()
+            samples_pred = torch.cat([samples_pred[:, 1:2], samples_pred[:, 0:1]], axis=1)
+
+            X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
+            X_in_q = np.array(self.distr_2D_target.pdf(samples_pred.numpy()))
+            samples_target = self.distr_2D_target.xx.copy()
+            samples_pred = self.samples_2D_rv.detach().clone()
+            Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
+            Y_in_q = np.array(self.distr_2D_target.pdf(samples_target))
+
+            print('X_in_p', X_in_p.mean())
+            print('X_in_q', X_in_q.mean())
+            print('Y_in_p', Y_in_p.mean())
+            print('Y_in_q', Y_in_q.mean())
+
+            print('with cop flow samples and rv pdf: ')
+            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+            print(jsd_X_Y)
+            self.assertTrue(jsd_X_Y >= 0)
+
+
+    # def test_2D_cop_flow(self):
+    #     # Should be zero:
+    #     X_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=self.samples_2D_cop_flow[:, 1:2].numpy(), context=self.samples_2D_cop_flow[:, 0:1].numpy()))
+    #     X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_cop_flow.numpy()))
+    #     Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=self.samples_2D_target[:, 1:2], context=self.samples_2D_target[:, 0:1]))
+    #     Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+
+    #     print('X_in_p', X_in_p.mean())
+    #     print('X_in_q', X_in_q.mean())
+    #     print('Y_in_p', Y_in_p.mean())
+    #     print('Y_in_q', Y_in_q.mean())
+
+    #     print('with cop flow samples and cop flow pdf: ')
+    #     jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+    #     print(jsd_X_Y)
+    #     self.assertTrue(jsd_X_Y >= 0)
+
+    # def test_2D_rv_pdf(self):
+    #     X_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_cop_flow.numpy()))
+    #     X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_cop_flow.numpy()))
+    #     Y_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_target))
+    #     Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+
+    #     print('X_in_p', X_in_p.mean())
+    #     print('X_in_q', X_in_q.mean())
+    #     print('Y_in_p', Y_in_p.mean())
+    #     print('Y_in_q', Y_in_q.mean())
+
+    #     print('with cop flow samples and rv pdf: ')
+    #     jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+    #     print(jsd_X_Y)
+    #     self.assertTrue(jsd_X_Y >= 0)
+
+    # def test_2D_rv_samples(self):
+    #     # Should be zero:
+    #     X_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_rv[:, 1:2].numpy(), self.samples_2D_rv[:, 0:1].numpy()))
+    #     X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_rv.numpy()))
+    #     Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(self.samples_2D_target[:, 1:2], self.samples_2D_target[:, 0:1]))
+    #     Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+
+    #     print('X_in_p', X_in_p.mean())
+    #     print('X_in_q', X_in_q.mean())
+    #     print('Y_in_p', Y_in_p.mean())
+    #     print('Y_in_q', Y_in_q.mean())
+
+    #     print('with rv samples and cop flow pdf: ')
+    #     jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+    #     print(jsd_X_Y)
+    #     self.assertTrue(jsd_X_Y >= 0)
+
+    # def test_2D_rv(self):
+    #     # Should be zero:
+    #     X_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_rv.numpy()))
+    #     X_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_rv.numpy()))
+    #     Y_in_p = np.array(self.rv.pdf_uniform(self.samples_2D_target))
+    #     Y_in_q = np.array(self.distr_2D_target.pdf(self.samples_2D_target))
+
+    #     print('X_in_p', X_in_p.mean())
+    #     print('X_in_q', X_in_q.mean())
+    #     print('Y_in_p', Y_in_p.mean())
+    #     print('Y_in_q', Y_in_q.mean())
+
+    #     print('with rv samples and rv pdf: ')
+    #     jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+    #     print(jsd_X_Y)
+    #     self.assertTrue(jsd_X_Y >= 0)
 
 
 if __name__ == '__main__':

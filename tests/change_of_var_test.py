@@ -27,9 +27,9 @@ class Test_Change_of_Var(unittest.TestCase):
         uniform_distr = scipy.stats.uniform()
         uniform_samples = uniform_distr.rvs(1000)
         # compare jsd of transformed_samples with uniform samples
-        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_1D.pdf, device=self.device)
+        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_1D.pdf, device="cpu")
         X_in_q = uniform_distr.pdf(transformed_samples)
-        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_1D.pdf, device=self.device)
+        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_1D.pdf, device="cpu")
         Y_in_q = uniform_distr.pdf(uniform_samples)
 
         jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -41,9 +41,9 @@ class Test_Change_of_Var(unittest.TestCase):
         uniform_distr = scipy.stats.uniform()
         uniform_samples = uniform_distr.rvs((1000, 2))
         # compare jsd of transformed_samples with uniform samples
-        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_2D.pdf, device=self.device)
+        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_2D.pdf, device="cpu")
         X_in_q = uniform_distr.pdf(transformed_samples).prod(axis=1)
-        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_2D.pdf, device=self.device)
+        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_2D.pdf, device="cpu")
         Y_in_q = uniform_distr.pdf(uniform_samples).prod(axis=1)
 
         jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -55,9 +55,9 @@ class Test_Change_of_Var(unittest.TestCase):
         uniform_distr = scipy.stats.uniform()
         uniform_samples = uniform_distr.rvs((1000, 3))
         # compare jsd of transformed_samples with uniform samples
-        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_3D.pdf, device=self.device)
+        X_in_p = gaussian_change_of_var_ND(transformed_samples, self.normal_distr_3D.pdf, device="cpu")
         X_in_q = uniform_distr.pdf(transformed_samples).prod(axis=1)
-        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_3D.pdf, device=self.device)
+        Y_in_p = gaussian_change_of_var_ND(uniform_samples, self.normal_distr_3D.pdf, device="cpu")
         Y_in_q = uniform_distr.pdf(uniform_samples).prod(axis=1)
         jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
         self.assertAlmostEqual(jsd_X_Y, 0)

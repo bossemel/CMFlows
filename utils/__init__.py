@@ -8,32 +8,40 @@ from torch.autograd import Variable
 import scipy.special
 import scipy.stats
 from utils.visualizer import visualize_joint
-eps = 1e-4
+eps = 1e-3
 
 
 def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
+    print('start gaussian change of var')
     inputs[inputs == 0] = eps
     inputs[inputs == 1] = 1 - eps
+    normal_distr = scipy.stats.norm()
     assert np.max(inputs) < 1, '{}'.format(np.max(inputs))
     assert np.min(inputs) > 0, '{}'.format(np.min(inputs))
-    normal_distr = scipy.stats.norm()
-    recast_context = None if context is None else torch.from_numpy(normal_distr.ppf(context).reshape(-1, 1)).float()
-    if inputs.shape != (inputs.shape[0],):
-        recast_inputs = torch.from_numpy(np.apply_along_axis(normal_distr.ppf, 1, inputs)).float().to(device)
-    else:
-        recast_inputs = torch.from_numpy(normal_distr.ppf(inputs).reshape(-1, 1)).float().to(device)
-    if context is not None:
-        original_joint = np.array(original_pdf(recast_inputs, context=recast_context).cpu()).reshape(-1,)
-    else:
-        original_joint = np.array(original_pdf(recast_inputs)).reshape(-1,)
 
-    if inputs.shape != (inputs.shape[0],):
-        determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1).reshape(-1,)
-    else:
-        determinant = normal_distr.pdf(recast_inputs.cpu()).reshape(-1,)
+    recast_inputs = torch.from_numpy(normal_distr.ppf(inputs)).float().to(device)
 
     if context is not None:
-        determinant *= normal_distr.pdf(recast_context).reshape(-1,)
+        context[context == 0] = eps
+        context[context == 1] = 1 - eps
+        assert np.max(context) < 1, '{}'.format(np.max(context))
+        assert np.min(context) > 0, '{}'.format(np.min(context))
+        recast_context = torch.from_numpy(normal_distr.ppf(context)).float().to(device)
+        copy_recast_inputs = recast_inputs.detach().clone()
+        original_joint = np.array(original_pdf(copy_recast_inputs, context=recast_context))
+    else:
+        copy_recast_inputs = recast_inputs.detach().clone()
+        original_joint = np.array(original_pdf(copy_recast_inputs))
+
+    if context is not None:
+        recast_inputs = torch.cat([recast_inputs, recast_context], axis=1)
+    second_dim = recast_inputs.shape[1] if len(recast_inputs.shape) ==2 else 1
+
+    if second_dim >= 2:
+        determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1) #.reshape(-1,)
+    else:
+        determinant = normal_distr.pdf(recast_inputs.cpu()) #.reshape(-1,)
+
     output = original_joint / determinant
     assert not np.isnan(output.sum())
     assert not np.isinf(output.sum())
@@ -168,8 +176,11 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     mix_X = prob_X_in_p + prob_X_in_q
     mix_Y = prob_Y_in_p + prob_Y_in_q
 
-    mix_X[mix_X == 0] = 0 + eps
-    mix_Y[mix_Y == 0] = 0 + eps
+    #mix_X[mix_X == 0] = 0 + eps
+    #mix_Y[mix_Y == 0] = 0 + eps
+
+    prob_X_in_p[prob_X_in_p == 0] = 0 + eps
+    prob_Y_in_q[prob_Y_in_q == 0] = 0 + eps
 
     assert np.min(mix_X) > 0
     assert np.min(mix_Y) > 0
