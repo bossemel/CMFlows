@@ -71,8 +71,8 @@ def gen_mv_copula_3d(args):
 
 class Test_Rvine_2D(unittest.TestCase):
 
-    def __init__(self, *_args, **kwargs):
-        super(Test_Rvine_2D, self).__init__(*_args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(Test_Rvine_2D, self).__init__(*args, **kwargs)
         # Training settings
         self.args = TrainOptions().parse(print=False)   # get training options
         self.args.exp_path = os.path.join('results', self.args.exp_name)
@@ -81,7 +81,7 @@ class Test_Rvine_2D(unittest.TestCase):
         self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 1
+        self.args.epochs = 20
         self.args.obs = 10000
         self.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -165,7 +165,6 @@ class Test_Rvine_2D(unittest.TestCase):
             Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-            print('JSD: ', jsd_X_Y)
             self.assertTrue(jsd_X_Y >= 0)
 
             # Comparison target and prediction: rv samples and pdf
@@ -180,7 +179,6 @@ class Test_Rvine_2D(unittest.TestCase):
             Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-            print('JSD: ', jsd_X_Y)
             self.assertTrue(jsd_X_Y >= 0)
 
             # Comparison target and prediction: cop flow pdf and samples
@@ -201,7 +199,6 @@ class Test_Rvine_2D(unittest.TestCase):
             Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-            print('JSD: ', jsd_X_Y)
             self.assertTrue(jsd_X_Y >= 0)
 
             # Comparison target and prediction: cop flow samples and pdf
@@ -222,82 +219,81 @@ class Test_Rvine_2D(unittest.TestCase):
             Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-            print('JSD: ', jsd_X_Y)
             self.assertTrue(jsd_X_Y >= 0)
 
 
-class Test_Rvine_3D(unittest.TestCase):
+# class Test_Rvine_3D(unittest.TestCase):
 
-    def __init__(self, *_args, **kwargs):
-        super(Test_Rvine_3D, self).__init__(*_args, **kwargs)
-        # Training settings
-        self.args = TrainOptions().parse(print=False)   # get training options
-        self.args.exp_path = os.path.join('results', self.args.exp_name)
-        self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
-        self.args.experiment_logs = os.path.join(self.args.exp_path, 'result_outputs')
-        self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
-        self.args.RealNVP_part_of_CM_Flow = True
-        # Create Folders
-        self.args.epochs = 1
-        self.args.obs = 10000
-        self.disable_marginal = True
-        self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
-        self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
+#     def __init__(self, *args, **kwargs):
+#         super(Test_Rvine_3D, self).__init__(*args, **kwargs)
+#         # Training settings
+#         self.args = TrainOptions().parse(print=False)   # get training options
+#         self.args.exp_path = os.path.join('results', self.args.exp_name)
+#         self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
+#         self.args.experiment_logs = os.path.join(self.args.exp_path, 'result_outputs')
+#         self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
+#         self.args.RealNVP_part_of_CM_Flow = True
+#         # Create Folders
+#         self.args.epochs = 20
+#         self.args.obs = 10000
+#         self.disable_marginal = True
+#         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
+#         self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
 
-        self.theta = 2
-        self.obs = 10000
-        self.transform_fct = 'gaussian'
-        self.copula = 'clayton'
-        dataset_trn, dim, self.distr_target = gen_mv_copula_3d(self.args)
-        self.samples_target = self.distr_target.simulate(self.args.obs)
+#         self.theta = 2
+#         self.obs = 10000
+#         self.transform_fct = 'gaussian'
+#         self.copula = 'clayton'
+#         dataset_trn, dim, self.distr_target = gen_mv_copula_3d(args)
+#         self.samples_target = pv_cop.simulate(args.obs)
 
-        visualize_joint(self.samples_target, 'tests', '3D_cop_samples')
+#         visualize_joint(self.samples_target, 'tests', '3D_cop_samples')
 
-        rv = RVine(args=self.args, data=dataset_trn)
-        rv.estimate_rvine()
-        self.rv = RVine(args=self.args, data=torch.from_numpy(self.samples_target))
-        self.rv.estimate_rvine()
+#         rv = RVine(args=args, data=dataset_trn)
+#         rv.estimate_rvine()
+#         self.rv = RVine(args=self.args, data=torch.from_numpy(self.samples_3D_target))
+#         self.rv.estimate_rvine()
 
-        cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
-        self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
-                                                        transform='gaussian',
-                                                        cond_inputs=cond_noise,
-                                                        num_inputs=1,
-                                                        device=self.args.device).detach().cpu()
-        assert torch.max(self.samples_cop_flow) <= 1
-        assert torch.min(self.samples_cop_flow) >= 0
-        visualize_joint(self.samples_cop_flow.cpu(), 'tests', '3D_cop_flow_samples')
+#         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+#         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
+#                                                         transform='gaussian',
+#                                                         cond_inputs=cond_noise,
+#                                                         num_inputs=1,
+#                                                         device=self.args.device).detach().cpu()
+#         assert torch.max(self.samples_cop_flow) <= 1
+#         assert torch.min(self.samples_cop_flow) >= 0
+#         visualize_joint(self.samples_cop_flow.cpu(), 'tests', '3D_cop_flow_samples')
 
-        self.samples_rv = self.rv.sample(self.obs, transform=True).detach()
-        assert torch.max(self.samples_rv) <= 1
-        assert torch.min(self.samples_rv) >= 0
-        visualize_joint(self.samples_rv, 'tests', '3D_rvine_samples')
+#         self.samples_rv = self.rv.sample(self.obs, transform=True).detach()
+#         assert torch.max(self.samples_rv) <= 1
+#         assert torch.min(self.samples_rv) >= 0
+#         visualize_joint(self.samples_rv, 'tests', '3D_rvine_samples')
 
-    def test_3D_rv_cop_flow(self):
-        with torch.no_grad():
-            self.samples_pred = self.rv.sample(self.args.obs, transform=True) # no transform , or add change of var  change
-            samples_pred = self.samples_pred.detach().clone()
-            self.samples_target = self.distr_target.simulate(self.args.obs)
-            samples_target = self.samples_target.copy()
+#     def test_3D_rv_cop_flow(self):
+#         with torch.no_grad():
+#             self.samples_pred = rv.sample(args.obs, transform=True) # no transform , or add change of var  change
+#             samples_pred = self.samples_pred.detach().clone()
+#             self.samples_target = pv_cop.simulate(args.obs)
+#             samples_target = self.samples_target.detach().clone()
 
-            visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), 'tests', '3D_rvine_samples01')
-            visualize_joint(np.concatenate([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples12')
-            visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples02')
+#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), 'tests/plots', '2D_rvine_samples01')
+#             visualize_joint(np.concatenate([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), 'tests/plots', '2D_rvine_samples12')
+#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), 'tests/plots', '2D_rvine_samples02')
 
-            # Should be zero:
-            X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
-            X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
-            Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
-            Y_in_q = np.array(self.distr_target.pdf(samples_target))
+#             # Should be zero:
+#             X_in_p = np.array(rv.pdf_uniform(samples_pred.numpy()))
+#             X_in_q = np.array(pv_cop.pdf(samples_pred.numpy()))
+#             Y_in_p = np.array(rv.pdf_uniform(samples_target))
+#             Y_in_q = np.array(pv_cop.pdf(samples_target))
 
-            print('X_in_p', X_in_p.mean())
-            print('X_in_q', X_in_q.mean())
-            print('Y_in_p', Y_in_p.mean())
-            print('Y_in_q', Y_in_q.mean())
-            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-            print('3D jsd: ')
-            print(jsd_X_Y)
-            self.assertTrue(jsd_X_Y >= 0)
+#             print('X_in_p', X_in_p.mean())
+#             print('X_in_q', X_in_q.mean())
+#             print('Y_in_p', Y_in_p.mean())
+#             print('Y_in_q', Y_in_q.mean())
+#             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+#             print('3D jsd: ')
+#             print(jsd_X_Y)
+#             self.assertTrue(jsd_X_Y >= 0)
 
 if __name__ == '__main__':
 
