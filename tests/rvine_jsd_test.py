@@ -13,6 +13,9 @@ from utils import normalize
 from utils.visualizer import visualize_joint
 import datasets
 import unittest
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats
 eps = 0.0001
 
 
@@ -69,6 +72,43 @@ def gen_mv_copula_3d(args):
     return torch.from_numpy(copula_samples), copula_samples.shape[1], copula
 
 
+def valid_pdf(self, r_vine, obs, device):
+    with torch.no_grad():
+        samples = r_vine.sample(obs, transform=False)
+        kde_distr = scipy.stats.gaussian_kde(samples.cpu().numpy().T)
+        samples = r_vine.sample(obs, transform=False)
+        prob_kde = kde_distr.pdf(samples.cpu().numpy().T)
+        prob_rv = r_vine.pdf_normal(samples).cpu().numpy()
+        print('rv flow samples: ')
+        print('prob_kde', prob_kde.mean())
+        print('prob rv', prob_rv.mean())
+        difference = np.abs(prob_kde.T - prob_rv).mean()
+        print('difference: ', difference)
+        self.assertTrue(difference <= 1)
+
+        normal_samples = torch.Tensor(1000, 2).normal_()
+        print(normal_samples.shape)
+        prob_kde = kde_distr.pdf(normal_samples.T)
+        print(normal_samples.shape)
+        prob_rv = r_vine.pdf_normal(normal_samples).cpu().numpy()
+        print('normal samples: ')
+        print('prob_kde', prob_kde.mean())
+        print('prob_rv', prob_rv.mean())
+        difference = np.abs(prob_kde.T - prob_rv).mean()
+        print('difference: ', difference)
+        self.assertTrue(difference <= 1)
+
+        kde_samples = kde_distr.resample(obs)
+        prob_kde = kde_distr.pdf(kde_samples)
+
+        prob_rv = r_vine.pdf_normal(torch.from_numpy(kde_samples.T).float()).cpu().numpy()
+        print('kde samples:' )
+        print('prob_kde', prob_kde.mean())
+        print('prob_rv', prob_rv.mean())
+        difference = np.abs(prob_kde.T - prob_rv).mean()
+        print('difference: ', difference)
+        self.assertTrue(difference <= 1)
+
 class Test_Rvine_2D(unittest.TestCase):
 
     def __init__(self, *_args, **kwargs):
@@ -82,21 +122,21 @@ class Test_Rvine_2D(unittest.TestCase):
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
         self.args.epochs = 1
-        self.args.obs = 1000
+        self.args.obs = 100
         self.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
         self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
 
         self.theta = 2
-        self.obs = 10000
+        self.obs = self.args.obs
         self.transform_fct = 'gaussian'
         self.copula = 'clayton'
         self.distr_target = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=self.obs)
-        self.distr_target.sampler(obs=self.obs)
+        self.distr_target.sampler(obs=self.obs, transform=True)
         self.samples_target = self.distr_target.xx
-        visualize_joint(self.samples_target, 'tests', '2D_cop_samples')
-        self.rv = RVine(args=self.args, data=torch.from_numpy(self.samples_target))
-        self.rv.estimate_rvine()
+        visualize_joint(self.samples_target, args.figures_path, 'test_2D_cop_samples')
+        self.rv = RVine(args=self.args, num_inputs=self.samples_target.shape[1])
+        self.rv.estimate_rvine(torch.from_numpy(self.samples_target))
 
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
@@ -106,12 +146,19 @@ class Test_Rvine_2D(unittest.TestCase):
                                                         device=self.args.device).detach().cpu()
         assert torch.max(self.samples_cop_flow) <= 1
         assert torch.min(self.samples_cop_flow) >= 0
-        visualize_joint(self.samples_cop_flow.cpu(), 'tests', '2D_cop_flow_samples')
+        visualize_joint(self.samples_cop_flow.cpu(), args.figures_path, '2D_cop_flow_samples')
 
-        self.samples_rv = self.rv.sample(self.                          obs, transform=True).detach()
+        self.samples_rv = self.rv.sample(self.obs, transform=False).detach()
+        visualize_joint(self.samples_rv, args.figures_path, '2D_rvine_samples_no_transform')
+
+        normal_distr = torch.distributions.normal.Normal(0, 1)
+        visualize_joint(torch.cat([normal_distr.cdf(self.samples_rv[:, 0:1]), normal_distr.cdf(self.samples_rv[:, 1:2])], axis=1), args.figures_path, '2D_rvine_samples_self_transform')
+
+        self.samples_rv = self.rv.sample(self.obs, transform=True).detach()
         assert torch.max(self.samples_rv) <= 1
         assert torch.min(self.samples_rv) >= 0
-        visualize_joint(self.samples_rv, 'tests', '2D_rvine_samples')
+        visualize_joint(self.samples_rv, args.figures_path, '2D_rvine_samples')
+        valid_pdf(self, self.rv, self.args.obs, self.args.device)
 
     def test_2D_rv_cop_flow(self):
         with torch.no_grad():
@@ -127,6 +174,7 @@ class Test_Rvine_2D(unittest.TestCase):
             X_in_p_rv = np.array(self.rv.pdf_normal(torch.cat([dim_0, dim_1], axis=1).to(self.args.device)))
             self.assertAlmostEqual(X_in_p_cop_flow.mean(), X_in_p_rv.mean())
             print('X_in_p_rv', X_in_p_rv.mean())
+
             # Random uniform samples, PDF uniform of RV and Cop flow
             dim_0 = torch.Tensor(self.obs, 1).uniform_()
             dim_1 = torch.Tensor(self.obs, 1).uniform_()
@@ -136,33 +184,33 @@ class Test_Rvine_2D(unittest.TestCase):
             print('X_in_p_rv', X_in_p_rv.mean())
 
             # Cop Flow samples, PDF uniform of RV and Cop flow
-            samples = self.samples_cop_flow.detach().clone()
+            cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+            samples = self.rv.cop_flow.sample(self.obs,
+                                              transform='gaussian',
+                                              cond_inputs=cond_noise,
+                                              num_inputs=1,
+                                              device=self.args.device).detach().cpu()
             X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples[:, 1:2].numpy(), context=samples[:, 0:1].numpy()))
-            samples = self.samples_cop_flow.detach().clone()
             X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([samples[:, 0:1], samples[:, 1:2]], axis=1).cpu().numpy()))
             self.assertTrue(np.abs(X_in_p_cop_flow.mean() - X_in_p_rv.mean()) < 0.01)
             print('X_in_p_rv', X_in_p_rv.mean())
 
             # RV samples, PDF uniform of RV and Cop flow
-            samples = self.samples_rv.detach().clone()
+            samples_rv = self.rv.sample(self.obs, transform=True)
+            samples = samples_rv #.detach().clone()
             X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples[:, 1:2].numpy(), context=samples[:, 0:1].numpy()))
-            samples = self.samples_rv.detach().clone()
             X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([samples[:, 0:1], samples[:, 1:2]], axis=1).cpu().numpy()))
             self.assertTrue(np.abs(X_in_p_cop_flow.mean() - X_in_p_rv.mean()) < 0.01)
-            print('X_in_p_rv', X_in_p_rv.mean())
-            print('X_in_p_cop_flow', X_in_p_cop_flow.mean())
 
     def test_2D_pred_target(self):
         with torch.no_grad():
             # Comparison target and prediction: rv samples and cop flow pdf
             self.distr_target.sampler(obs=self.obs)
-            samples_target = self.distr_target.xx.copy()
+            samples_target = self.distr_target.xx # .copy()
             samples_rv = self.rv.sample(self.obs, transform=True)
-            samples_pred = samples_rv.detach().clone()
+            samples_pred = samples_rv #.detach().clone()
             X_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_pred[:, 1:2].numpy(), context=samples_pred[:, 0:1].numpy()))
             X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
-            samples_target = self.distr_target.xx.copy()
-            samples_pred = self.samples_rv.detach().clone()
             Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -171,13 +219,11 @@ class Test_Rvine_2D(unittest.TestCase):
 
             # Comparison target and prediction: rv samples and pdf
             self.distr_target.sampler(obs=self.obs)
-            samples_target = self.distr_target.xx.copy()
+            samples_target = self.distr_target.xx #.copy()
             samples_rv = self.rv.sample(self.obs, transform=True)
-            samples_pred = samples_rv.detach().clone()
+            samples_pred = samples_rv #.detach().clone()
             X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
             X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
-            samples_target = self.distr_target.xx.copy()
-            samples_pred = self.samples_rv.detach().clone()
             Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -186,19 +232,17 @@ class Test_Rvine_2D(unittest.TestCase):
 
             # Comparison target and prediction: cop flow pdf and samples
             self.distr_target.sampler(obs=self.obs)
-            samples_target = self.distr_target.xx.copy()
+            samples_target = self.distr_target.xx #.copy()
             cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
             samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                        transform='gaussian',
                                                        cond_inputs=cond_noise,
                                                        num_inputs=1,
                                                        device=self.args.device).detach().cpu()
-            samples_pred = samples_cop_flow.detach().clone()
+            samples_pred = samples_cop_flow #.detach().clone()
             samples_pred = torch.cat([samples_pred[:, 1:2], samples_pred[:, 0:1]], axis=1)
             X_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_pred[:, 1:2].numpy(), context=samples_pred[:, 0:1].numpy()))
             X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
-            samples_target = self.distr_target.xx.copy()
-            samples_pred = self.samples_rv.detach().clone()
             Y_in_p = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples_target[:, 1:2], context=samples_target[:, 0:1]))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -207,19 +251,17 @@ class Test_Rvine_2D(unittest.TestCase):
 
             # Comparison target and prediction: cop flow samples and pdf
             self.distr_target.sampler(obs=self.obs)
-            samples_target = self.distr_target.xx.copy()
+            samples_target = self.distr_target.xx #.copy()
             cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
             samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                        transform='gaussian',
                                                        cond_inputs=cond_noise,
                                                        num_inputs=1,
                                                        device=self.args.device).detach().cpu()
-            samples_pred = samples_cop_flow.detach().clone()
+            samples_pred = samples_cop_flow #.detach().clone()
             samples_pred = torch.cat([samples_pred[:, 1:2], samples_pred[:, 0:1]], axis=1)
             X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
             X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
-            samples_target = self.distr_target.xx.copy()
-            samples_pred = self.samples_rv.detach().clone()
             Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
             Y_in_q = np.array(self.distr_target.pdf(samples_target))
             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
@@ -227,10 +269,105 @@ class Test_Rvine_2D(unittest.TestCase):
             self.assertTrue(jsd_X_Y >= 0)
 
 
-# class Test_Rvine_3D(unittest.TestCase):
+class Test_Rvine_3D(unittest.TestCase):
+
+    def __init__(self, *_args, **kwargs):
+        super(Test_Rvine_3D, self).__init__(*_args, **kwargs)
+        # Training settings
+        self.args = TrainOptions().parse(print=False)   # get training options
+        self.args.exp_path = os.path.join('results', self.args.exp_name)
+        self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
+        self.args.experiment_logs = os.path.join(self.args.exp_path, 'result_outputs')
+        self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
+        self.args.RealNVP_part_of_CM_Flow = True
+        # Create Folders
+        self.args.epochs = 1
+        self.args.obs = 100
+        self.args.disable_marginal = True
+        self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
+        self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
+
+        self.theta = 2
+        self.obs = 10000
+        self.transform_fct = 'gaussian'
+        self.copula = 'clayton'
+        dataset_trn, dim, self.distr_target = gen_mv_copula_3d(self.args)
+        self.samples_target = self.distr_target.simulate(self.args.obs)
+
+        visualize_joint(self.samples_target, 'tests', '3D_cop_samples')
+
+        self.rv = RVine(args=self.args, num_inputs=dataset_trn.shape[1])
+        self.rv.estimate_rvine(dataset_trn)
+
+        cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
+        self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
+                                                        transform='gaussian',
+                                                        cond_inputs=cond_noise,
+                                                        num_inputs=1,
+                                                        device=self.args.device).detach().cpu()
+        assert torch.max(self.samples_cop_flow) <= 1
+        assert torch.min(self.samples_cop_flow) >= 0
+        visualize_joint(self.samples_cop_flow.cpu(), 'tests', '3D_cop_flow_samples')
+
+        self.samples_rv = self.rv.sample(self.obs, transform=True).detach()
+        assert torch.max(self.samples_rv) <= 1
+        assert torch.min(self.samples_rv) >= 0
+        visualize_joint(self.samples_rv, 'tests', '3D_rvine_samples')
+        valid_pdf(self, self.rv, self.args.obs, self.args.device)
+
+        # valid_pdf(self.rv, self.args.obs, self.args.device)
+
+    def test_3D_rv_cop_flow(self):
+        with torch.no_grad():
+            self.samples_pred = self.rv.sample(self.args.obs, transform=True) # no transform , or add change of var  change
+            samples_pred = self.samples_pred.detach().clone()
+            self.samples_target = self.distr_target.simulate(self.args.obs)
+            samples_target = self.samples_target.copy()
+
+            visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), 'tests', '3D_rvine_samples01')
+            visualize_joint(np.concatenate([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples12')
+            visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples02')
+
+            # Should be zero:
+            X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
+            X_in_q = np.array(self.distr_target.pdf(samples_pred.numpy()))
+            Y_in_p = np.array(self.rv.pdf_uniform(samples_target))
+            Y_in_q = np.array(self.distr_target.pdf(samples_target))
+
+            print('X_in_p', X_in_p.mean())
+            print('X_in_q', X_in_q.mean())
+            print('Y_in_p', Y_in_p.mean())
+            print('Y_in_q', Y_in_q.mean())
+            jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
+            print('3D jsd: ')
+            print(jsd_X_Y)
+
+            # RealNVP outputs the density directly, but not the transformation to
+            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+            pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+            true_rvine = scipy.stats.gaussian_kde(samples_target.T)
+            # Note, that uniform samples means the transformed samples
+
+            # Prob X in both distributions
+            prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+            prob_X_in_q = true_rvine.pdf(samples_pred.cpu().numpy().T).T
+
+            # Prob Y in both distributions
+            prob_Y_in_q = true_rvine.pdf(samples_target.T).T
+            prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+            divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
+                                         prob_X_in_q=prob_X_in_q,
+                                         prob_Y_in_p=prob_Y_in_p,
+                                         prob_Y_in_q=prob_Y_in_q)
+            print('kde jsd: ', divergence_2)
+
+            self.assertTrue(jsd_X_Y >= 0)
+
+
+# class Test_Rvine_4D(unittest.TestCase):
 
 #     def __init__(self, *_args, **kwargs):
-#         super(Test_Rvine_3D, self).__init__(*_args, **kwargs)
+#         super(Test_Rvine_4D, self).__init__(*_args, **kwargs)
 #         # Training settings
 #         self.args = TrainOptions().parse(print=False)   # get training options
 #         self.args.exp_path = os.path.join('results', self.args.exp_name)
@@ -239,9 +376,9 @@ class Test_Rvine_2D(unittest.TestCase):
 #         self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
 #         self.args.RealNVP_part_of_CM_Flow = True
 #         # Create Folders
-#         self.args.epochs = 1
+#         self.args.epochs = 10
 #         self.args.obs = 10000
-#         self.disable_marginal = True
+#         self.args.disable_marginal = True
 #         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
 #         self.args.device = torch.device("cuda:0" if self.args.cuda else "cpu")
 
@@ -249,15 +386,13 @@ class Test_Rvine_2D(unittest.TestCase):
 #         self.obs = 10000
 #         self.transform_fct = 'gaussian'
 #         self.copula = 'clayton'
-#         dataset_trn, dim, self.distr_target = gen_mv_copula_3d(self.args)
+#         dataset_trn, dim, self.distr_target = gen_mv_copula(self.args)
 #         self.samples_target = self.distr_target.simulate(self.args.obs)
 
-#         visualize_joint(self.samples_target, 'tests', '3D_cop_samples')
+#         visualize_joint(self.samples_target, 'tests', '4D_cop_samples')
 
-#         rv = RVine(args=self.args, data=dataset_trn)
-#         rv.estimate_rvine()
-#         self.rv = RVine(args=self.args, data=torch.from_numpy(self.samples_target))
-#         self.rv.estimate_rvine()
+#         self.rv = RVine(args=self.args, num_inputs=self.samples_target.shape[1])
+#         self.rv.estimate_rvine(torch.from_numpy(self.samples_target))
 
 #         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
 #         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
@@ -267,23 +402,25 @@ class Test_Rvine_2D(unittest.TestCase):
 #                                                         device=self.args.device).detach().cpu()
 #         assert torch.max(self.samples_cop_flow) <= 1
 #         assert torch.min(self.samples_cop_flow) >= 0
-#         visualize_joint(self.samples_cop_flow.cpu(), 'tests', '3D_cop_flow_samples')
+#         visualize_joint(self.samples_cop_flow.cpu(), 'tests', '4D_cop_flow_samples')
 
 #         self.samples_rv = self.rv.sample(self.obs, transform=True).detach()
 #         assert torch.max(self.samples_rv) <= 1
 #         assert torch.min(self.samples_rv) >= 0
-#         visualize_joint(self.samples_rv, 'tests', '3D_rvine_samples')
+#         visualize_joint(self.samples_rv, 'tests', '4D_rvine_samples')
 
-#     def test_3D_rv_cop_flow(self):
+#         # valid_pdf(self.rv, self.args.obs, self.args.device)
+
+#     def test_4D_rv_cop_flow(self):
 #         with torch.no_grad():
 #             self.samples_pred = self.rv.sample(self.args.obs, transform=True) # no transform , or add change of var  change
 #             samples_pred = self.samples_pred.detach().clone()
 #             self.samples_target = self.distr_target.simulate(self.args.obs)
 #             samples_target = self.samples_target.copy()
 
-#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), 'tests', '3D_rvine_samples01')
-#             visualize_joint(np.concatenate([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples12')
-#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), 'tests', '3D_rvine_samples02')
+#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), 'tests', '4D_rvine_samples01')
+#             visualize_joint(np.concatenate([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), 'tests', '4D_rvine_samples12')
+#             visualize_joint(np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), 'tests', '4D_rvine_samples02')
 
 #             # Should be zero:
 #             X_in_p = np.array(self.rv.pdf_uniform(samples_pred.numpy()))
@@ -296,8 +433,28 @@ class Test_Rvine_2D(unittest.TestCase):
 #             print('Y_in_p', Y_in_p.mean())
 #             print('Y_in_q', Y_in_q.mean())
 #             jsd_X_Y = js_divergence(X_in_p, X_in_q, Y_in_p, Y_in_q)
-#             print('3D jsd: ')
+#             print('4D jsd: ')
 #             print(jsd_X_Y)
+
+#             # RealNVP outputs the density directly, but not the transformation to
+#             # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+#             pred_distr = scipy.stats.gaussian_kde(samples_pred.cpu().numpy().T)
+#             true_rvine = scipy.stats.gaussian_kde(samples_target.T)
+#             # Note, that uniform samples means the transformed samples
+
+#             # Prob X in both distributions
+#             prob_X_in_p = pred_distr.pdf(samples_pred.cpu().numpy().T).T
+#             prob_X_in_q = true_rvine.pdf(samples_pred.cpu().numpy().T).T
+
+#             # Prob Y in both distributions
+#             prob_Y_in_q = true_rvine.pdf(samples_target.T).T
+#             prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+#             divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
+#                                          prob_X_in_q=prob_X_in_q,
+#                                          prob_Y_in_p=prob_Y_in_p,
+#                                          prob_Y_in_q=prob_Y_in_q)
+#             print('kde jsd: ', divergence_2)
+
 #             self.assertTrue(jsd_X_Y >= 0)
 
 if __name__ == '__main__':
@@ -315,7 +472,7 @@ if __name__ == '__main__':
 
     # R-vine on 2 dimensions
     #for random_seed in range(5):
-    random_seed = 5
+    random_seed = 51
     np.random.seed(random_seed)
     random.seed(random_seed)
     torch.manual_seed(random_seed)
@@ -334,9 +491,9 @@ if __name__ == '__main__':
     rv = RVine(args=args, data=dataset_trn)
     rv.estimate_rvine()
     samples_1 = rv.sample(args.obs, transform=True) # no transform , or add change of var  change
-    visualize_joint(np.concatenate([samples_1[:, 0:1], samples_1[:, 1:2]], axis=1), 'tests/plots', '2D_rvine_samples01')
-    visualize_joint(np.concatenate([samples_1[:, 1:2], samples_1[:, 2:3]], axis=1), 'tests/plots', '2D_rvine_samples12')
-    visualize_joint(np.concatenate([samples_1[:, 0:1], samples_1[:, 2:3]], axis=1), 'tests/plots', '2D_rvine_samples02')
+    visualize_joint(np.concatenate([samples_1[:, 0:1], samples_1[:, 1:2]], axis=1), args.figures_path, 'test_2D_rvine_samples01')
+    visualize_joint(np.concatenate([samples_1[:, 1:2], samples_1[:, 2:3]], axis=1), args.figures_path, 'test_2D_rvine_samples12')
+    visualize_joint(np.concatenate([samples_1[:, 0:1], samples_1[:, 2:3]], axis=1), args.figures_path, 'test_2D_rvine_samples02')
 
     # Should be zero:
     X_in_p = np.array(rv.pdf_uniform(samples_1.numpy()))

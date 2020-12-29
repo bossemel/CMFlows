@@ -91,6 +91,7 @@ def initialize_graph(self):
                                       model_name='marg_flow',
                                       rvine=True,
                                       disable_tqdm=True)
+
             # Load best model for marginal flow
             model_loader(self.marg_flow, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
 
@@ -100,6 +101,7 @@ def initialize_graph(self):
                 self.data = self.data.to(self.args.device)
                 if self.args.marg_flow == 'NSF':
                     transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
+
                 elif self.args.marg_flow == 'DDSF':
                     assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
                     transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
@@ -170,7 +172,8 @@ def add_new_node(self, common_node, edge, plots):
 
     dataset, data_loaders = create_dataset(uncon_node_data, cond_node_data, self.args)
 
-    visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args.figures_path, name='rvine_input_dataset_{}'.format(edge_str))
+    visualize_joint(dataset.trn.cpu(), self.args.figures_path, name='rvine_input_dataset_{}'.format(edge_str))
+    #visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args.figures_path, name='rvine_input_dataset_uniform_{}'.format(edge_str))
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
@@ -251,21 +254,21 @@ def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
 class RVine():
     """Class that containts the RVine tree.
     """
-    def __init__(self, args, data):
+    def __init__(self, args, num_inputs):
         self.args = args
-        self.data = data
+        #self.data = data
         self.graph_list = []
         self.tree_list = []
-        self.num_inputs = data.shape[1]
+        self.num_inputs = num_inputs #data.shape[1]
 
         # Initialize empty results dictionary
         self.results_dict = {}
 
-    def estimate_rvine(self, plots=True):
+    def estimate_rvine(self, data, plots=True):
         """Sequentially estimates the best tree by minimum spanning algorithm
         and estimates the copula between nodes using CM Flows.
         """
-
+        self.data = data
         # get normal distribution for transformations
         self.norm = scipy.stats.norm(loc=0, scale=1)
         # initialize graph and transform marginals using marginal flows
@@ -299,7 +302,6 @@ class RVine():
                                                   self.current_graph.nodes[n1]['node_data'].cpu())
                 self.current_graph[n0][n1]['weight'] = np.abs(ktau)
             self.graph_list.append(self.current_graph)
-
 
     def sample(self, num_samples=1000, transform=False):
         """Samples from the trained R-Vine.
@@ -367,6 +369,7 @@ class RVine():
             samples
         """
         with torch.no_grad():
+            _inputs = inputs.clone()
             normal_distr = scipy.stats.norm()
             transformed = []
             pdf = torch.ones((inputs.shape[0]))
@@ -383,8 +386,8 @@ class RVine():
                     uncon_input_node = next(flatten(node))
                     if uncon_input_node not in transformed:
                         print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
-                        cond_node_data = inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
-                        uncon_node_data = inputs[:, uncon_input_node:uncon_input_node + 1].to(self.args.device)
+                        cond_node_data = _inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
+                        uncon_node_data = _inputs[:, uncon_input_node:uncon_input_node + 1].to(self.args.device)
 
                         best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                         model_loader(self.cop_flow,
@@ -397,10 +400,10 @@ class RVine():
 
                         pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
                         #pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,) # @Todo: find out if this is neccessary
-                        assert pdf.shape == (inputs.shape[0],)
+                        assert pdf.shape == (_inputs.shape[0],)
 
                         transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                        inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+                        _inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
 
                         transformed.append(uncon_input_node)
 
@@ -522,7 +525,7 @@ class RVine():
                                          prob_X_in_q=prob_X_in_q,
                                          prob_Y_in_p=prob_Y_in_p,
                                          prob_Y_in_q=prob_Y_in_q)
-            print(divergence_2)
+            print('with KDE JSD: ', divergence_2)
             return divergence
 
     def plot(self):

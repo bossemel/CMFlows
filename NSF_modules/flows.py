@@ -164,8 +164,6 @@ class ConditionalFlow(nn.Module):
             self.num_inputs = num_inputs
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
-
-
             noise = noise.to(device)
             if cond_inputs is not None:
                 cond_inputs = cond_inputs.to(device)

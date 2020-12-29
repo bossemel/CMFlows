@@ -12,7 +12,6 @@ eps = 1e-3
 
 
 def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
-    print('start gaussian change of var')
     inputs[inputs == 0] = eps
     inputs[inputs == 1] = 1 - eps
     normal_distr = scipy.stats.norm()
