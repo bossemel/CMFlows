@@ -314,16 +314,18 @@ class RVine():
             samples
         """
         with torch.no_grad():
-            transformed = []
+            # transformed = []
 
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             samples = torch.Tensor(num_samples, self.num_inputs).normal_()
+            transformed = []
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
                 # print('tree number', ii)
                 # dim to be transformed: the one that has no common edge in the previous tree,
                 # the common edge is the condtional input
+
                 for node in self.tree_list[ii].nodes():
                     print('tree', ii, 'node', node)
                     n0, n1 = node
@@ -371,8 +373,8 @@ class RVine():
         with torch.no_grad():
             _inputs = inputs.clone()
             normal_distr = scipy.stats.norm()
-            transformed = []
             pdf = torch.ones((inputs.shape[0]))
+            transformed = []
             #assert torch.max(inputs) > 1
             for ii in range(1, len(self.tree_list)):
                 for node in self.tree_list[ii].nodes():
@@ -404,6 +406,7 @@ class RVine():
 
                         transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
                         _inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+                        visualize_joint(torch.cat([uncon_node_data[:, 0:1], transformed_inputs], axis=1).cpu(), self.args.figures_path, name='transform_{}'.format(node))
 
                         transformed.append(uncon_input_node)
 
