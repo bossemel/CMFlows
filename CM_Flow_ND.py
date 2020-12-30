@@ -40,7 +40,7 @@ def load_data(args):
 
     Returns:
         dataset: full dataset
-        num_cond_inputs: number of conditional inputs (irrelevant for copulas)
+        num_context: number of conditional inputs (irrelevant for copulas)
         num_inputs: dimensions of data
         data_loaders: dictionary containing train, val and test set loader
     """
@@ -127,10 +127,10 @@ def visualize_marg_flow_output(model, dataset, args):
 def visualize_cop_flow_output(model, dataset, args):
     with torch.no_grad():
         if args.conditional_copula:
-            cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-            output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=args.transform_fct, device=args.device).cpu()
+            context = torch.tensor(np.random.normal(size=(100000, 1))).float()
+            output_copula = model.cop_flow.sample(num_samples=100000, context=context, transform=args.transform_fct, device=args.device).cpu()
             visualize_joint(output_copula, args.figures_path, name='output_copula')
-            output_copula = model.cop_flow.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+            output_copula = model.cop_flow.sample(num_samples=100000, context=context, transform=None, device=args.device).cpu()
             visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
         else:
             output_copula = model.cop_flow.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()

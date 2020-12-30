@@ -137,6 +137,12 @@ class TrainOptions():
         parser.add_argument(
             '--tail_bound_m', type=float, default=8, help='Bounds of spline region')
 
+        # RealNVP options
+        parser.add_argument(
+            '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
+        parser.add_argument(
+            '--num-blocks', type=int, default=8, help='number of invertible blocks')
+
         # Save options
         parser.add_argument(
             '--exp_name', type=str, default='default_name_rvine', help='experiment name to store plots and logs')

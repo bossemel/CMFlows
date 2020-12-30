@@ -13,7 +13,6 @@ def load_data(args):
 
     Returns:
         dataset: full dataset
-        num_cond_inputs: number of conditional inputs (irrelevant for copulas)
         num_inputs: dimensions of data
         data_loaders: dictionary containing train, val and test set loader
     """

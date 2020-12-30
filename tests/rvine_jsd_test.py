@@ -34,7 +34,7 @@ def gen_mv_copula_3d(args):
     copula_samples = copula.simulate(n=args.obs)
     if not args.disable_marginal:
         for dim in range(copula_samples.shape[1]):
-            copula_samples[:, dim] = marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha)
+            copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha))
     assert not np.isnan(np.sum(copula_samples)), '{}'.format(copula_samples[np.isnan(copula_samples)])
     return torch.from_numpy(copula_samples), copula_samples.shape[1], copula
 
@@ -95,7 +95,7 @@ class Test_Rvine_2D(unittest.TestCase):
 
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 20
+        self.args.epochs = 1
         self.args.obs = 10000
         self.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -115,7 +115,7 @@ class Test_Rvine_2D(unittest.TestCase):
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                         transform='gaussian',
-                                                        cond_inputs=cond_noise,
+                                                        context=cond_noise,
                                                         num_inputs=1,
                                                         device=self.args.device).detach().cpu()
         assert torch.max(self.samples_cop_flow) <= 1
@@ -161,7 +161,7 @@ class Test_Rvine_2D(unittest.TestCase):
             cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
             samples = self.rv.cop_flow.sample(self.obs,
                                               transform='gaussian',
-                                              cond_inputs=cond_noise,
+                                              context=cond_noise,
                                               num_inputs=1,
                                               device=self.args.device).detach().cpu()
             X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=samples[:, 1:2].numpy(), context=samples[:, 0:1].numpy()))
@@ -210,7 +210,7 @@ class Test_Rvine_2D(unittest.TestCase):
             cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
             samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                        transform='gaussian',
-                                                       cond_inputs=cond_noise,
+                                                       context=cond_noise,
                                                        num_inputs=1,
                                                        device=self.args.device).detach().cpu()
             samples_pred = samples_cop_flow #.detach().clone()
@@ -229,7 +229,7 @@ class Test_Rvine_2D(unittest.TestCase):
             cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
             samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                        transform='gaussian',
-                                                       cond_inputs=cond_noise,
+                                                       context=cond_noise,
                                                        num_inputs=1,
                                                        device=self.args.device).detach().cpu()
             samples_pred = samples_cop_flow #.detach().clone()
@@ -269,7 +269,7 @@ class Test_Rvine_3D(unittest.TestCase):
 
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 20
+        self.args.epochs = 10
         self.args.obs = 10000
         self.args.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -290,7 +290,7 @@ class Test_Rvine_3D(unittest.TestCase):
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                         transform='gaussian',
-                                                        cond_inputs=cond_noise,
+                                                        context=cond_noise,
                                                         num_inputs=1,
                                                         device=self.args.device).detach().cpu()
         assert torch.max(self.samples_cop_flow) <= 1
@@ -375,7 +375,7 @@ class Test_Rvine_4D(unittest.TestCase):
 
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 20
+        self.args.epochs = 10
         self.args.obs = 10000
         self.args.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -396,7 +396,7 @@ class Test_Rvine_4D(unittest.TestCase):
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
                                                         transform='gaussian',
-                                                        cond_inputs=cond_noise,
+                                                        context=cond_noise,
                                                         num_inputs=1,
                                                         device=self.args.device).detach().cpu()
         assert torch.max(self.samples_cop_flow) <= 1

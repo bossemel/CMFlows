@@ -18,6 +18,7 @@ from utils.load_and_save import load_model
 from NSF import build_model as build_model_nsf
 # from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
 from DDSF import build_model as build_model_ddsf
+from RealNVP import build_model as build_model_rnvp
 from experiment_runner import train_val
 from utils import calc_jsd, normalize_torch
 eps = 0.0001
@@ -182,8 +183,8 @@ def add_new_node(self, common_node, edge, plots):
     args.conditional_copula = True
     if self.args.cop_flow == 'NSF':
         self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
-    elif self.args.marg_flow == 'DDSF':
-        self.cop_flow = build_model_ddsf(args)
+    elif self.args.cop_flow == 'RealNVP':
+        self.cop_flow = build_model_rnvp(args)
 
     self.cop_flow.to(self.args.device)
     self.cop_flow.state = dict()
@@ -205,7 +206,10 @@ def add_new_node(self, common_node, edge, plots):
 
     with torch.no_grad():
         self.cop_flow.eval()
-        node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
+        if args.cop_flow == 'NSF':
+            node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
+        elif args.cop_flow == 'RealNVP':
+            node_data = self.cop_flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
         self.new_graph.add_node(edge,
                                 node_data=node_data,
                                 best_dict_con=best_dict_con,
@@ -217,8 +221,8 @@ def add_new_node(self, common_node, edge, plots):
             visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
             visualize_joint(gaussian_inputs, self.args.figures_path, name='rvine_con_transform_gaussian_{}'.format(edge_str))
 
-            cond_inputs = torch.tensor(np.random.normal(size=(10000, 1))).float()
-            con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, cond_inputs=cond_inputs, device=self.args.device)
+            context = torch.tensor(np.random.normal(size=(10000, 1))).float()
+            con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
             visualize_joint(con_samples.cpu(), self.args.figures_path, name='rvine_con_copula_{}'.format(edge_str))
 
     return self
@@ -351,7 +355,10 @@ class RVine():
                         self.cop_flow.eval()
 
                         # inverse H-function
-                        transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
+                        if self.args.cop_flow == 'NSF':
+                            transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
+                        elif self.args.cop_flow == 'RealNVP':
+                            transformed_marginal = self.cop_flow.forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device), mode='inverse')[0]
                         samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
                         transformed.append(uncon_input_node)
 
@@ -401,7 +408,7 @@ class RVine():
                         self.cop_flow.eval()
 
                         pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
-                        #pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,) # @Todo: find out if this is neccessary
+                        # pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,) # @Todo: find out if this is neccessary
                         assert pdf.shape == (_inputs.shape[0],)
 
                         transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
@@ -442,35 +449,35 @@ class RVine():
             #     normal_distr = scipy.stats.norm(0, 1)
             #     samples_target_uni = normal_distr.cdf(samples_target_normal)
                 # @Todo: remove before submitting code
-            # if visualize:
-            #     visualize_joint(samples_pred_uni[:, :2].cpu(), self.args.figures_path, name='samples_pred01')
-            #     visualize_joint(samples_target_uni[:, :2], self.args.figures_path, name='samples_target01')
-            #     visualize_joint(samples_pred_uni[:, 1:3].cpu(), self.args.figures_path, name='samples_pred12')
-            #     visualize_joint(samples_target_uni[:, 1:3], self.args.figures_path, name='samples_target12')
-            #     visualize_joint(samples_pred_uni[:, 2:4].cpu(), self.args.figures_path, name='samples_pred23')
-            #     visualize_joint(samples_target_uni[:, 2:4], self.args.figures_path, name='samples_target23')
+            if visualize:
+                visualize_joint(samples_pred_uni[:, :2].cpu(), self.args.figures_path, name='samples_pred01')
+                visualize_joint(samples_target_uni[:, :2], self.args.figures_path, name='samples_target01')
+                visualize_joint(samples_pred_uni[:, 1:3].cpu(), self.args.figures_path, name='samples_pred12')
+                visualize_joint(samples_target_uni[:, 1:3], self.args.figures_path, name='samples_target12')
+                visualize_joint(samples_pred_uni[:, 2:4].cpu(), self.args.figures_path, name='samples_pred23')
+                visualize_joint(samples_target_uni[:, 2:4], self.args.figures_path, name='samples_target23')
 
-            #     visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(), self.args.figures_path, name='samples_pred02')
-            #     visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), self.args.figures_path, name='samples_target02')
-            #     visualize_joint(torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred13')
-            #     visualize_joint(np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target13')
-            #     visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
-            #     visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
+                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(), self.args.figures_path, name='samples_pred02')
+                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), self.args.figures_path, name='samples_target02')
+                visualize_joint(torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred13')
+                visualize_joint(np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target13')
+                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
+                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
 
-            # if not args.error_bars:
-            #     # @Todo: do with change of var
-            #     calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
-            #     calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
-            #     calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(), samples_target=samples_target_uni[:, 2:4], name='23')
-            #     calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
-            #              samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), name='02')
-            #     calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-            #              samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
-            #     calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-            #              samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
+            if not args.error_bars:
+                # @Todo: do with change of var
+                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
+                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
+                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(), samples_target=samples_target_uni[:, 2:4], name='23')
+                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
+                         samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), name='02')
+                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                         samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
+                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                         samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
 
-            #     calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni.cpu(),
-            #              samples_target=samples_target_uni, name='full')
+                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni.cpu(),
+                         samples_target=samples_target_uni, name='full')
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0

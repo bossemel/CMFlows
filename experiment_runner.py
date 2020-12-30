@@ -34,14 +34,14 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
                 outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
                 loss = model.cop_flow.loss(outputs_marg_flows)
             else:
-                loss = model.cop_flow.loss(output_marg_flow_1, cond_inputs=output_marg_flow_2)
+                loss = model.cop_flow.loss(output_marg_flow_1, context=output_marg_flow_2)
     elif model_name == 'cop_flow_NSF':
         if args.conditional_copula:
-            loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
+            loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
         else:
             loss = model.loss(data)
     elif model_name == 'rvine_cop_flow':
-        loss = model.loss(inputs=data[:, 0: 1], cond_inputs=data[:, 1: 2])
+        loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
     else:
         loss = model.loss(data)
 
@@ -125,7 +125,7 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     #         else:
     #             if args.conditional_copula:
     #                 model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
-    #                               cond_inputs=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
+    #                               context=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
     #             else:
     #                 model(train_loader.dataset.tensors[0].to(data.device))
     #     elif model_name == 'CM_Flow':
@@ -408,7 +408,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # test_dict = margin_uniformity(args=args,
             #                               epoch=best_dict['best_validation_epoch'],
             #                               model=model,
-            #                               cond_inputs=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
+            #                               context=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
             #                               transform_fct=args.transform_fct,
             #                               test_dict=test_dict,
             #                               num_samples=num_samples)

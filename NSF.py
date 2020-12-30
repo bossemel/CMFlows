@@ -36,21 +36,21 @@ def build_model(args, flow_type='cop_flow'):
     if flow_type == 'cop_flow':
         if args.conditional_copula:
             num_inputs = 1
-            num_cond_inputs = 1
+            context = 1
         else:
             if args.four_dim:
                 num_inputs = 4
-                num_cond_inputs = 0
+                context = 0
             else:
                 num_inputs = 2
-                num_cond_inputs = 0
+                context = 0
     elif flow_type == 'marg_flow':
         num_inputs = 1
-        num_cond_inputs = 0
+        context = 0
     else:
         raise ValueError('Unknown flow type')
     flow = flows.ConditionalFlow(dim=num_inputs,
-                                 context_dim=num_cond_inputs, args=args)
+                                 context_dim=context, args=args)
     return flow
 
 

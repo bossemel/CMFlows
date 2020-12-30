@@ -14,7 +14,7 @@ class FlowSequential(nn.Sequential):
     computes log jacobians.
     """
 
-    def forward(self, inputs, cond_inputs=None, mode='direct', logdets=None):
+    def forward(self, inputs, context=None, mode='direct', logdets=None):
         """ Performs a forward or backward pass for flow modules.
         Args:
             inputs: a tuple of inputs and logdets
@@ -30,12 +30,12 @@ class FlowSequential(nn.Sequential):
         assert mode in ['direct', 'inverse']
         if mode == 'direct':
             for module in self._modules.values():
-                inputs, logdet = module(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
+                inputs, logdet = module(inputs=inputs, context=context, mode=mode)
                 logdets += logdet
 
         else:
             for module in reversed(self._modules.values()):
-                inputs, logdet = module(inputs=inputs, cond_inputs=cond_inputs, mode=mode)
+                inputs, logdet = module(inputs=inputs, context=context, mode=mode)
                 logdets += logdet
 
         return inputs, logdets
@@ -43,36 +43,40 @@ class FlowSequential(nn.Sequential):
     def log_density(self, inputs, context=None):
         """Calculates log density of the flow
         """
-        outputs, log_jacob = self(inputs=inputs, cond_inputs=context)
+        outputs, log_jacob = self(inputs=inputs, context=context)
         density = flow_density(outputs, log_jacob)
         return density
 
-    def loss(self, inputs, cond_inputs=None):
+    def pdf_normal(self, inputs, context=None):
+        with torch.no_grad():
+            return torch.exp(self.log_density(inputs, context)).reshape(-1,).cpu()
+
+    def loss(self, inputs, context=None):
         """Return negative log likelihood/density
         """
-        return (- self.log_density(inputs, cond_inputs)).mean()
+        return (- self.log_density(inputs, context)).mean()
 
-    def transform(self, inputs, cond_inputs, mode='direct', device=None):
+    def transform_to_noise(self, inputs, context, mode='direct', device=None):
         if device is not None:
             inputs = inputs.to(device)
-            cond_inputs = cond_inputs.to(device)
-        return self.forward(inputs=inputs, cond_inputs=cond_inputs, mode=mode)[0]
+            context = context.to(device)
+        return self.forward(inputs=inputs, context=context, mode=mode)[0]
 
-    def sample(self, num_samples=None, transform=None, cond_inputs=None, num_inputs=None, device=None):
+    def sample(self, num_samples=None, transform=None, context=None, num_inputs=None, device=None):
         """Returns an output sample without transformation
         """
         if num_inputs is not None:
             self.num_inputs = num_inputs
-        if cond_inputs is not None:
-            num_samples = cond_inputs.shape[0]
+        if context is not None:
+            num_samples = context.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
-            if cond_inputs is not None:
-                cond_inputs = cond_inputs.to(device)
+            if context is not None:
+                context = context.to(device)
             noise = noise.to(device)
-        samples = self.forward(inputs=noise, cond_inputs=cond_inputs, mode='inverse')[0]
-        if cond_inputs is not None:
-            samples = torch.cat([samples, cond_inputs], axis=1)
+        samples = self.forward(inputs=noise, context=context, mode='inverse')[0]
+        if context is not None:
+            samples = torch.cat([samples, context], axis=1)
         if transform == 'sigmoid':
             raise NotImplementedError
         elif transform == 'gaussian':
@@ -80,7 +84,7 @@ class FlowSequential(nn.Sequential):
             samples = normal_distr.cdf(samples)
         return samples
 
-    def sample_copula(self, num_samples=None, cond_inputs=None, num_inputs=None, device=None):
+    def sample_copula(self, num_samples=None, context=None, num_inputs=None, device=None):
         """Returns the predicted copula (output sample with transformation)
         """
         if num_inputs is not None:
@@ -88,11 +92,11 @@ class FlowSequential(nn.Sequential):
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device is not None:
             noise = noise.to(device)
-            if cond_inputs is not None:
-                cond_inputs = cond_inputs.to(device)
-        samples = self.forward(noise, cond_inputs=cond_inputs, mode='inverse')[0]
-        if cond_inputs is not None:
-            samples = torch.cat([samples, cond_inputs], axis=1)
+            if context is not None:
+                context = context.to(device)
+        samples = self.forward(noise, context=context, mode='inverse')[0]
+        if context is not None:
+            samples = torch.cat([samples, context], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
         return samples
@@ -113,12 +117,12 @@ class FlowSequential(nn.Sequential):
             # Samples from both distributions
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
-                cond_inputs_uni = normal_distr.cdf(cond_inputs_normal)
+                context_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+                context_uni = normal_distr.cdf(context_normal)
 
-            samples_pred_norm = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, transform=None, device=args.device)
-            samples_pred_uni = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
-            samples_pred_viz = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal if args.conditional_copula else None, device=args.device)
+            samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
+            samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
+            samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
 
             if args.conditional_copula:
                 visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
@@ -138,14 +142,14 @@ class FlowSequential(nn.Sequential):
             assert np.min(samples_target_uni) >= 0
 
             if args.conditional_copula:
-                assert torch.max(cond_inputs_normal) > 1
-                assert torch.min(cond_inputs_normal) < 0
-                assert torch.max(cond_inputs_uni) <= 1
-                assert torch.min(cond_inputs_uni) >= 0
+                assert torch.max(context_normal) > 1
+                assert torch.min(context_normal) < 0
+                assert torch.max(context_uni) <= 1
+                assert torch.min(context_uni) >= 0
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, cond_inputs_uni.cpu())
+                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, context_uni.cpu())
             else:
                 prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
 
@@ -156,7 +160,7 @@ class FlowSequential(nn.Sequential):
 
             if args.conditional_copula:
                 prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, cond_inputs_uni.cpu()], axis=1))
+                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
             else:
                 prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self.log_density, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
@@ -178,27 +182,27 @@ class FlowSequential(nn.Sequential):
 
             return divergence
 
-    def t_metric_eval(self, args, num_samples, cond_inputs=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
+    def t_metric_eval(self, args, num_samples, context=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
             # Samples from both distributions
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
-                cond_inputs_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+                context_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
 
             if cm_flow:
                 if args.conditional_copula:
-                    samples = self.sample_copula(num_samples=num_samples, cond_inputs=cond_inputs_normal, device=device).cpu().numpy()
+                    samples = self.sample_copula(num_samples=num_samples, context=context_normal, device=device).cpu().numpy()
                 else:
                     samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
                 if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, cond_inputs=cond_inputs_normal, transform=transform_fct, device=device).cpu().numpy()
+                    samples = self.sample(num_samples=num_samples, context=context_normal, transform=transform_fct, device=device).cpu().numpy()
                 else:
                     samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
-            if cond_inputs is not None:
-                margin_x1 = cond_inputs
+            if context is not None:
+                margin_x1 = context
                 margin_x2 = samples
             else:
                 margin_x1 = samples[:, 0]
@@ -217,7 +221,7 @@ class CouplingLayer(nn.Module):
                  num_inputs,
                  num_hidden,
                  mask,
-                 num_cond_inputs=None,
+                 num_context=None,
                  s_act='tanh',
                  t_act='relu'):
         assert True, 'coupling layer initialized'
@@ -230,8 +234,8 @@ class CouplingLayer(nn.Module):
         s_act_func = activations[s_act]
         t_act_func = activations[t_act]
 
-        if num_cond_inputs is not None:
-            total_inputs = num_inputs + num_cond_inputs
+        if num_context is not None:
+            total_inputs = num_inputs + num_context
         else:
             total_inputs = num_inputs
 
@@ -249,12 +253,12 @@ class CouplingLayer(nn.Module):
                 m.bias.data.fill_(0)
                 nn.init.orthogonal_(m.weight.data)
 
-    def forward(self, inputs, cond_inputs=None, mode='direct'):
+    def forward(self, inputs, context=None, mode='direct'):
         mask = self.mask
 
         masked_inputs = inputs * mask
-        if cond_inputs is not None:
-            masked_inputs = torch.cat([masked_inputs, cond_inputs], -1)
+        if context is not None:
+            masked_inputs = torch.cat([masked_inputs, context], -1)
 
         if mode == 'direct':
             log_s = self.scale_net(masked_inputs) * (1 - mask)
@@ -285,7 +289,7 @@ class BatchNormFlow(nn.Module):
         self.register_buffer('running_mean', torch.zeros(num_inputs))
         self.register_buffer('running_var', torch.ones(num_inputs))
 
-    def forward(self, inputs, cond_inputs=None, mode='direct'):
+    def forward(self, inputs, context=None, mode='direct'):
         if mode == 'direct':
             if self.training:
                 self.batch_mean = inputs.mean(0)
