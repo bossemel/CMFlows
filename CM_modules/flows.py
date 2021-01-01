@@ -16,6 +16,7 @@ class CMFlow(nn.Module):
         else:
             raise ValueError('Copula Flow type unknown.')
 
+        self.four_dim = args.four_dim
         if args.marg_flow == 'NSF':
             self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
             self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
@@ -32,12 +33,14 @@ class CMFlow(nn.Module):
         self.cop_flow.train()
         self.marg_flow_1.train()
         self.marg_flow_2.train()
-        self.marg_flow_3.train()
-        self.marg_flow_4.train()
+        if self.four_dim:
+            self.marg_flow_3.train()
+            self.marg_flow_4.train()
 
     def eval(self):
         self.cop_flow.eval()
         self.marg_flow_1.eval()
         self.marg_flow_2.eval()
-        self.marg_flow_3.eval()
-        self.marg_flow_4.eval()
+        if self.four_dim:
+            self.marg_flow_3.eval()
+            self.marg_flow_4.eval()

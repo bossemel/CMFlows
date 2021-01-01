@@ -50,7 +50,7 @@ if __name__ == '__main__':
     visualize_joint(samples_target, args.figures_path, '4D_cop_samples')
 
     rv = RVine(args=args, num_inputs=samples_target.shape[1])
-    rv.estimate_rvine(torch.from_numpy(samples_target))
+    rv.fit(torch.from_numpy(samples_target))
 
     samples_pred = rv.sample(obs, transform=True).detach()
     assert torch.max(samples_pred) <= 1

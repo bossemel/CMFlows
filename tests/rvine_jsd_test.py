@@ -110,7 +110,7 @@ class Test_Rvine_2D(unittest.TestCase):
         self.samples_target = self.distr_target.xx
         visualize_joint(self.samples_target, args.figures_path, 'test_2D_cop_samples')
         self.rv = RVine(args=self.args, num_inputs=self.samples_target.shape[1])
-        self.rv.estimate_rvine(torch.from_numpy(self.samples_target))
+        self.rv.fit(torch.from_numpy(self.samples_target))
 
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
@@ -285,7 +285,7 @@ class Test_Rvine_3D(unittest.TestCase):
         visualize_joint(self.samples_target, 'tests', '3D_cop_samples')
 
         self.rv = RVine(args=self.args, num_inputs=dataset_trn.shape[1])
-        self.rv.estimate_rvine(dataset_trn)
+        self.rv.fit(dataset_trn)
 
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,
@@ -391,7 +391,7 @@ class Test_Rvine_4D(unittest.TestCase):
         visualize_joint(self.samples_target, 'tests', '4D_cop_samples')
 
         self.rv = RVine(args=self.args, num_inputs=self.samples_target.shape[1])
-        self.rv.estimate_rvine(torch.from_numpy(self.samples_target))
+        self.rv.fit(torch.from_numpy(self.samples_target))
 
         cond_noise = torch.Tensor(self.obs, 1).normal_().to(self.args.device)
         self.samples_cop_flow = self.rv.cop_flow.sample(self.obs,

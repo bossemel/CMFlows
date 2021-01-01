@@ -23,12 +23,12 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 def train_and_plot(visualize=True, continue_from_mode=False):
     if not args.error_bars:
         if not args.load_model:
-            rv.estimate_rvine(data=dataset_trn)
+            rv.fit(data=dataset_trn)
             save_rvine(args.experiment_saved_models, 'rvine_object', rv)
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
     else:
-        rv.estimate_rvine(data=dataset_trn)
+        rv.fit(data=dataset_trn)
     rv.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in

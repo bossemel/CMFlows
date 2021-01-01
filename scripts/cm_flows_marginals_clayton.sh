@@ -2,7 +2,7 @@ set -e
 echo 'Begin Copula: Clayton Marginal: uniform Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_uniform_nsf \
+--exp_name CM_Flow_Clayton_uniform_nsf_error \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
@@ -13,13 +13,14 @@ python CM_Flow.py \
 --high 1 \
 --theta 2 \
 --obs 10000 \
---conditional
+--conditional \
+--error_bars
 
 
 echo 'Begin Copula: clayton Marginal: gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_gaussian_nsf \
+--exp_name CM_Flow_clayton_gaussian_nsf_error \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
@@ -29,13 +30,14 @@ python CM_Flow.py \
 --var 1 \
 --theta 2 \
 --obs 10000 \
---conditional
+--conditional \
+--error_bars
 
 
 echo 'Begin Copula: clayton Marginal: gamma Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_gamma_nsf \
+--exp_name CM_Flow_clayton_gamma_nsf_error \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
@@ -46,13 +48,14 @@ python CM_Flow.py \
 --var 1 \
 --theta 2 \
 --obs 10000 \
---conditional
+--conditional \
+--error_bars
 
 
 echo 'Begin Copula: clayton Marginal: lognormal Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_lognormal_nsf \
+--exp_name CM_Flow_clayton_lognormal_nsf_error \
 --epochs 100 \
 --batch-size 100 \
 --copula clayton \
@@ -62,4 +65,5 @@ python CM_Flow.py \
 --var 1 \
 --theta 2 \
 --obs 10000 \
---conditional
+--conditional \
+--error_bars

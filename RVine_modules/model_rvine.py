@@ -49,17 +49,65 @@ def flatten(nested_tuple):
         yield from [i] if not isinstance(i, tuple) else flatten(i)
 
 
+def transform_marginals(self, node):
+    with torch.no_grad():
+        self.marg_flow.eval()
+        self.data = self.data.to(self.args.device)
+        if self.args.marg_flow == 'NSF':
+            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
+
+        elif self.args.marg_flow == 'DDSF':
+            assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
+            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
+        self.data = self.data.cpu()
+        return transformed_inputs
+
+
+def marg_flow(self, dataset, data_loaders, node):
+    print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
+
+    # Initialize marginal flow
+    if self.args.marg_flow == 'NSF':
+        self.marg_flow = build_model_nsf(self.args, flow_type='marg_flow')
+    elif self.args.marg_flow == 'DDSF':
+        self.marg_flow = build_model_ddsf(self.args)
+
+    self.marg_flow.to(self.args.device)
+    self.marg_flow.state = dict()
+    self.marg_flow.train()
+    self.args.optimizer = optim.Adam(self.marg_flow.parameters(), lr=self.args.lr_m, weight_decay=self.args.weight_decay_m)
+    self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+
+    # Train marginal flow
+    best_dict, __ = train_val(args=self.args,
+                              model=self.marg_flow,
+                              dataset=dataset,
+                              data_loaders=data_loaders,
+                              save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
+                              model_name='marg_flow',
+                              rvine=True,
+                              disable_tqdm=True)
+
+    # Load best model for marginal flow
+    model_loader(self.marg_flow, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+
+    # Transform inputs using the trained marginal flow
+    transformed_inputs = transform_marginals(self, node)
+
+    return transformed_inputs
+
+
 def initialize_graph(self):
     """Initializes first tree with input distributions. Each node is one dimension of the
     distribution.
     """
     # create fully connected graph
-    self.current_graph = nx.complete_graph(self.data.shape[1])
+    current_graph = nx.complete_graph(self.data.shape[1])
 
     # distribute data pairs onto edges of the first tree, compute tau
     # and weights for each edge
 
-    for node in self.current_graph.nodes():
+    for node in current_graph.nodes():
         # Prepare dataset for node
         dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
         node_str = re.sub('[, ()]', '', str(node))
@@ -68,45 +116,7 @@ def initialize_graph(self):
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
-            print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
-
-            # Initialize marginal flow
-            if self.args.marg_flow == 'NSF':
-                self.marg_flow = build_model_nsf(self.args, flow_type='marg_flow')
-            elif self.args.marg_flow == 'DDSF':
-                self.marg_flow = build_model_ddsf(self.args)
-
-            self.marg_flow.to(self.args.device)
-            self.marg_flow.state = dict()
-            self.marg_flow.train()
-            self.args.optimizer = optim.Adam(self.marg_flow.parameters(), lr=self.args.lr_m, weight_decay=self.args.weight_decay_m)
-            self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
-
-            # Train marginal flow
-
-            best_dict, __ = train_val(args=self.args,
-                                      model=self.marg_flow,
-                                      dataset=dataset,
-                                      data_loaders=data_loaders,
-                                      save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
-                                      model_name='marg_flow',
-                                      rvine=True,
-                                      disable_tqdm=True)
-
-            # Load best model for marginal flow
-            model_loader(self.marg_flow, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
-
-            # Transform inputs using the trained marginal flow
-            with torch.no_grad():
-                self.marg_flow.eval()
-                self.data = self.data.to(self.args.device)
-                if self.args.marg_flow == 'NSF':
-                    transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
-
-                elif self.args.marg_flow == 'DDSF':
-                    assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
-                    transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
-                self.data = self.data.cpu()
+            transformed_inputs = marg_flow(self, dataset, data_loaders, node)
 
         # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
         # the real number line with the inverse Gaussian CDF
@@ -116,26 +126,25 @@ def initialize_graph(self):
             self.data = self.data.cpu()
 
         # save transformed inputs in graph node
-        self.current_graph.nodes[node]['node_data'] = transformed_inputs
+        current_graph.nodes[node]['node_data'] = transformed_inputs
         assert not np.isnan(torch.sum(transformed_inputs).cpu()), '{}'.format(transformed_inputs[:10])
 
+    return current_graph
+
+
+def add_ktau(current_graph):
     # for each node pair, compute kendalls tau between the transformed inputs
-    for edge in self.current_graph.edges():
+    for edge in current_graph.edges():
         n0, n1 = edge
-
-        ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['node_data'].cpu(),
-                                          self.current_graph.nodes[n1]['node_data'].cpu())
-
+        ktau, __ = scipy.stats.kendalltau(current_graph.nodes[n0]['node_data'].cpu(),
+                                          current_graph.nodes[n1]['node_data'].cpu())
         assert not np.isnan(ktau), '{}'.format(ktau)
-
-        self.current_graph[n0][n1]['weight'] = np.abs(ktau)
-
-    self.graph_list.append(self.current_graph)
-
-    return self
+        current_graph[n0][n1]['weight'] = np.abs(ktau)
+        current_graph[n1][n0]['weight'] = np.abs(ktau)
+    return current_graph
 
 
-def cm_flow_estimation(self, num_current_nodes, plots):
+def build_next_tree(self, num_current_nodes, plots):
     """Adds attributes 'trained_cm_model' (or name of saved model) and 'copula' to each edge of the current tree.
     Created new graph from these edges as nodes.
 
@@ -145,22 +154,44 @@ def cm_flow_estimation(self, num_current_nodes, plots):
     """
     self.new_graph = nx.Graph()
     self.traversed_edges = []
+
     for node in self.current_tree.nodes():
         neighbor_list = self.current_tree.neighbors(node)
         neighbor_list = [n for n in neighbor_list]
         if len(neighbor_list) >= 2:
             for neighbor in neighbor_list:
                 if (node, neighbor) not in self.traversed_edges:
-                    self = add_new_node(self, node, (node, neighbor), plots)
+                    self.new_graph = add_new_node(self, self.new_graph, node, (node, neighbor), plots)
                     self.traversed_edges.extend([(node, neighbor), tuple(reversed((node, neighbor)))])
         if num_current_nodes == 2:
-            self = add_new_node(self, node, (node, neighbor_list[0]), plots)
+            self.new_graph = add_new_node(self, self.new_graph, node, (node, neighbor_list[0]), plots)
             num_current_nodes -= 1
 
-    return self
+    return self.new_graph
 
 
-def add_new_node(self, common_node, edge, plots):
+def cop_flow_transform(self, uncon_node_data, cond_node_data):
+    self.cop_flow.eval()
+    if self.args.cop_flow == 'NSF':
+        node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1))
+    elif self.args.cop_flow == 'RealNVP':
+        node_data = self.cop_flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1))
+    return node_data
+
+
+def plot_cop_flow(self, node_data, cond_node_data, edge):
+    gaussian_inputs = torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu()
+    uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
+    edge_str = re.sub('[, ()]', '', str(edge))
+    visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
+    visualize_joint(gaussian_inputs, self.args.figures_path, name='rvine_con_transform_gaussian_{}'.format(edge_str))
+
+    context = torch.tensor(np.random.normal(size=(10000, 1))).float()
+    con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
+    visualize_joint(con_samples.cpu(), self.args.figures_path, name='rvine_con_copula_{}'.format(edge_str))
+
+
+def add_new_node(self, new_graph, common_node, edge, plots):
     """Trains copula flow betweens two nodes and transforms inputs to create new node.
 
     Params:
@@ -174,7 +205,6 @@ def add_new_node(self, common_node, edge, plots):
     dataset, data_loaders = create_dataset(uncon_node_data, cond_node_data, self.args)
 
     visualize_joint(dataset.trn.cpu(), self.args.figures_path, name='rvine_input_dataset_{}'.format(edge_str))
-    #visualize_joint(self.norm.cdf(dataset.trn.cpu()), self.args.figures_path, name='rvine_input_dataset_uniform_{}'.format(edge_str))
 
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
@@ -205,27 +235,15 @@ def add_new_node(self, common_node, edge, plots):
     model_loader(self.cop_flow, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
-        self.cop_flow.eval()
-        if args.cop_flow == 'NSF':
-            node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
-        elif args.cop_flow == 'RealNVP':
-            node_data = self.cop_flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1)) #.reshape(-1,1)
-        self.new_graph.add_node(edge,
-                                node_data=node_data,
-                                best_dict_con=best_dict_con,
-                                common_node=common_node)
+        node_data = cop_flow_transform(self, uncon_node_data, cond_node_data)
+        new_graph.add_node(edge,
+                           node_data=node_data,
+                           best_dict_con=best_dict_con,
+                           common_node=common_node)
         if plots:
-            gaussian_inputs = torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu()
-            uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
-            edge_str = re.sub('[, ()]', '', str(edge))
-            visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
-            visualize_joint(gaussian_inputs, self.args.figures_path, name='rvine_con_transform_gaussian_{}'.format(edge_str))
+            plot_cop_flow(self, node_data, cond_node_data, edge)
 
-            context = torch.tensor(np.random.normal(size=(10000, 1))).float()
-            con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
-            visualize_joint(con_samples.cpu(), self.args.figures_path, name='rvine_con_copula_{}'.format(edge_str))
-
-    return self
+    return new_graph
 
 
 def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
@@ -255,12 +273,36 @@ def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
     return uncon_node_data, cond_node_data, edge
 
 
+def add_edges(graph):
+    paired_nodes = combinations(list(graph.nodes), 2)
+    for e in paired_nodes:
+        graph.add_edge(*e)
+    return graph
+
+
+def inverse_transform(self, uncon_node_data, cond_node_data):
+    if self.args.cop_flow == 'NSF':
+        transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
+    elif self.args.cop_flow == 'RealNVP':
+        transformed_marginal = self.cop_flow.forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device), mode='inverse')[0]
+    return transformed_marginal
+
+def find_uncon_con(tree, node):
+    n0, n1 = node
+    common_node = tree.nodes[node]['common_node']
+    if not isinstance(common_node, int):
+        con_input_node = next(flatten(common_node))
+    else:
+        con_input_node = common_node
+    uncon_input_node = next(flatten(node))
+    return uncon_input_node, con_input_node
+
+
 class RVine():
     """Class that containts the RVine tree.
     """
     def __init__(self, args, num_inputs):
         self.args = args
-        #self.data = data
         self.graph_list = []
         self.tree_list = []
         self.num_inputs = num_inputs #data.shape[1]
@@ -268,15 +310,18 @@ class RVine():
         # Initialize empty results dictionary
         self.results_dict = {}
 
-    def estimate_rvine(self, data, plots=True):
+    def fit(self, data, plots=True):
         """Sequentially estimates the best tree by minimum spanning algorithm
         and estimates the copula between nodes using CM Flows.
         """
         self.data = data
         # get normal distribution for transformations
-        self.norm = scipy.stats.norm(loc=0, scale=1)
+        self.norm = scipy.stats.norm()
         # initialize graph and transform marginals using marginal flows
-        self = initialize_graph(self)
+        self.current_graph = initialize_graph(self)
+        self.current_graph = add_ktau(self.current_graph)
+
+        self.graph_list.append(self.current_graph)
 
         # create new tree as long as current graph has 1 or more nodes
         while len(self.current_graph.nodes()) >= 1:
@@ -285,26 +330,12 @@ class RVine():
             self.current_tree = nx.maximum_spanning_tree(self.current_graph, weight='weight', algorithm='prim')
             self.tree_list.append(self.current_tree)
 
-            # create a list of all edges which share a node
-            self.paired_tree_edges = []
-            for node in self.current_tree.nodes:
-                edges = list(self.current_tree.edges(nbunch=node, data=False))
-                if len(edges) == 2:
-                    self.paired_tree_edges.append(tuple(edges))
-                elif len(edges) > 2:
-                    self.paired_tree_edges.extend(combinations(edges, 2))
-
             # estimate the copulas on the edges
-            self = cm_flow_estimation(self, len(self.current_graph.nodes()), plots)
+            self.new_graph = build_next_tree(self, len(self.current_graph.nodes()), plots)
+
             self.current_graph = self.new_graph
-            paired_nodes = combinations(list(self.current_graph.nodes), 2)
-            for e in paired_nodes:
-                self.current_graph.add_edge(*e)
-            for edge in self.current_graph.edges():
-                n0, n1 = edge
-                ktau, __ = scipy.stats.kendalltau(self.current_graph.nodes[n0]['node_data'].cpu(),
-                                                  self.current_graph.nodes[n1]['node_data'].cpu())
-                self.current_graph[n0][n1]['weight'] = np.abs(ktau)
+            self.current_graph = add_edges(self.current_graph)
+            self.current_graph = add_ktau(self.current_graph)
             self.graph_list.append(self.current_graph)
 
     def sample(self, num_samples=1000, transform=False):
@@ -318,8 +349,6 @@ class RVine():
             samples
         """
         with torch.no_grad():
-            # transformed = []
-
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             samples = torch.Tensor(num_samples, self.num_inputs).normal_()
             transformed = []
@@ -332,15 +361,9 @@ class RVine():
 
                 for node in self.tree_list[ii].nodes():
                     print('tree', ii, 'node', node)
-                    n0, n1 = node
-                    common_node = self.tree_list[ii].nodes[node]['common_node']
-                    if not isinstance(common_node, int):
-                        con_input_node = next(flatten(common_node))
-                    else:
-                        con_input_node = common_node
-                    uncon_input_node = next(flatten(node))
-                    if uncon_input_node not in transformed:
+                    uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
 
+                    if uncon_input_node not in transformed:
                         print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
                         cond_node_data = samples[:, con_input_node:con_input_node + 1]
                         uncon_node_data = samples[:, uncon_input_node:uncon_input_node + 1]
@@ -355,10 +378,7 @@ class RVine():
                         self.cop_flow.eval()
 
                         # inverse H-function
-                        if self.args.cop_flow == 'NSF':
-                            transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
-                        elif self.args.cop_flow == 'RealNVP':
-                            transformed_marginal = self.cop_flow.forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device), mode='inverse')[0]
+                        transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
                         samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
                         transformed.append(uncon_input_node)
 
@@ -379,20 +399,14 @@ class RVine():
         """
         with torch.no_grad():
             _inputs = inputs.clone()
-            normal_distr = scipy.stats.norm()
             pdf = torch.ones((inputs.shape[0]))
             transformed = []
-            #assert torch.max(inputs) > 1
+
             for ii in range(1, len(self.tree_list)):
                 for node in self.tree_list[ii].nodes():
                     print('tree', ii, 'node', node)
-                    n0, n1 = node
-                    common_node = self.tree_list[ii].nodes[node]['common_node']
-                    if not isinstance(common_node, int):
-                        con_input_node = next(flatten(common_node))
-                    else:
-                        con_input_node = common_node
-                    uncon_input_node = next(flatten(node))
+                    uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
+
                     if uncon_input_node not in transformed:
                         print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
                         cond_node_data = _inputs[:, con_input_node:con_input_node + 1].to(self.args.device)
@@ -408,14 +422,14 @@ class RVine():
                         self.cop_flow.eval()
 
                         pdf *= self.cop_flow.pdf_normal(uncon_node_data, context=cond_node_data)
-                        # pdf *= normal_distr.pdf(uncon_node_data.cpu()).reshape(-1,) # @Todo: find out if this is neccessary
                         assert pdf.shape == (_inputs.shape[0],)
 
-                        transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
-                        _inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
-                        visualize_joint(torch.cat([uncon_node_data[:, 0:1], transformed_inputs], axis=1).cpu(), self.args.figures_path, name='transform_{}'.format(node))
+                        if ii != len(self.tree_list):
+                            transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data.to(self.args.device), cond_node_data.to(self.args.device))
+                            _inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs
+                            visualize_joint(torch.cat([uncon_node_data[:, 0:1], transformed_inputs], axis=1).cpu(), self.args.figures_path, name='transform_{}'.format(node))
 
-                        transformed.append(uncon_input_node)
+                            transformed.append(uncon_input_node)
 
             assert torch.min(pdf) >= 0
             return pdf
@@ -535,7 +549,11 @@ class RVine():
                                          prob_X_in_q=prob_X_in_q,
                                          prob_Y_in_p=prob_Y_in_p,
                                          prob_Y_in_q=prob_Y_in_q)
-            print('with KDE JSD: ', divergence_2)
+
+            print('KDE MC-JSD Vine Copula: {}'.format(divergence_2))
+
+            self.results_dict['MC_JSD Vine Copula'] = divergence_2
+
             return divergence
 
     def plot(self):
