@@ -340,7 +340,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, tra
     data_loaders, dataset.trn = transform_dataset(model, train_dataset)
 
     best_dict_cop_flow, test_dict = train_val(model,
-                                              model_name='cop_flow',
+                                              model_name='cop_flow_NSF',
                                               args=args,
                                               data_loaders=data_loaders,
                                               dataset=dataset,

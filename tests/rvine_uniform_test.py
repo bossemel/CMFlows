@@ -36,7 +36,7 @@ if __name__ == '__main__':
     copula = 'clayton'
 
     distr_target = scipy.stats.uniform()
-    samples_target = distr_target.rvs((obs, 2))
+    samples_target = distr_target.rvs((obs, 3))
     assert not np.isnan(samples_target.sum())
     visualize_joint(samples_target, args.figures_path, '4D_cop_samples')
 
@@ -44,13 +44,13 @@ if __name__ == '__main__':
     rv.fit(torch.from_numpy(samples_target))
     rv.plot()
 
-    samples_target_2 = distr_target.rvs((obs, 2))
+    samples_target_2 = distr_target.rvs((obs, 3))
     pdf = rv.pdf_uniform(inputs=samples_target_2)
     print(pdf[:10])
-    print(np.mean(pdf), np.std(pdf))
+    print(torch.mean(pdf), torch.std(pdf))
 
     xx = torch.linspace(0, 1, 10000).reshape(-1, 1).cpu().numpy()
-    xx_2 = distr_target.rvs((obs, 1))
+    xx_2 = distr_target.rvs((obs, 2))
 
     pdf_xx = rv.pdf_uniform(inputs=np.concatenate([xx, xx_2], axis=1))
 
@@ -62,7 +62,8 @@ if __name__ == '__main__':
     assert torch.max(samples_pred) <= 1
     assert torch.min(samples_pred) >= 0
     visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 1:2]], axis=1), args.figures_path, '4D_rvine_samples_01')
-    #visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), args.figures_path, '4D_rvine_samples_12')
+    visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 2:3]], axis=1), args.figures_path, '4D_rvine_samples_12')
+    visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1), args.figures_path, '4D_rvine_samples_12')
     #visualize_joint(torch.cat([samples_pred[:, 2:3], samples_pred[:, 3:4]], axis=1), args.figures_path, '4D_rvine_samples_23')
     #visualize_joint(torch.cat([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1), args.figures_path, '4D_rvine_samples_13')
     #visualize_joint(torch.cat([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1), args.figures_path, '4D_rvine_samples_03')
