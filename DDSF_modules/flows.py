@@ -16,7 +16,7 @@ class MAF(nn.Sequential):
     """
     def __init__(self, args, *modules):
         super(MAF, self).__init__(*modules)
-        self.clip = args.clip
+        #self.clip = args.clip_m
         self.device = args.device
         self.args = args
 
@@ -45,11 +45,13 @@ class MAF(nn.Sequential):
         return (- self.log_density(inputs)).mean()
 
     def _forward(self, inputs):
-        self.n = inputs.shape[0]
-        self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        outputs, __, __ = self((inputs, self.logdets, self.context))
-        return outputs
+        #self.n = inputs.shape[0]
+        #self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
+        #self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
+        log_density = self.log_density(inputs)
+        return log_density
+        #outputs, __, __ = self((inputs, self.logdets, self.context))
+        #return outputs
 
     def transform_to_noise(self, inputs):
         self.n = inputs.shape[0]
@@ -59,10 +61,10 @@ class MAF(nn.Sequential):
         outputs, __, __ = self((inputs, self.logdets, self.context))
         return outputs
 
-    def clip_grad_norm(self):
-        """Performs gradient clipping
-        """
-        nn.utils.clip_grad_norm_(self.parameters(), self.clip)
+    # def clip_grad_norm(self):
+    #     """Performs gradient clipping
+    #     """
+    #     nn.utils.clip_grad_norm_(self.parameters(), self.clip)
 
 
 class BaseFlow(Module):

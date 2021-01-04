@@ -3,7 +3,6 @@ import numpy as np
 import random
 import torch
 from RVine_modules.options import TrainOptions
-# from RVine_modules.utils import gen_mv_copula
 from RVine_modules.model_rvine import RVine
 import os
 from pathlib import Path
@@ -13,8 +12,6 @@ from utils import normalize
 from utils.visualizer import visualize_joint
 import datasets
 import unittest
-import matplotlib.pyplot as plt
-import seaborn as sns
 import scipy.stats
 from RVine_modules.utils import gen_mv_copula
 eps = 0.0001
@@ -46,9 +43,9 @@ def valid_pdf(self, r_vine, obs, num_inputs, device):
         samples = r_vine.sample(obs, transform=False)
         prob_kde = kde_distr.pdf(samples.cpu().numpy().T)
         prob_rv = r_vine.pdf_normal(samples).cpu().numpy()
-        print('rv flow samples: ')
-        print('prob_kde', prob_kde.mean())
-        print('prob rv', prob_rv.mean())
+        #print('rv flow samples: ')
+        #print('prob_kde', prob_kde.mean())
+        #print('prob rv', prob_rv.mean())
         difference = np.abs(prob_kde.T - prob_rv).mean()
         print('difference: ', difference)
         self.assertTrue(difference <= 1)
@@ -58,9 +55,9 @@ def valid_pdf(self, r_vine, obs, num_inputs, device):
         prob_kde = kde_distr.pdf(normal_samples.T)
         print(normal_samples.shape)
         prob_rv = r_vine.pdf_normal(normal_samples).cpu().numpy()
-        print('normal samples: ')
-        print('prob_kde', prob_kde.mean())
-        print('prob_rv', prob_rv.mean())
+        #print('normal samples: ')
+        #print('prob_kde', prob_kde.mean())
+        #print('prob_rv', prob_rv.mean())
         difference = np.abs(prob_kde.T - prob_rv).mean()
         print('difference: ', difference)
         self.assertTrue(difference <= 1)
@@ -69,12 +66,13 @@ def valid_pdf(self, r_vine, obs, num_inputs, device):
         prob_kde = kde_distr.pdf(kde_samples)
 
         prob_rv = r_vine.pdf_normal(torch.from_numpy(kde_samples.T).float()).cpu().numpy()
-        print('kde samples:' )
-        print('prob_kde', prob_kde.mean())
-        print('prob_rv', prob_rv.mean())
+        #print('kde samples:' )
+        #print('prob_kde', prob_kde.mean())
+        #print('prob_rv', prob_rv.mean())
         difference = np.abs(prob_kde.T - prob_rv).mean()
         print('difference: ', difference)
         self.assertTrue(difference <= 1)
+
 
 class Test_Rvine_2D(unittest.TestCase):
 
@@ -82,7 +80,6 @@ class Test_Rvine_2D(unittest.TestCase):
         super(Test_Rvine_2D, self).__init__(*_args, **kwargs)
         # Training settings
         self.args = TrainOptions().parse(print=False)   # get training options
-
         self.args.exp_name = 'rvine_2D'
         self.args.exp_path = os.path.join('results', self.args.exp_name)
         self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
@@ -249,14 +246,6 @@ class Test_Rvine_3D(unittest.TestCase):
         super(Test_Rvine_3D, self).__init__(*_args, **kwargs)
         # Training settings
         self.args = TrainOptions().parse(print=False)   # get training options
-        # self.args.exp_path = os.path.join('results', self.args.exp_name)
-        # self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
-        # self.args.experiment_logs = os.path.join(self.args.exp_path, 'result_outputs')
-        # self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
-        # Path(args.exp_path).mkdir(parents=True, exist_ok=True)
-        # Path(args.figures_path).mkdir(parents=True, exist_ok=True)
-        # Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
-        # Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
         self.args.exp_name = 'rvine_3D'
         self.args.exp_path = os.path.join('results', self.args.exp_name)
         self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
@@ -269,7 +258,7 @@ class Test_Rvine_3D(unittest.TestCase):
 
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 10
+        self.args.epochs = 1
         self.args.obs = 10000
         self.args.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -302,9 +291,8 @@ class Test_Rvine_3D(unittest.TestCase):
         assert torch.min(self.samples_rv) >= 0
         visualize_joint(self.samples_rv, 'tests', '3D_rvine_samples')
 
-    def test(self):
+    def test_valid_pdf(self):
         valid_pdf(self, self.rv, self.args.obs, self.samples_target.shape[1], self.args.device)
-
 
     def test_3D_rv_cop_flow(self):
         with torch.no_grad():
@@ -359,10 +347,6 @@ class Test_Rvine_4D(unittest.TestCase):
         super(Test_Rvine_4D, self).__init__(*_args, **kwargs)
         # Training settings
         self.args = TrainOptions().parse(print=False)   # get training options
-        # self.args.exp_path = os.path.join('results', self.args.exp_name)
-        # self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
-        # self.args.experiment_logs = os.path.join(self.args.exp_path, 'result_outputs')
-        # self.args.experiment_saved_models = os.path.join(self.args.experiment_saved_models, self.args.exp_name)
         self.args.exp_name = 'rvine_4D'
         self.args.exp_path = os.path.join('results', self.args.exp_name)
         self.args.figures_path = os.path.join(self.args.exp_path, self.args.figures_path)
@@ -375,7 +359,7 @@ class Test_Rvine_4D(unittest.TestCase):
 
         self.args.RealNVP_part_of_CM_Flow = True
         # Create Folders
-        self.args.epochs = 10
+        self.args.epochs = 1
         self.args.obs = 10000
         self.args.disable_marginal = True
         self.args.cuda = not self.args.no_cuda and torch.cuda.is_available()
@@ -407,11 +391,9 @@ class Test_Rvine_4D(unittest.TestCase):
         assert torch.max(self.samples_rv) <= 1
         assert torch.min(self.samples_rv) >= 0
         visualize_joint(self.samples_rv, 'tests', '4D_rvine_samples')
-        #valid_pdf(self, self.rv, self.args.obs, self.samples_target.shape[1], self.args.device)
 
-    def test(self):
+    def test_valid_pdf(self):
         valid_pdf(self, self.rv, self.args.obs, self.samples_target.shape[1], self.args.device)
-
 
     def test_4D_rv_cop_flow(self):
         with torch.no_grad():

@@ -113,7 +113,7 @@ class ConditionalFlow(nn.Module):
         with torch.no_grad():
             normal_distr = scipy.stats.norm()
             if context is None:
-                pdf = torch.exp(self._forward(inputs, context=context))
+                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,)
             else:
                 pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
             return pdf

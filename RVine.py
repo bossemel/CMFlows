@@ -29,7 +29,7 @@ def train_and_plot(visualize=True, continue_from_mode=False):
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
     else:
         rv.fit(data=dataset_trn)
-    rv.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs, visualize=visualize)
+    rv.jsd_vinecopula(args, pv_cop, num_samples=args.obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in
                    rv.results_dict.items()}  # save test set metrics in dict format
@@ -40,7 +40,7 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         rv.plot()
         # Simulate and visualize
         samples = rv.sample(num_samples=args.viz_obs, transform=True)
-        pdf = rv.pdf_uniform(inputs=samples.numpy())
+        #pdf = rv.pdf_uniform(inputs=samples.numpy())
         #print(pdf[:10])
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set number of obs for visualizations
-    args.viz_obs = 10000
+    args.viz_obs = 100000
     args.conditional_copula = True
 
     # Set up data loader

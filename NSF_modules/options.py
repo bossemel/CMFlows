@@ -42,7 +42,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--clip', type=float, default=5.0)
+            '--clip', type=float, default=1.0)
         parser.add_argument(
             '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(

@@ -14,6 +14,8 @@ python CM_Flow.py \
 --theta 2 \
 --obs 10000 \
 --conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
 --error_bars
 
 
@@ -31,6 +33,8 @@ python CM_Flow.py \
 --theta 2 \
 --obs 10000 \
 --conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
 --error_bars
 
 
@@ -49,6 +53,8 @@ python CM_Flow.py \
 --theta 2 \
 --obs 10000 \
 --conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
 --error_bars
 
 
@@ -66,4 +72,6 @@ python CM_Flow.py \
 --theta 2 \
 --obs 10000 \
 --conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
 --error_bars
