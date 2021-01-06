@@ -23,6 +23,14 @@ class TrainOptions():
         #     '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
+        parser.add_argument(
+            '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
+        parser.add_argument(
+            '--marg_flow', default='NSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+        parser.add_argument(
+            '--transform_full_ds', action='store_true', help='transform dataset in full, or at every batch')
+        parser.add_argument(
+            '--four_dim', action='store_true')
 
         # Training options
         parser.add_argument(
@@ -32,7 +40,7 @@ class TrainOptions():
         parser.add_argument(
             '--lr_c', type=float, default=0.001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--lr_m', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr_m', type=float, default=0.00001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -40,7 +48,9 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--clip', type=float, default=5.0)
+            '--clip_m', type=float, default=1)
+        parser.add_argument(
+            '--clip_c', type=float, default=5)
         parser.add_argument(
             '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(
@@ -86,11 +96,11 @@ class TrainOptions():
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--n_layers_c', type=int, default=15, help='Number of spline layers in flow')
+            '--n_layers_c', type=int, default=20, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=8, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=16, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_c', type=int, default=3, help='Number of residual blocks in each spline layer')
+            '--n_blocks_c', type=int, default=10, help='Number of residual blocks in each spline layer')
         parser.add_argument(
             '--tail_bound_c', type=float, default=8, help='Bounds of spline region')
         parser.add_argument(
@@ -130,7 +140,7 @@ class TrainOptions():
         parser.add_argument(
             '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
 
@@ -151,6 +161,7 @@ class TrainOptions():
             '--num_ds_layers', type=int, default=4)
         parser.add_argument(
             '--dimh_DDSF', type=int, default=2)
+
         self.initialized = True
         return parser
 

@@ -23,6 +23,8 @@ class TrainOptions():
             '--train_cm_flow', action='store_true', help='whether to train combined nsf Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
+        parser.add_argument(
+            '--four_dim', action='store_true')
 
         # Training options
         parser.add_argument(
@@ -40,7 +42,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--clip', type=float, default=5.0)
+            '--clip', type=float, default=1.0)
         parser.add_argument(
             '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(

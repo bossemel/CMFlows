@@ -28,7 +28,6 @@ class MarginalSpline(transforms.Transform):
                  ):
         super().__init__()
 
-        self.num_bins = num_bins
         self.min_bin_width = min_bin_width
         self.min_bin_height = min_bin_height
         self.min_derivative = min_derivative
@@ -45,7 +44,6 @@ class MarginalSpline(transforms.Transform):
                                                                             num_derivatives))
         else:
             self.unnormalized_widths = Parameter(torch.rand(features, num_bins))
-
             self.unnormalized_heights = Parameter(torch.rand(features, num_bins))
 
             num_derivatives = (num_bins - 1) if tails == 'linear' else (num_bins + 1)
@@ -63,7 +61,7 @@ class MarginalSpline(transforms.Transform):
         return self.spline_transform(inputs, context, inverse=True)
         #return outputs, logabsdet
 
-    def spline_transform(self, inputs, context, inverse=False):
+    def spline_transform(self, inputs, context, inverse):
 
         batch_size = inputs.shape[0]
 

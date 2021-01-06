@@ -19,8 +19,71 @@ from utils.load_and_save import save_statistics, load_statistics, load_model
 import datasets.distributions
 
 from experiment_runner import train_val
-
+from RVine_modules.utils import gen_mv_copula
+from utils import split_train_val_test
 eps = 0.0001
+
+
+class Data():
+    def __init__(self, dataset):
+        trn, val, tst = split_train_val_test(dataset)
+        self.trn = trn.float()
+        self.val = val.float()
+        self.tst = tst.float()
+
+
+def load_data(args):
+    """Data Loader
+
+    Params:
+        args: args passed by Training Options
+
+    Returns:
+        dataset: full dataset
+        num_context: number of conditional inputs (irrelevant for copulas)
+        num_inputs: dimensions of data
+        data_loaders: dictionary containing train, val and test set loader
+    """
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+
+    #dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha)
+    dataset, dim, pv_cop = gen_mv_copula(args)
+    #untransformed_samples = pv_cop.simulate(args.viz_obs)
+    dataset = Data(dataset)
+
+    train_tensor = dataset.trn
+    train_dataset = torch.utils.data.TensorDataset(train_tensor)
+
+    valid_tensor = dataset.val
+    valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
+
+    test_tensor = dataset.tst
+    test_dataset = torch.utils.data.TensorDataset(test_tensor)
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        **kwargs)
+
+    valid_loader = torch.utils.data.DataLoader(
+        valid_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        drop_last=False,
+        **kwargs)
+
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        drop_last=False,
+        **kwargs)
+
+    data_loaders = {'train_loader': train_loader,
+                    'valid_loader': valid_loader,
+                    'test_loader': test_loader}
+    return dataset, data_loaders, train_tensor, pv_cop
 
 
 def build_model(args):
@@ -106,6 +169,10 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
 
     for param in model.marg_flow_2.parameters():
         param.requires_grad = False
+    for param in model.marg_flow_3.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_4.parameters():
+        param.requires_grad = False
     for param in model.cop_flow.parameters():
         param.requires_grad = False
 
@@ -114,7 +181,7 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                                                  args=args,
                                                  data_loaders=data_loaders,
                                                  dataset=dataset,
-                                                 transform_inputs=True,
+                                                 transform_inputs=False,
                                                  disable_tqdm=disable_tqdm,
                                                  error_bars=error_bars,
                                                  rvine=rvine,
@@ -135,6 +202,10 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
         param.requires_grad = False
     for param in model.marg_flow_2.parameters():
         param.requires_grad = True
+    for param in model.marg_flow_3.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_4.parameters():
+        param.requires_grad = False
     for param in model.cop_flow.parameters():
         param.requires_grad = False
 
@@ -143,7 +214,7 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                                                  args=args,
                                                  data_loaders=data_loaders,
                                                  dataset=dataset,
-                                                 transform_inputs=True,
+                                                 transform_inputs=False,
                                                  disable_tqdm=disable_tqdm,
                                                  error_bars=error_bars,
                                                  rvine=rvine,
@@ -158,14 +229,76 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                 best_val=True,
                 name='marg_flow_2')
 
+    for param in model.marg_flow_1.parameters():
+        param.requires_grad = False
     for param in model.marg_flow_2.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_3.parameters():
+        param.requires_grad = True
+    for param in model.marg_flow_4.parameters():
+        param.requires_grad = False
+    for param in model.cop_flow.parameters():
+        param.requires_grad = False
+
+    best_dict_marg_flow_3, test_dict = train_val(model=model,
+                                                 model_name='marg_flow_3',
+                                                 args=args,
+                                                 data_loaders=data_loaders,
+                                                 dataset=dataset,
+                                                 transform_inputs=False,
+                                                 disable_tqdm=disable_tqdm,
+                                                 error_bars=error_bars,
+                                                 rvine=rvine,
+                                                 cm_flow=True)
+
+    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+                       best_dict_marg_flow_3['best_validation_epoch'])
+
+    visualize1D(model=model.marg_flow_3,
+                epoch=best_dict_marg_flow_3['best_validation_epoch'],
+                args=args,
+                best_val=True,
+                name='marg_flow_3')
+
+    for param in model.marg_flow_1.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_2.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_3.parameters():
+        param.requires_grad = False
+    for param in model.marg_flow_4.parameters():
+        param.requires_grad = True
+    for param in model.cop_flow.parameters():
+        param.requires_grad = False
+
+    best_dict_marg_flow_4, test_dict = train_val(model=model,
+                                                 model_name='marg_flow_4',
+                                                 args=args,
+                                                 data_loaders=data_loaders,
+                                                 dataset=dataset,
+                                                 transform_inputs=False,
+                                                 disable_tqdm=disable_tqdm,
+                                                 error_bars=error_bars,
+                                                 rvine=rvine,
+                                                 cm_flow=True)
+
+    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+                       best_dict_marg_flow_4['best_validation_epoch'])
+
+    visualize1D(model=model.marg_flow_4,
+                epoch=best_dict_marg_flow_4['best_validation_epoch'],
+                args=args,
+                best_val=True,
+                name='marg_flow_2')
+
+    for param in model.marg_flow_4.parameters():
         param.requires_grad = False
 
     # Visualize DDFS transformations
     if not error_bars and not rvine:
         visualize_marg_flow_output(model, dataset, args)
 
-    return model, best_dict_marg_flow_1, best_dict_marg_flow_2
+    return model, best_dict_marg_flow_1, best_dict_marg_flow_2, best_dict_marg_flow_3, best_dict_marg_flow_4
 
 
 def transform_dataset(model, train_dataset):
@@ -176,8 +309,10 @@ def transform_dataset(model, train_dataset):
         elif args.marg_flow == 'DDSF':
             marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
             marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+            marg_flow_3_output = model.marg_flow_3.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+            marg_flow_4_output = model.marg_flow_4.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
 
-        train_dataset = torch.cat((marg_flow_1_output, marg_flow_2_output), dim=1).cpu()
+        train_dataset = torch.cat((marg_flow_1_output, marg_flow_2_output, marg_flow_3_output, marg_flow_4_output), dim=1).cpu()
         kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
         train_loader = torch.utils.data.DataLoader(
@@ -191,8 +326,8 @@ def transform_dataset(model, train_dataset):
 
         normal_distr = torch.distributions.normal.Normal(0, 1)
         train_dataset_uniform = normal_distr.cdf(train_dataset)
-        visualize_joint(train_dataset, args.figures_path, name='marg_flow_transform_output')
-        visualize_joint(train_dataset_uniform, args.figures_path, name='marg_flow_transform_output_uniform')
+        visualize_joint(train_dataset[:, 0:2], args.figures_path, name='marg_flow_transform_output')
+        visualize_joint(train_dataset_uniform[:, 0:2], args.figures_path, name='marg_flow_transform_output_uniform')
     return data_loaders, dataset.trn
 
 
@@ -205,7 +340,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, tra
     data_loaders, dataset.trn = transform_dataset(model, train_dataset)
 
     best_dict_cop_flow, test_dict = train_val(model,
-                                              model_name='cop_flow',
+                                              model_name='cop_flow_NSF',
                                               args=args,
                                               data_loaders=data_loaders,
                                               dataset=dataset,
@@ -244,7 +379,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.state = dict()
     model.to(args.device)
 
-    model, best_dict_marg_flow_1, best_dict_marg_flow_2 = train_marginals(model, disable_tqdm, error_bars, rvine)
+    model, best_dict_marg_flow_1, best_dict_marg_flow_2, best_dict_marg_flow_3, best_dict_marg_flow_4 = train_marginals(model, disable_tqdm, error_bars, rvine)
 
     model.marg_flow_1.eval()
     model.marg_flow_2.eval()
@@ -252,7 +387,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, args.transform_full_ds)
+    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, args.transform_full_ds)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -260,6 +395,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     sep = '_'
     epochs = sep.join(list([str(best_dict_marg_flow_1['best_validation_epoch']),
                             str(best_dict_marg_flow_2['best_validation_epoch']),
+                            str(best_dict_marg_flow_3['best_validation_epoch']),
+                            str(best_dict_marg_flow_4['best_validation_epoch']),
                             str(best_dict_cop_flow['best_validation_epoch'])]))
 
     if not rvine:
@@ -296,11 +433,18 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Set up data loader
-    dataset, data_loaders, train_dataset = utils.load_data(args)
-
     # Specify, that this cop_flow is part of a CM_Flow
     args.cop_flow_part_of_CM_Flow = True
+
+    # Set up data loader
+    #dataset, data_loaders, train_dataset = utils.load_data(args)
+    args.mix = True
+    args.disable_marginal = False
+    args.marginal = 'gamma'
+    dataset, data_loaders, train_tensor, pv_cop = load_data(args)
+
+    #
+    args.four_dim = True
 
     # Train model with specified options
     if args.error_bars is True:

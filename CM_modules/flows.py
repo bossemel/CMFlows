@@ -9,19 +9,38 @@ class CMFlow(nn.Module):
     def __init__(self, transform,
                  device, batch_size, args):
         super(CMFlow, self).__init__()
-        self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
-        # self.cop_flow = build_model_RealNVP(args)
-        self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
-        self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
-        # self.marg_flow_1 = build_model_DDSF(args)
-        # self.marg_flow_2 = build_model_DDSF(args)
+        if args.cop_flow == 'NSF':
+            self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
+        elif args.cop_flow == 'RealNVP':
+            self.cop_flow = build_model_RealNVP(args)
+        else:
+            raise ValueError('Copula Flow type unknown.')
+
+        self.four_dim = args.four_dim
+        if args.marg_flow == 'NSF':
+            self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
+            self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
+        elif args.marg_flow == 'DDSF':
+            self.marg_flow_1 = build_model_DDSF(args)
+            self.marg_flow_2 = build_model_DDSF(args)
+        if args.four_dim:
+            self.marg_flow_1 = build_model_DDSF(args)
+            self.marg_flow_2 = build_model_DDSF(args)
+            self.marg_flow_3 = build_model_DDSF(args)
+            self.marg_flow_4 = build_model_DDSF(args)
 
     def train(self):
         self.cop_flow.train()
         self.marg_flow_1.train()
         self.marg_flow_2.train()
+        if self.four_dim:
+            self.marg_flow_3.train()
+            self.marg_flow_4.train()
 
     def eval(self):
         self.cop_flow.eval()
         self.marg_flow_1.eval()
         self.marg_flow_2.eval()
+        if self.four_dim:
+            self.marg_flow_3.eval()
+            self.marg_flow_4.eval()

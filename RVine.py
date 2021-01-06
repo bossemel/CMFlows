@@ -23,13 +23,13 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 def train_and_plot(visualize=True, continue_from_mode=False):
     if not args.error_bars:
         if not args.load_model:
-            rv.estimate_rvine()
+            rv.fit(data=dataset_trn)
             save_rvine(args.experiment_saved_models, 'rvine_object', rv)
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
     else:
-        rv.estimate_rvine()
-    rv.jsd_vinecopula(args, pv_cop, obs=args.viz_obs, visualize=visualize)
+        rv.fit(data=dataset_trn)
+    rv.jsd_vinecopula(args, pv_cop, num_samples=args.obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in
                    rv.results_dict.items()}  # save test set metrics in dict format
@@ -39,10 +39,10 @@ def train_and_plot(visualize=True, continue_from_mode=False):
     if visualize:
         rv.plot()
         # Simulate and visualize
-        samples = rv.sample(num_samples=args.viz_obs)
-        pdf = rv.pdf_normal(inputs=samples)
-        print(pdf[:10])
-        exit()
+        samples = rv.sample(num_samples=args.viz_obs, transform=True)
+        #pdf = rv.pdf_uniform(inputs=samples.numpy())
+        #print(pdf[:10])
+
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
         normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -80,13 +80,13 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Set number of obs for visualizations
-    args.viz_obs = 10000
-    args.conditional_copula = True
-
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
+    args.viz_obs = 100000
     untransformed_samples = pv_cop.simulate(args.viz_obs)
+
+    # Set number of obs for visualizations
+    args.conditional_copula = True
 
     if not args.error_bars:
         visualize_joint(dataset_trn[:, :2], args.figures_path, name='rvine_input_dataset01')
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
 
     # Initialize R-vine
-    rv = RVine(args=args, data=dataset_trn)
+    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
 
     # Estimate R-vine
     if not args.error_bars:

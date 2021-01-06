@@ -36,18 +36,21 @@ def build_model(args, flow_type='cop_flow'):
     if flow_type == 'cop_flow':
         if args.conditional_copula:
             num_inputs = 1
-            num_cond_inputs = 1
+            context = 1
         else:
-            num_inputs = 2
-            num_cond_inputs = 0
+            if args.four_dim:
+                num_inputs = 4
+                context = 0
+            else:
+                num_inputs = 2
+                context = 0
     elif flow_type == 'marg_flow':
         num_inputs = 1
-        num_cond_inputs = 0
+        context = 0
     else:
         raise ValueError('Unknown flow type')
-
     flow = flows.ConditionalFlow(dim=num_inputs,
-                                 context_dim=num_cond_inputs, args=args)
+                                 context_dim=context, args=args)
     return flow
 
 
@@ -59,10 +62,10 @@ def random_search(args):
     np.random.seed(ii)
     random.seed(ii)
 
-    while ii < 200:
+    while ii < 100:
         n_layers = 5 * np.random.choice(range(1, 5))
         hidden_units = 2**np.random.choice(range(8))
-        n_blocks = np.random.choice(range(5))
+        n_blocks = np.random.choice(range(1, 6))
         n_bins = 5 * np.random.choice(range(2, 10))
         lr_number = np.random.choice(range(2, 10))
         lr = 1 / 10**lr_number
@@ -102,7 +105,7 @@ def random_search(args):
                                    args.n_bins_m,
                                    args.lr_m,
                                    args.weight_decay_m,
-                                   args.clip_grad_norm_m,
+                                   args.clip_grad_norm,
                                    args.tail_bound_m)
         else:
             raise ValueError('Unknown Flow type')
@@ -165,7 +168,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name=args.flow_type,
+                                     model_name=args.flow_type + '_NSF',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -286,10 +289,10 @@ if __name__ == '__main__':
 
                 if args.flow_type == 'cop_flow':
                     if args.conditional_copula:
-                        cond_inputs = torch.tensor(np.random.normal(size=(100000, 1))).float()
-                        output_copula = model.sample_copula(num_samples=100000, cond_inputs=cond_inputs, device=args.device).cpu()
+                        context = torch.tensor(np.random.normal(size=(100000, 1))).float()
+                        output_copula = model.sample_copula(num_samples=100000, context=context, device=args.device).cpu()
                         visualize_joint(output_copula, args.figures_path, name='output_copula')
-                        output_copula = model.sample(num_samples=100000, cond_inputs=cond_inputs, transform=None, device=args.device).cpu()
+                        output_copula = model.sample(num_samples=100000, context=context, transform=None, device=args.device).cpu()
                         visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
                     else:
                         output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()

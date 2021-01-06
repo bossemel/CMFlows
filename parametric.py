@@ -86,7 +86,7 @@ def train_and_evaluate(continue_from_mode, visualize):
                    test_dict.items()}  # save test set metrics in dict format
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
-                    stats_dict=test_losses, current_epoch=0, continue_from_mode=False, test_epoch=0)
+                    stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=0)
 
 
 if __name__ == '__main__':
