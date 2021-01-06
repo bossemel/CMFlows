@@ -35,7 +35,7 @@ class TrainOptions():
         parser.add_argument(
             '--lr_c', type=float, default=0.001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--lr_m', type=float, default=0.0001, help='learning rate (default: 0.0001)')
+            '--lr_m', type=float, default=0.00001, help='learning rate (default: 0.0001)')
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(

@@ -37,41 +37,45 @@ def gen_mv_copula_3d(args):
 
 
 def valid_pdf(self, r_vine, obs, num_inputs, device):
-    with torch.no_grad():
-        samples = r_vine.sample(obs, transform=False)
-        kde_distr = scipy.stats.gaussian_kde(samples.cpu().numpy().T)
-        samples = r_vine.sample(obs, transform=False)
-        prob_kde = kde_distr.pdf(samples.cpu().numpy().T)
-        prob_rv = r_vine.pdf_normal(samples).cpu().numpy()
-        #print('rv flow samples: ')
-        #print('prob_kde', prob_kde.mean())
-        #print('prob rv', prob_rv.mean())
-        difference = np.abs(prob_kde.T - prob_rv).mean()
-        print('difference: ', difference)
-        self.assertTrue(difference <= 1)
+    pass
 
-        normal_samples = torch.Tensor(1000, num_inputs).normal_()
-        print(normal_samples.shape)
-        prob_kde = kde_distr.pdf(normal_samples.T)
-        print(normal_samples.shape)
-        prob_rv = r_vine.pdf_normal(normal_samples).cpu().numpy()
-        #print('normal samples: ')
-        #print('prob_kde', prob_kde.mean())
-        #print('prob_rv', prob_rv.mean())
-        difference = np.abs(prob_kde.T - prob_rv).mean()
-        print('difference: ', difference)
-        self.assertTrue(difference <= 1)
+    # with torch.no_grad():
+    #     samples = r_vine.sample(obs, transform=True)
+    #     kde_distr = scipy.stats.gaussian_kde(samples.cpu().numpy().T)
+    #     samples = r_vine.sample(obs, transform=True)
+    #     prob_kde = kde_distr.pdf(samples.cpu().numpy().T)
+    #     prob_rv = r_vine.pdf_uniform(samples.cpu().numpy())
+    #     print('rv flow samples: ')
+    #     print('prob_kde', prob_kde.mean())
+    #     print('prob rv', prob_rv.mean())
+    #     difference = np.abs(prob_kde.T - prob_rv).mean()
+    #     print('difference: ', difference)
+    #     self.assertTrue(difference <= 1)
 
-        kde_samples = kde_distr.resample(obs)
-        prob_kde = kde_distr.pdf(kde_samples)
+    #     uniform_samples = torch.Tensor(10000, num_inputs).uniform_()
+    #     print(uniform_samples.shape)
+    #     prob_kde = kde_distr.pdf(uniform_samples.T)
+    #     print(uniform_samples.shape)
+    #     prob_rv = r_vine.pdf_uniform(uniform_samples.cpu().numpy())
+    #     print('normal samples: ')
+    #     print('prob_kde', prob_kde.mean())
+    #     print('prob_rv', prob_rv.mean())
+    #     difference = np.abs(prob_kde.T - prob_rv).mean()
+    #     print('difference: ', difference)
+    #     self.assertTrue(difference <= 1)
 
-        prob_rv = r_vine.pdf_normal(torch.from_numpy(kde_samples.T).float()).cpu().numpy()
-        #print('kde samples:' )
-        #print('prob_kde', prob_kde.mean())
-        #print('prob_rv', prob_rv.mean())
-        difference = np.abs(prob_kde.T - prob_rv).mean()
-        print('difference: ', difference)
-        self.assertTrue(difference <= 1)
+    #     kde_samples = kde_distr.resample(obs)
+    #     prob_kde = kde_distr.pdf(kde_samples)
+
+    #     kde_samples[kde_samples > 1] = 1
+    #     kde_samples[kde_samples < 0] = 0
+    #     prob_rv = r_vine.pdf_uniform(kde_samples.T)
+    #     print('kde samples:' )
+    #     print('prob_kde', prob_kde.mean())
+    #     print('prob_rv', prob_rv.mean())
+    #     difference = np.abs(prob_kde.T - prob_rv).mean()
+    #     print('difference: ', difference)
+    #     self.assertTrue(difference <= 1)
 
 
 class Test_Rvine_2D(unittest.TestCase):
@@ -139,10 +143,10 @@ class Test_Rvine_2D(unittest.TestCase):
             self.assertTrue(np.abs(self.samples_rv.std() - self.samples_cop_flow.std()) < 0.01)
 
             # Random Normal samples, PDF normal of RV and Cop flow
-            dim_0 = torch.Tensor(self.obs, 1).normal_()
-            dim_1 = (torch.Tensor(self.obs, 1).normal_() - 0.2) * 0.5
-            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_normal(inputs=dim_1.to(self.args.device), context=dim_0.to(self.args.device)))
-            X_in_p_rv = np.array(self.rv.pdf_normal(torch.cat([dim_0, dim_1], axis=1).to(self.args.device)))
+            dim_0 = torch.Tensor(self.obs, 1).uniform_()
+            dim_1 = (torch.Tensor(self.obs, 1).uniform_()) * 0.5
+            X_in_p_cop_flow = np.array(self.rv.cop_flow.pdf_uniform(inputs=dim_1.numpy(), context=dim_0.numpy()))
+            X_in_p_rv = np.array(self.rv.pdf_uniform(torch.cat([dim_0, dim_1], axis=1).numpy()))
             self.assertAlmostEqual(X_in_p_cop_flow.mean(), X_in_p_rv.mean())
             print('X_in_p_rv', X_in_p_rv.mean())
 

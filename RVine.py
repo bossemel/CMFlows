@@ -80,13 +80,13 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Set number of obs for visualizations
-    args.viz_obs = 100000
-    args.conditional_copula = True
-
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
+    args.viz_obs = 100000
     untransformed_samples = pv_cop.simulate(args.viz_obs)
+
+    # Set number of obs for visualizations
+    args.conditional_copula = True
 
     if not args.error_bars:
         visualize_joint(dataset_trn[:, :2], args.figures_path, name='rvine_input_dataset01')

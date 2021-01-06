@@ -143,17 +143,17 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
 
+    # Set number of obs for visualizations
+    args.test_obs = 10000
+    args.disable_marginal = False
+
     # Set Seed
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
 
-    # Set number of obs for visualizations
-    args.viz_obs = 10000
-    args.test_obs = 10000
-    args.disable_marginal = False
-
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args)
+    args.viz_obs = 10000
     untransformed_samples = pv_cop.simulate(args.viz_obs)
 
     # Calculate JSD

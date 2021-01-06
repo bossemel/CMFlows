@@ -47,9 +47,17 @@ class FlowSequential(nn.Sequential):
         density = flow_density(outputs, log_jacob)
         return density
 
-    def pdf_normal(self, inputs, context=None):
-        with torch.no_grad():
-            return torch.exp(self.log_density(inputs, context)).reshape(-1,).cpu()
+    # def pdf_normal(self, inputs, context=None):
+    #     with torch.no_grad():
+    #         return torch.exp(self.log_density(inputs, context)).reshape(-1,).cpu()
+    def _forward(self, inputs, context=None):
+        """Forward pass in density estimation direction.
+        Args:
+            inputs (torch.Tensor): [N, dim] tensor of data.
+            context (torch.Tensor): [N, context_dim] tensor of context."""
+        log_density = self.log_density(inputs, context)
+        return log_density
+
 
     def loss(self, inputs, context=None):
         """Return negative log likelihood/density
@@ -101,26 +109,41 @@ class FlowSequential(nn.Sequential):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, transform_fct=None, num_samples=10000): #, cm_flow=False):
+    def pdf_normal(self, inputs, context=None):
+        # Here: context normally distirbuted
+        with torch.no_grad():
+            normal_distr = scipy.stats.norm()
+            if context is None:
+                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,)
+            else:
+                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
+            return pdf
+
+    def pdf_uniform(self, inputs, context=None):
+        with torch.no_grad():
+            return gaussian_change_of_var_ND(inputs, self.pdf_normal, 'cpu', context=context)
+
+    def jsd(self, args, transform_fct=None, num_samples=10000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
-            # Define distributions
-            normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
-
-            # Get true copula distribution
+            # Get ground truth
             true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
             true_cop_distr.sampler(obs=num_samples)
             samples_target_uni = true_cop_distr.xx
-            samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
+
+            #samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
 
             # Samples from both distributions
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 context_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
-                context_uni = normal_distr.cdf(context_normal)
+                context_uni = normal_distr.cdf(context_normal).cpu()
+            else:
+                context_normal = None
+                context_uni = None
 
-            samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
+            #samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
             samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
             samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
 
@@ -133,36 +156,35 @@ class FlowSequential(nn.Sequential):
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0
-            assert torch.max(samples_pred_norm) > 1
-            assert torch.min(samples_pred_norm) < 0
+            # assert torch.max(samples_pred_norm) > 1
+            # assert torch.min(samples_pred_norm) < 0
 
-            assert torch.max(samples_target_normal) > 1
-            assert torch.min(samples_target_normal) < 0
+            # assert torch.max(samples_target_normal) > 1
+            # assert torch.min(samples_target_normal) < 0
             assert np.max(samples_target_uni) <= 1
             assert np.min(samples_target_uni) >= 0
 
             if args.conditional_copula:
-                assert torch.max(context_normal) > 1
-                assert torch.min(context_normal) < 0
                 assert torch.max(context_uni) <= 1
                 assert torch.min(context_uni) >= 0
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, context_uni.cpu())
+                prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=context_uni.numpy())
+                #gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, context_uni.cpu())
             else:
-                prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
+                prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
 
-            if args.conditional_copula:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
-            else:
-                prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+            prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
+            # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
+                prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
+                #gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
             else:
-                prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self.log_density, args.device)
+                prob_Y_in_p = self.pdf_uniform(samples_target_uni)
+                #gaussian_change_of_var_ND(samples_target_uni, self._forward, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0
@@ -181,6 +203,86 @@ class FlowSequential(nn.Sequential):
                                        prob_Y_in_q=prob_Y_in_q)
 
             return divergence
+    # def jsd(self, args, transform_fct=None, num_samples=10000): #, cm_flow=False):
+    #     """Returns JS-Divergence of the predicted Copula and the true Copula
+    #     """
+    #     with torch.no_grad():
+    #         # Define distributions
+    #         normal_distr = scipy.stats.norm(0, 1) #@Todo: do i need this?
+
+    #         # Get true copula distribution
+    #         true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+    #         true_cop_distr.sampler(obs=num_samples)
+    #         samples_target_uni = true_cop_distr.xx
+    #         samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
+
+    #         # Samples from both distributions
+    #         if args.conditional_copula:
+    #             normal_distr = torch.distributions.normal.Normal(0, 1)
+    #             context_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
+    #             context_uni = normal_distr.cdf(context_normal)
+
+    #         samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
+    #         samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
+    #         samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
+
+    #         if args.conditional_copula:
+    #             visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
+    #             visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
+    #         else:
+    #             visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
+    #             visualize_joint(samples_pred_viz.cpu(), args.figures_path, name='samples_pred_jsd')
+
+    #         assert torch.max(samples_pred_uni) <= 1
+    #         assert torch.min(samples_pred_uni) >= 0
+    #         assert torch.max(samples_pred_norm) > 1
+    #         assert torch.min(samples_pred_norm) < 0
+
+    #         assert torch.max(samples_target_normal) > 1
+    #         assert torch.min(samples_target_normal) < 0
+    #         assert np.max(samples_target_uni) <= 1
+    #         assert np.min(samples_target_uni) >= 0
+
+    #         if args.conditional_copula:
+    #             assert torch.max(context_normal) > 1
+    #             assert torch.min(context_normal) < 0
+    #             assert torch.max(context_uni) <= 1
+    #             assert torch.min(context_uni) >= 0
+
+    #         # Prob X in both distributions
+    #         if args.conditional_copula:
+    #             prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self.log_density, args.device, context_uni.cpu())
+    #         else:
+    #             prob_X_in_p = gaussian_change_of_var_ND(np.array(samples_pred_uni.cpu()), self.log_density, args.device)
+
+    #         if args.conditional_copula:
+    #             prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+    #         else:
+    #             prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+
+    #         if args.conditional_copula:
+    #             prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self.log_density, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
+    #             prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
+    #         else:
+    #             prob_Y_in_p = gaussian_change_of_var_ND(samples_target_uni, self.log_density, args.device)
+    #             prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
+
+    #         assert np.min(prob_X_in_p) >= 0
+    #         assert np.min(prob_X_in_q) >= 0
+    #         assert np.min(prob_Y_in_p) >= 0
+    #         assert np.min(prob_Y_in_q) >= 0
+
+    #         assert prob_X_in_p.shape == (num_samples,), '{}'.format(prob_X_in_p.shape)
+    #         assert prob_X_in_q.shape == (num_samples,)
+    #         assert prob_Y_in_p.shape == (num_samples,)
+    #         assert prob_Y_in_q.shape == (num_samples,)
+
+    #         divergence = js_divergence(prob_X_in_p=prob_X_in_p,
+    #                                    prob_X_in_q=prob_X_in_q,
+    #                                    prob_Y_in_p=prob_Y_in_p,
+    #                                    prob_Y_in_q=prob_Y_in_q)
+
+    #         return divergence
 
     def t_metric_eval(self, args, num_samples, context=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.

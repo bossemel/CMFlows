@@ -24,9 +24,9 @@ if __name__ == '__main__':
 
     args.RealNVP_part_of_CM_Flow = True
     # Create Folders
-    args.epochs = 10
+    args.epochs = 1
     args.obs = 10000
-    args.disable_marginal = True
+    args.disable_marginal = False
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     samples_target_2 = distr_target.rvs((obs, 3))
     pdf = rv.pdf_uniform(inputs=samples_target_2)
     print(pdf[:10])
-    print(torch.mean(pdf), torch.std(pdf))
+    print(np.mean(pdf), np.std(pdf))
 
     xx = torch.linspace(0, 1, 10000).reshape(-1, 1).cpu().numpy()
     xx_2 = distr_target.rvs((obs, 2))

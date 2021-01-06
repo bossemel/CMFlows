@@ -296,11 +296,11 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 
-    # Specify, that this cop_flow is part of a CM_Flow
-    args.cop_flow_part_of_CM_Flow = True
-
     # Set up data loader
     dataset, data_loaders, train_dataset = utils.load_data(args)
+
+    # Specify, that this cop_flow is part of a CM_Flow
+    args.cop_flow_part_of_CM_Flow = True
 
     # Train model with specified options
     if args.error_bars is True:
