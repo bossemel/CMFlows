@@ -544,27 +544,27 @@ class RVine():
 
             self.results_dict['MC_JSD Vine Copula'] = divergence
 
-            # RealNVP outputs the density directly, but not the transformation to
-            # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
-            pred_distr = scipy.stats.gaussian_kde(samples_pred_uni.cpu().numpy().T)
-            true_rvine = scipy.stats.gaussian_kde(samples_target_uni.T)
-            # Note, that uniform samples means the transformed samples
+            # # RealNVP outputs the density directly, but not the transformation to
+            # # uniform marginals. Thus, an estimation with Gaussian KDE is simpler.
+            # pred_distr = scipy.stats.gaussian_kde(samples_pred_uni.cpu().numpy().T)
+            # true_rvine = scipy.stats.gaussian_kde(samples_target_uni.T)
+            # # Note, that uniform samples means the transformed samples
 
-            # Prob X in both distributions
-            prob_X_in_p = pred_distr.pdf(samples_pred_uni.cpu().numpy().T).T
-            prob_X_in_q = true_rvine.pdf(samples_pred_uni.cpu().numpy().T).T
+            # # Prob X in both distributions
+            # prob_X_in_p = pred_distr.pdf(samples_pred_uni.cpu().numpy().T).T
+            # prob_X_in_q = true_rvine.pdf(samples_pred_uni.cpu().numpy().T).T
 
-            # Prob Y in both distributions
-            prob_Y_in_q = true_rvine.pdf(samples_target_uni.T).T
-            prob_Y_in_p = pred_distr.pdf(samples_target_uni.T).T
-            divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
-                                         prob_X_in_q=prob_X_in_q,
-                                         prob_Y_in_p=prob_Y_in_p,
-                                         prob_Y_in_q=prob_Y_in_q)
+            # # Prob Y in both distributions
+            # prob_Y_in_q = true_rvine.pdf(samples_target_uni.T).T
+            # prob_Y_in_p = pred_distr.pdf(samples_target_uni.T).T
+            # divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
+            #                              prob_X_in_q=prob_X_in_q,
+            #                              prob_Y_in_p=prob_Y_in_p,
+            #                              prob_Y_in_q=prob_Y_in_q)
 
-            print('KDE MC-JSD Vine Copula: {}'.format(divergence_2))
+            # print('KDE MC-JSD Vine Copula: {}'.format(divergence_2))
 
-            self.results_dict['KDE MC_JSD Vine Copula'] = divergence_2
+            # self.results_dict['KDE MC_JSD Vine Copula'] = divergence_2
 
             return divergence
 
