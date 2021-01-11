@@ -44,9 +44,9 @@ class TrainOptions():
         parser.add_argument(
             '--clip', type=float, default=1.0)
         parser.add_argument(
-            '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
+            '--weight_decay_c', type=float, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(
-            '--weight_decay_m', type=int, default=1e-10, help='adam optimizer weight decay')
+            '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -114,15 +114,15 @@ class TrainOptions():
 
         # NSF Options marginal
         parser.add_argument(
-            '--n_layers_m', type=int, default=15, help='Number of spline layers in flow')
+            '--n_layers_m', type=int, default=10, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_m', type=int, default=128, help='Number of hidden units in spline layer')
+            '--hidden_units_m', type=int, default=8, help='Number of hidden units in spline layer')
         parser.add_argument(
-            '--n_blocks_m', type=int, default=3, help='Number of residual blocks in each spline layer')
+            '--n_blocks_m', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--n_bins_m', type=int, default=4, help='Number of bins in piecewise spline transform')
+            '--n_bins_m', type=int, default=20, help='Number of bins in piecewise spline transform')
         parser.add_argument(
-            '--tail_bound_m', type=float, default=4, help='Bounds of spline region')
+            '--tail_bound_m', type=float, default=16, help='Bounds of spline region')
         parser.add_argument(
             '--dropout_m', type=float, default=0.25, help='Dropout probability in flow')
 

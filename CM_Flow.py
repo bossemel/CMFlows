@@ -170,10 +170,15 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
 
 def transform_dataset(model, train_dataset):
     with torch.no_grad():
+        train_dataset = torch.tensor(train_dataset)
         if args.marg_flow == 'NSF':
+            model.marg_flow_1.flow.eval()
+            model.marg_flow_2.flow.eval()
             marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
             marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
         elif args.marg_flow == 'DDSF':
+            model.marg_flow_1.eval()
+            model.marg_flow_2.eval()
             marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
             marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
 
@@ -252,7 +257,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, args.transform_full_ds)
+    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, args.transform_full_ds)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -314,7 +319,7 @@ if __name__ == '__main__':
             train_and_plot(args=args,
                            dataset=dataset,
                            data_loaders=data_loaders,
-                           disable_tqdm=False,
+                           disable_tqdm=True,
                            error_bars=True)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
