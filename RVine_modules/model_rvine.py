@@ -369,8 +369,6 @@ class RVine():
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             current_tree_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-            #transformed = []
-            #current_tree_samples = samples.clone()
             next_tree_samples = current_tree_samples.clone()
 
             # for each tree, find out which variable was transformed and transform it 'back'

@@ -101,13 +101,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
 
         # Prob vector pred
         args.obs = obs
-        if not cm_flow:
-            prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-        else:
-            if marginal_num == '1':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-            elif marginal_num == '2':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+        prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
