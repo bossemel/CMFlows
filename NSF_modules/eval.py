@@ -24,7 +24,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     model.eval()
     with torch.no_grad():
-        current_jsd = model.jsd(args=args, transform_fct=args.transform_fct).sum().item()
+        current_jsd = model.jsd(args=args).sum().item()
         if 'jsd_test_copula' in test_dict:
             test_dict["jsd_test_copula"].append(current_jsd)
         else:
