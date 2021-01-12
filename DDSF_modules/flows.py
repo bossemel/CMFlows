@@ -32,11 +32,8 @@ class MAF(nn.Sequential):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
-        # assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        # assert not torch.isnan(torch.sum(density))
         return density
 
     def loss(self, inputs):
@@ -45,26 +42,15 @@ class MAF(nn.Sequential):
         return (- self.log_density(inputs)).mean()
 
     def _forward(self, inputs):
-        #self.n = inputs.shape[0]
-        #self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        #self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
         log_density = self.log_density(inputs)
         return log_density
-        #outputs, __, __ = self((inputs, self.logdets, self.context))
-        #return outputs
 
     def transform_to_noise(self, inputs):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, __, __ = self((inputs, self.logdets, self.context))
         return outputs
-
-    # def clip_grad_norm(self):
-    #     """Performs gradient clipping
-    #     """
-    #     nn.utils.clip_grad_norm_(self.parameters(), self.clip)
 
 
 class BaseFlow(Module):

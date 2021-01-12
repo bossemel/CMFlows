@@ -19,23 +19,23 @@ set -e
 # --error_bars
 
 
-echo 'Begin Copula: frank Marginal: gaussian Pretrain only'
+# echo 'Begin Copula: frank Marginal: gaussian Pretrain only'
 
-python CM_Flow.py \
---exp_name CM_Flow_frank_gaussian_nsf_ddsfhp  \
---epochs 100 \
---batch-size 100 \
---copula frank \
---marginal_1 gaussian \
---marginal_2 gaussian \
---mu 0 \
---var 1 \
---theta 5 \
---obs 10000 \
---conditional \
---marg_flow DDSF \
---cop_flow NSF \
---error_bars
+# python CM_Flow.py \
+# --exp_name CM_Flow_frank_gaussian_nsf_ddsfhp  \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula frank \
+# --marginal_1 gaussian \
+# --marginal_2 gaussian \
+# --mu 0 \
+# --var 1 \
+# --theta 5 \
+# --obs 10000 \
+# --conditional \
+# --marg_flow DDSF \
+# --cop_flow NSF \
+# --error_bars
 
 
 echo 'Begin Copula: frank Marginal: gamma Pretrain only'

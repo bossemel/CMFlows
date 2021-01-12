@@ -174,7 +174,7 @@ class ConditionalFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, transform_fct=None, num_samples=10000):
+    def jsd(self, args, num_samples=10000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
@@ -188,8 +188,6 @@ class ConditionalFlow(nn.Module):
                 true_cop_distr = pv_cop
                 samples_target_uni = pv_cop.simulate(num_samples)
 
-            #samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
-
             # Samples from both distributions
             if args.conditional_copula:
                 normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -199,7 +197,6 @@ class ConditionalFlow(nn.Module):
                 context_normal = None
                 context_uni = None
 
-            #samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
             samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
             samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
 
@@ -212,11 +209,6 @@ class ConditionalFlow(nn.Module):
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0
-            # assert torch.max(samples_pred_norm) > 1
-            # assert torch.min(samples_pred_norm) < 0
-
-            # assert torch.max(samples_target_normal) > 1
-            # assert torch.min(samples_target_normal) < 0
             assert np.max(samples_target_uni) <= 1
             assert np.min(samples_target_uni) >= 0
 
@@ -227,7 +219,6 @@ class ConditionalFlow(nn.Module):
             # Prob X in both distributions
             if args.conditional_copula:
                 prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=context_uni.numpy())
-                #gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, context_uni.cpu())
             else:
                 prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
 
@@ -236,11 +227,9 @@ class ConditionalFlow(nn.Module):
             # Prob Y in both distributions
             if args.conditional_copula:
                 prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
-                #gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
             else:
                 prob_Y_in_p = self.pdf_uniform(samples_target_uni)
-                #gaussian_change_of_var_ND(samples_target_uni, self._forward, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0

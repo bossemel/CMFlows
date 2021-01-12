@@ -10,5 +10,7 @@ python RVine.py \
 --mix \
 --error_bars \
 --cop_flow NSF \
---marg_flow DDSF
+--marg_flow DDSF \
+--continue_error_bars 8
+
 

@@ -19,23 +19,23 @@ set -e
 # --error_bars
 
 
-echo 'Begin Copula: clayton Marginal: gaussian Pretrain only'
+# echo 'Begin Copula: clayton Marginal: gaussian Pretrain only'
 
-python CM_Flow.py \
---exp_name CM_Flow_clayton_gaussian_ddsfhp \
---epochs 100 \
---batch-size 100 \
---copula clayton \
---marginal_1 gaussian \
---marginal_2 gaussian \
---mu 0 \
---var 1 \
---theta 2 \
---obs 10000 \
---conditional \
---marg_flow DDSF \
---cop_flow NSF \
---error_bars
+# python CM_Flow.py \
+# --exp_name CM_Flow_clayton_gaussian_ddsfhp \
+# --epochs 100 \
+# --batch-size 100 \
+# --copula clayton \
+# --marginal_1 gaussian \
+# --marginal_2 gaussian \
+# --mu 0 \
+# --var 1 \
+# --theta 2 \
+# --obs 10000 \
+# --conditional \
+# --marg_flow DDSF \
+# --cop_flow NSF \
+# --error_bars
 
 
 echo 'Begin Copula: clayton Marginal: gamma Pretrain only'

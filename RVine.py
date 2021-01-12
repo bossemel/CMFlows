@@ -18,7 +18,7 @@ from utils.load_and_save import save_statistics, load_statistics
 
 import matplotlib
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
-
+import json
 
 def train_and_plot(visualize=True, continue_from_mode=False):
     if not args.error_bars:
@@ -68,6 +68,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
