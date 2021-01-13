@@ -63,7 +63,7 @@ def visualize_DDSF_output(model, dataset, args):
         vizdata_uniform = normal_distr.cdf(vizdata)
         fig = plt.figure(figsize=(8, 6))
 
-        sns.distplot(vizdata)
+        sns.distplot(vizdata.cpu())
         plt.xlabel('x', fontsize=20)
         plt.ylabel('Probability', fontsize=20)
         plt.xticks(fontsize=20)
@@ -71,7 +71,7 @@ def visualize_DDSF_output(model, dataset, args):
         fig.savefig(os.path.join(args.figures_path, 'DDSF_output' + '.pdf'), dpi=300, bbox_inches='tight')
         fig = plt.figure(figsize=(8, 6))
 
-        sns.distplot(vizdata_uniform)
+        sns.distplot(vizdata_uniform.cpu())
         plt.xlabel('x', fontsize=20)
         plt.ylabel('Probability', fontsize=20)
         plt.xticks(fontsize=20)

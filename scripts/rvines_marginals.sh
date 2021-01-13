@@ -3,7 +3,7 @@ set -e
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gaussian_nsf_sampletest \
+--exp_name RVine_mix_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -18,7 +18,7 @@ python RVine.py \
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gamma_nsf_sampletest \
+--exp_name RVine_mix_gamma_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -33,7 +33,7 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gaussian_nsf_sampletest \
+--exp_name RVine_clayton_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -47,7 +47,7 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gamma_nsf_sampletest \
+--exp_name RVine_clayton_gamma_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -61,7 +61,7 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gaussian_nsf_sampletest \
+--exp_name RVine_frank_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -76,7 +76,7 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_nsf_sampletest \
+--exp_name RVine_frank_gamma_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -91,7 +91,7 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gaussian_nsf_sampletest \
+--exp_name RVine_gumbel_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \
@@ -104,7 +104,7 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_nsf_sampletest \
+--exp_name RVine_gumbel_gamma_master \
 --epochs 100 \
 --batch-size 100 \
 --random_seed 2 \

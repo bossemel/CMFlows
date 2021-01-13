@@ -25,7 +25,7 @@ class TrainOptions():
         parser.add_argument(
             '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
         parser.add_argument(
-            '--marg_flow', default='NSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+            '--marg_flow', default='DDSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
 
         # Training options
         parser.add_argument(
@@ -83,17 +83,28 @@ class TrainOptions():
         parser.add_argument(
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
-        # DDSF options
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=10)
+            '--num_flow_layers_DDSF', type=int, default=1)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=1)
+            '--num_hid_layers_DDSF', type=int, default=4)
         parser.add_argument(
-            '--num_ds_dim', type=int, default=16)
+            '--num_ds_dim', type=int, default=4)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=2)
+            '--num_ds_layers', type=int, default=4)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=128)
+            '--dimh_DDSF', type=int, default=2)
+
+        # # DDSF options
+        # parser.add_argument(
+        #     '--num_flow_layers_DDSF', type=int, default=10)
+        # parser.add_argument(
+        #     '--num_hid_layers_DDSF', type=int, default=1)
+        # parser.add_argument(
+        #     '--num_ds_dim', type=int, default=16)
+        # parser.add_argument(
+        #     '--num_ds_layers', type=int, default=2)
+        # parser.add_argument(
+        #     '--dimh_DDSF', type=int, default=128)
 
         # Options NSF - Copula estimation
         parser.add_argument(

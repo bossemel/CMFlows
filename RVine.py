@@ -17,31 +17,32 @@ from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics
 
 import matplotlib
-matplotlib.rcParams.update({'figure.max_open_warning': 0})
 import json
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
+
 
 def train_and_plot(visualize=True, continue_from_mode=False):
+    # Initialize R-vine
+    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+
     if not args.error_bars:
         if not args.load_model:
-            rv.fit(data=dataset_trn)
+            rv.fit(data=dataset_trn.clone())
             save_rvine(args.experiment_saved_models, 'rvine_object', rv)
         else:
             load_rvine(args.experiment_saved_models, 'rvine_object', rv)
     else:
-        rv.fit(data=dataset_trn)
+        rv.fit(data=dataset_trn.clone())
     rv.jsd_vinecopula(args, pv_cop, num_samples=args.obs, visualize=visualize)
 
     test_losses = {key: [np.mean(value)] for key, value in
-                   rv.results_dict.items()}  # save test set metrics in dict format
+                   rv.results_dict.items()}
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                    # save test set metrics on disk in .csv format
                     stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=None)
     if visualize:
         rv.plot()
         # Simulate and visualize
         samples = rv.sample(num_samples=args.viz_obs, transform=True)
-        #pdf = rv.pdf_uniform(inputs=samples.numpy())
-        #print(pdf[:10])
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
@@ -94,9 +95,6 @@ if __name__ == '__main__':
         visualize_joint(dataset_trn[:, :2], args.figures_path, name='rvine_input_dataset01')
         visualize_joint(dataset_trn[:, 1:3], args.figures_path, name='rvine_input_dataset12')
         visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
-
-    # Initialize R-vine
-    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
 
     # Estimate R-vine
     if not args.error_bars:
