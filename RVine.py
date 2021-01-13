@@ -22,6 +22,9 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
 def train_and_plot(visualize=True, continue_from_mode=False):
+    # Initialize R-vine
+    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+
     if not args.error_bars:
         if not args.load_model:
             rv.fit(data=dataset_trn)
@@ -95,9 +98,6 @@ if __name__ == '__main__':
         visualize_joint(dataset_trn[:, :2], args.figures_path, name='rvine_input_dataset01')
         visualize_joint(dataset_trn[:, 1:3], args.figures_path, name='rvine_input_dataset12')
         visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
-
-    # Initialize R-vine
-    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
 
     # Estimate R-vine
     if not args.error_bars:
