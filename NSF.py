@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 import random
 import csv
+import json
 
 import RealNVP_modules.utils as RealNVP_utils
 import DDSF_modules.utils as DDSF_utils
@@ -204,6 +205,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()

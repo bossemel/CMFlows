@@ -21,6 +21,7 @@ from DDSF import build_model as build_model_ddsf
 from RealNVP import build_model as build_model_rnvp
 from experiment_runner import train_val
 from utils import calc_jsd, normalize_torch
+from NSF_modules.visualizer import visualize1D
 eps = 0.0001
 
 
@@ -93,7 +94,12 @@ def marg_flow(self, dataset, data_loaders, node):
 
     # Transform inputs using the trained marginal flow
     transformed_inputs = transform_marginals(self, node)
-
+    node_str = re.sub('[, ()]', '', str(node))
+    visualize1D(model=self.marg_flow,
+                epoch=best_dict['best_validation_epoch'],
+                args=self.args,
+                best_val=True,
+                name=node_str)
     return transformed_inputs
 
 

@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 import random
 import csv
+import json
 
 from CM_modules.options import TrainOptions
 import CM_modules.utils as utils
@@ -193,7 +194,7 @@ def transform_dataset(model, train_dataset):
         train_dataset_uniform = normal_distr.cdf(train_dataset)
         visualize_joint(train_dataset, args.figures_path, name='marg_flow_transform_output')
         visualize_joint(train_dataset_uniform, args.figures_path, name='marg_flow_transform_output_uniform')
-    return data_loaders, dataset.trn
+    return data_loaders, dataset
 
 
 def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, transform_full_ds):
@@ -202,7 +203,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, tra
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
-    data_loaders, dataset.trn = transform_dataset(model, train_dataset)
+    data_loaders, dataset = transform_dataset(model, train_dataset)
 
     best_dict_cop_flow, test_dict = train_val(model,
                                               model_name='cop_flow',
@@ -252,7 +253,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, args.transform_full_ds)
+    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset, disable_tqdm, error_bars, rvine, args.transform_full_ds)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -284,6 +285,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -314,7 +317,7 @@ if __name__ == '__main__':
             train_and_plot(args=args,
                            dataset=dataset,
                            data_loaders=data_loaders,
-                           disable_tqdm=False,
+                           disable_tqdm=True,
                            error_bars=True)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:

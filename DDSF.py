@@ -8,6 +8,7 @@ import random
 import torch.optim as optim
 import seaborn as sns
 import matplotlib.pyplot as plt
+import json
 
 from DDSF_modules import nn_modules as nn_, flows
 from DDSF_modules.utils import load_data
@@ -207,7 +208,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name='DDSF',
+                                     model_name='marg_flow',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -232,6 +233,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()

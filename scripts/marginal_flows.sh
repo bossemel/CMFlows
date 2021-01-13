@@ -1,47 +1,47 @@
 set -e
 echo 'Gaussian'
 
-python NSF.py \
---exp_name NSF_gaussian_besthyp \
+python DDSF.py \
+--exp_name DDSF_gaussian_128 \
 --epochs 100 \
 --marginal gaussian \
 --mu -2 \
 --var 3 \
 --batch-size 100 \
 --obs 10000 \
---flow_type marg_flow
+--random_seed 4
 
 echo 'Uniform'
 
-python NSF.py \
---exp_name NSF_uniform_besthyp \
+python DDSF.py \
+--exp_name DDSF_uniform_128 \
 --epochs 100 \
 --marginal uniform \
 --low -1 \
 --high 3 \
 --batch-size 100 \
 --obs 10000 \
---flow_type marg_flow
+--random_seed 4
 
 echo 'Gamma'
 
-python NSF.py \
---exp_name NSF_gamma_besthyp \
+python DDSF.py \
+--exp_name DDSF_gamma_128 \
 --epochs 100 \
 --marginal gamma \
 --alpha 5 \
 --batch-size 100 \
 --obs 10000 \
---flow_type marg_flow
+--random_seed 4
 
 echo 'Lognormal'
 
-python NSF.py \
---exp_name NSF_lognormal_besthyp \
+python DDSF.py \
+--exp_name DDSF_lognormal_128 \
 --epochs 100 \
 --marginal lognormal \
 --mu 0 \
 --var 1 \
 --batch-size 100 \
 --obs 10000 \
---flow_type marg_flow
+--random_seed 4

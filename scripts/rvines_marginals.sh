@@ -3,9 +3,10 @@ set -e
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gaussian_nsf \
+--exp_name RVine_mix_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --marginal gamma \
@@ -17,9 +18,10 @@ python RVine.py \
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gamma_nsf \
+--exp_name RVine_mix_gamma_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --marginal gamma \
@@ -31,9 +33,10 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gaussian_nsf \
+--exp_name RVine_clayton_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula clayton \
@@ -44,9 +47,10 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gamma_nsf \
+--exp_name RVine_clayton_gamma_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula clayton \
@@ -57,9 +61,10 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gaussian_nsf \
+--exp_name RVine_frank_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula frank \
@@ -71,9 +76,10 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_nsf \
+--exp_name RVine_frank_gamma_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula frank \
@@ -85,9 +91,10 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gaussian_nsf \
+--exp_name RVine_gumbel_gaussian_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula gumbel \
@@ -97,9 +104,10 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_nsf \
+--exp_name RVine_gumbel_gamma_master \
 --epochs 100 \
 --batch-size 100 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
 --copula gumbel \

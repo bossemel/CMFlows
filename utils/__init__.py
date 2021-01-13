@@ -196,6 +196,8 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
 
     divergence = (KL_PM + KL_QM) / 2
 
+    assert divergence >= 0
+
     return divergence
 
 

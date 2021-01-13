@@ -7,6 +7,7 @@ from pathlib import Path
 import random
 from itertools import combinations
 import csv
+import json
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
@@ -68,6 +69,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
