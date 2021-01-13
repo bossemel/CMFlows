@@ -7,7 +7,6 @@ from pathlib import Path
 import random
 from itertools import combinations
 import csv
-import json
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
@@ -22,9 +21,6 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
 def train_and_plot(visualize=True, continue_from_mode=False):
-    # Initialize R-vine
-    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
-
     if not args.error_bars:
         if not args.load_model:
             rv.fit(data=dataset_trn)
@@ -72,8 +68,6 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
-        json.dump(args.__dict__, f, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -99,6 +93,9 @@ if __name__ == '__main__':
         visualize_joint(dataset_trn[:, 1:3], args.figures_path, name='rvine_input_dataset12')
         visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
 
+    # Initialize R-vine
+    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+
     # Estimate R-vine
     if not args.error_bars:
         train_and_plot(visualize=True, continue_from_mode=False)
@@ -106,11 +103,11 @@ if __name__ == '__main__':
         if args.continue_error_bars == 0:
             train_and_plot(visualize=True, continue_from_mode=False)
             for ii in range(1, 10):
-                rv = RVine(args=args, data=dataset_trn)
+                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
                 train_and_plot(visualize=False, continue_from_mode=True)
         else:
             for ii in range(args.continue_error_bars, 10):
-                rv = RVine(args=args, data=dataset_trn)
+                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
                 train_and_plot(visualize=False, continue_from_mode=True)
 
         # Load statistics and calculate mean and standard deviation

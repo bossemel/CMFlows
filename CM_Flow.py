@@ -314,7 +314,7 @@ if __name__ == '__main__':
             train_and_plot(args=args,
                            dataset=dataset,
                            data_loaders=data_loaders,
-                           disable_tqdm=True,
+                           disable_tqdm=False,
                            error_bars=True)
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')
         with open(os.path.join(args.experiment_logs, 'error_bars.csv'), 'w') as f:
