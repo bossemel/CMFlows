@@ -1,92 +1,92 @@
 set -e
 
-echo 'Begin Mix Copula Rvine: RVine_mix'
+# echo 'Begin Mix Copula Rvine: RVine_mix'
 
-python RVine.py \
---exp_name RVine_mix_gaussian_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
+# python RVine.py \
+# --exp_name RVine_mix_gaussian_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --marginal gamma \
+# --mu 0 \
+# --var 1 \
+# --obs 10000 \
+# --mix
 
-echo 'Begin Mix Copula Rvine: RVine_mix'
+# echo 'Begin Mix Copula Rvine: RVine_mix'
 
-python RVine.py \
---exp_name RVine_mix_gamma_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
+# python RVine.py \
+# --exp_name RVine_mix_gamma_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --marginal gamma \
+# --mu 0 \
+# --var 1 \
+# --obs 10000 \
+# --mix
 
-echo 'Begin Clayton Copula Rvine: RVine_clayton'
+# echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
-python RVine.py \
---exp_name RVine_clayton_gaussian_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---copula clayton \
---marginal gaussian \
---alpha 5 \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_clayton_gaussian_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --copula clayton \
+# --marginal gaussian \
+# --alpha 5 \
+# --obs 10000
 
-echo 'Begin Clayton Copula Rvine: RVine_clayton'
+# echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
-python RVine.py \
---exp_name RVine_clayton_gamma_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---copula clayton \
---marginal gamma \
---alpha 5 \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_clayton_gamma_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --copula clayton \
+# --marginal gamma \
+# --alpha 5 \
+# --obs 10000
 
-echo 'Begin Frank Copula Rvine: RVine_frank'
+# echo 'Begin Frank Copula Rvine: RVine_frank'
 
-python RVine.py \
---exp_name RVine_frank_gaussian_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---copula frank \
---marginal gaussian \
---mu 0 \
---var 1 \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_frank_gaussian_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --copula frank \
+# --marginal gaussian \
+# --mu 0 \
+# --var 1 \
+# --obs 10000
 
-echo 'Begin Frank Copula Rvine: RVine_frank'
+# echo 'Begin Frank Copula Rvine: RVine_frank'
 
-python RVine.py \
---exp_name RVine_frank_gamma_master \
---epochs 100 \
---batch-size 100 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---copula frank \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000
+# python RVine.py \
+# --exp_name RVine_frank_gamma_master \
+# --epochs 100 \
+# --batch-size 100 \
+# --random_seed 2 \
+# --cop_flow NSF \
+# --marg_flow DDSF \
+# --copula frank \
+# --marginal gamma \
+# --mu 0 \
+# --var 1 \
+# --obs 10000
 
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
