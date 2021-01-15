@@ -22,7 +22,6 @@ from experiment_runner import train_val
 import json
 eps = 0.0001
 
-
 def build_model(args):
     """Builds the CM Flow model. It is a concatenation of cop_flow and marg_flow.
 

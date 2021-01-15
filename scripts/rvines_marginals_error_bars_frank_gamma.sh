@@ -2,7 +2,7 @@ set -e
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_error_nsf_ddsfhp \
+--exp_name RVine_frank_gamma_error_64 \
 --epochs 100 \
 --batch-size 100 \
 --copula frank \
@@ -11,6 +11,5 @@ python RVine.py \
 --error_bars \
 --cop_flow NSF \
 --marg_flow DDSF \
---continue_error_bars 7
-
+--tail_bound_c 64
 

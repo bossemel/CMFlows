@@ -250,8 +250,8 @@ def add_new_node(self, new_graph, common_node, edge, plots):
     model_loader(self.cop_flow, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
-        _uncon_node = uncon_node_data.clone()
-        _cond_node = cond_node_data.clone()
+        _uncon_node = uncon_node_data.detach().clone()
+        _cond_node = cond_node_data.detach().clone()
         node_data = cop_flow_transform(self, _uncon_node, _cond_node)
         new_graph.add_node(edge,
                            node_data=node_data,
@@ -369,7 +369,7 @@ class RVine():
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             current_tree_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-            next_tree_samples = current_tree_samples.clone()
+            next_tree_samples = current_tree_samples.detach().clone()
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
@@ -398,7 +398,7 @@ class RVine():
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
                     next_tree_samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
-                current_tree_samples = next_tree_samples.clone()
+                current_tree_samples = next_tree_samples.detach().clone()
 
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)

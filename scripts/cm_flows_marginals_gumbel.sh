@@ -1,45 +1,47 @@
 set -e
-# echo 'Begin Copula: gumbel Marginal: uniform Pretrain only'
+echo 'Begin Copula: gumbel Marginal: uniform Pretrain only'
 
-# python CM_Flow.py \
-# --exp_name CM_Flow_gumbel_uniform_nsf_ddsfhp  \
-# --epochs 100 \
-# --batch-size 100 \
-# --copula gumbel \
-# --marginal_1 uniform \
-# --marginal_2 uniform \
-# --alpha 5 \
-# --low 0 \
-# --high 1 \
-# --theta 2 \
-# --obs 10000 \
-# --conditional \
-# --marg_flow DDSF \
-# --cop_flow NSF \
-# --error_bars
+python CM_Flow.py \
+--exp_name CM_Flow_gumbel_uniform_nsf_64  \
+--epochs 100 \
+--batch-size 100 \
+--copula gumbel \
+--marginal_1 uniform \
+--marginal_2 uniform \
+--alpha 5 \
+--low 0 \
+--high 1 \
+--theta 2 \
+--obs 10000 \
+--conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
+--tail_bound_c 64
 
-# echo 'Begin Copula: gumbel Marginal: gaussian Pretrain only'
 
-# python CM_Flow.py \
-# --exp_name CM_Flow_gumbel_gaussian_nsf_ddsfhp  \
-# --epochs 100 \
-# --batch-size 100 \
-# --copula gumbel \
-# --marginal_1 gaussian \
-# --marginal_2 gaussian \
-# --mu 0 \
-# --var 1 \
-# --theta 5 \
-# --obs 10000 \
-# --conditional \
-# --marg_flow DDSF \
-# --cop_flow NSF \
-# --error_bars
+echo 'Begin Copula: gumbel Marginal: gaussian Pretrain only'
+
+python CM_Flow.py \
+--exp_name CM_Flow_gumbel_gaussian_nsf_64  \
+--epochs 100 \
+--batch-size 100 \
+--copula gumbel \
+--marginal_1 gaussian \
+--marginal_2 gaussian \
+--mu 0 \
+--var 1 \
+--theta 5 \
+--obs 10000 \
+--conditional \
+--marg_flow DDSF \
+--cop_flow NSF \
+--tail_bound_c 64
+
 
 echo 'Begin Copula: gumbel Marginal: gamma Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_gumbel_gamma_nsf_ddsfhp  \
+--exp_name CM_Flow_gumbel_gamma_nsf_64  \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \
@@ -53,12 +55,13 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64
+
 
 echo 'Begin Copula: gumbel Marginal: lognormal Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_gumbel_lognormal_nsf_ddsfhp  \
+--exp_name CM_Flow_gumbel_lognormal_nsf_64  \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \
@@ -71,4 +74,5 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64
+

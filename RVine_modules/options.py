@@ -116,7 +116,7 @@ class TrainOptions():
         parser.add_argument(
             '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=64, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
