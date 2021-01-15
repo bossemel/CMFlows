@@ -171,11 +171,11 @@ def build_next_tree(self, current_tree, num_current_nodes, plots):
         if len(neighbor_list) >= 2:
             for neighbor in neighbor_list:
                 if (node, neighbor) not in traversed_edges:
-                    print('creating new node for node neighboar pair', node, neighbor)
+                    print('creating new node for node neighbor pair', node, neighbor)
                     new_graph = add_new_node(self, new_graph, node, (node, neighbor), plots)
                     traversed_edges.extend([(node, neighbor), tuple(reversed((node, neighbor)))])
         if num_current_nodes == 2:
-            print('creating new node for node neighboar pair', node, neighbor_list[0])
+            print('creating new node for node neighbor pair', node, neighbor_list[0])
             new_graph = add_new_node(self, new_graph, node, (node, neighbor_list[0]), plots)
             num_current_nodes -= 1
 
@@ -480,7 +480,7 @@ class RVine():
         with torch.no_grad():
             # Samples from both distributinos
             samples_pred_uni = self.sample(num_samples=num_samples, transform=True)
-            samples_target_uni = true_cop_distr.simulate(num_samples)
+            samples_target_uni = true_cop_distr.simulate(num_samples, seeds=[args.random_state + 1])
 
             # @Todo: remove before submitting code
             if visualize:

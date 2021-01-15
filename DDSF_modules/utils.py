@@ -17,7 +17,8 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Marginals(args.marginal, args.obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
+    dataset = datasets.distributions.Marginals(args.marginal, args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
+                                               low=args.low, high=args.high, random_seed=args.random_seed)
 
     train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)

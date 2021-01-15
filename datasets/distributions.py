@@ -19,20 +19,14 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         inputs: transformed samples vector
     """
     if marginal == 'gaussian':
-        #assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
-        # assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
         norm = scipy.stats.norm(loc=mu, scale=var)
         inputs = norm.ppf(inputs)
     elif marginal == 'uniform':
         return inputs
     elif marginal == 'lognormal':
-        #assert hasattr(args, 'mu') is not None, 'Please specify mean mu for %r distribution' % (args.marginal)
-        #assert hasattr(args, 'var') is not None, 'Please specify mean var for %r distribution' % (args.marginal)
-
         lognorm = scipy.stats.lognorm(s=0.5, loc=mu, scale=var)
         inputs = lognorm.ppf(inputs)
     elif marginal == 'gamma':
-        #assert hasattr(args, 'alpha') is not None, 'Please specify alpha for %r distribution' % (args.marginal)
         gamma = scipy.stats.gamma(alpha)
         inputs = gamma.ppf(inputs)
     else:
@@ -43,7 +37,8 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
 class Joint_Distr():
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
-    def __init__(self, copula, marginal_1, marginal_2, theta, obs, mu=None, var=None, alpha=None, no_val=False):
+    def __init__(self, copula, marginal_1, marginal_2, theta, obs, mu=None, var=None, alpha=None, no_val=False,
+                 random_seed=None):
 
         self.mu = mu
         self.var = var
@@ -55,7 +50,7 @@ class Joint_Distr():
         self.marginal_2 = marginal_2
         self.obs = obs
 
-        Joint_Distr.sampler(self, obs=obs)
+        Joint_Distr.sampler(self, obs=obs, random_seed=random_seed)
 
         if no_val:
             trn, tst = split_train_val_test(self.xx, only_val=no_val)
@@ -67,14 +62,26 @@ class Joint_Distr():
             self.val = val.astype(np.float32)
             self.tst = tst.astype(np.float32)
 
-    def sampler(self, obs=None):
+    def sampler(self, obs=None, random_seed=None):
         """Returns copula samples.
         """
-        copula_distr = datasets.distributions.Copula_Distr(self.copula, self.theta, obs=obs, transform=False)
+        copula_distr = datasets.distributions.Copula_Distr(self.copula,
+                                                           self.theta,
+                                                           obs=obs,
+                                                           transform=False,
+                                                           random_seed=random_seed)
         copula_distr.sampler(transform=False, obs=self.obs)
         assert not np.isnan(np.sum(copula_distr.xx))
-        marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1], marginal=self.marginal_1, mu=self.mu, var=self.var, alpha=self.alpha)
-        marginal_2 = marginal_transform(inputs=copula_distr.xx[:, 1:2], marginal=self.marginal_2, mu=self.mu, var=self.var, alpha=self.alpha)
+        marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1],
+                                        marginal=self.marginal_1,
+                                        mu=self.mu,
+                                        var=self.var,
+                                        alpha=self.alpha)
+        marginal_2 = marginal_transform(inputs=copula_distr.xx[:, 1:2],
+                                        marginal=self.marginal_2,
+                                        mu=self.mu,
+                                        var=self.var,
+                                        alpha=self.alpha)
 
         xx = np.concatenate([marginal_1, marginal_2], axis=1)
         assert not np.isnan(np.sum(xx))
@@ -86,7 +93,7 @@ class Joint_Distr():
 class Marginals():
     """Class for univariate samples
     """
-    def __init__(self, marginal, obs, mu=None, var=None, alpha=None, low=None, high=None):
+    def __init__(self, marginal, obs, mu=None, var=None, alpha=None, low=None, high=None, random_seed=None):
 
         self.marginal = marginal
         self.obs = obs
@@ -96,7 +103,7 @@ class Marginals():
         self.low = low
         self.high = high
 
-        self.xx = Marginals.sampler(self)
+        self.xx = Marginals.sampler(self, random_seed=random_seed)
 
         trn, val, tst = split_train_val_test(self.xx)
 
@@ -104,7 +111,7 @@ class Marginals():
         self.val = val.astype(np.float32)
         self.tst = tst.astype(np.float32)
 
-    def sampler(self, obs=None):
+    def sampler(self, obs=None, random_seed=None):
         """Returns marginal samples.
         """
         if self.marginal == 'gaussian':
@@ -112,18 +119,22 @@ class Marginals():
             assert self.var is not None, 'Please specify variance var for %r distribution' % (self.marginal)
             dataset = scipy.stats.norm.rvs(loc=self.mu,
                                            scale=self.var,
-                                           size=[self.obs if obs is None else obs])
+                                           size=[self.obs if obs is None else obs],
+                                           random_state=random_seed)
         elif self.marginal == 'uniform':
             assert hasattr(self, 'low'), 'Please specify lower bound a for %r distribution' % (self.marginal)
             assert hasattr(self, 'high'), 'Please specify upper bound b for %r distribution' % (self.marginal)
 
             dataset = scipy.stats.uniform.rvs(loc=self.low,
                                               scale=self.high,
-                                              size=[self.obs if obs is None else obs])
+                                              size=[self.obs if obs is None else obs],
+                                              random_state=random_seed)
         elif self.marginal == 'gamma':
             assert self.alpha is not None, 'Please specify alpha for %r distribution' % (self.marginal)
 
-            dataset = scipy.stats.gamma.rvs(a=self.alpha, size=[self.obs if obs is None else obs])
+            dataset = scipy.stats.gamma.rvs(a=self.alpha,
+                                            size=[self.obs if obs is None else obs],
+                                            random_state=random_seed)
 
         elif self.marginal == 'lognormal':
             assert hasattr(self, 'mu'), 'Please specify mu for %r distribution' % (self.marginal)
@@ -132,13 +143,9 @@ class Marginals():
             dataset = scipy.stats.lognorm.rvs(s=0.5,
                                               loc=self.mu,
                                               scale=self.var,
-                                              size=[self.obs if obs is None else obs])
+                                              size=[self.obs if obs is None else obs],
+                                              random_state=random_seed)
 
-        elif self.marginal == 'bimodal_gaussian':
-            samples_1 = scipy.stats.norm.rvs(loc=2, scale=2, size=[int(self.obs / 2) if obs is None else int(obs / 2)])
-            samples_2 = scipy.stats.norm.rvs(loc=12, scale=2, size=[int(self.obs / 2) if obs is None else int(obs / 2)])
-
-            dataset = np.concatenate([samples_1, samples_2])
         return normalize(dataset.reshape(-1, 1))
 
     def pdf(self, inputs):
@@ -165,38 +172,25 @@ class Marginals():
                                                   loc=self.mu,
                                                   scale=self.var)
 
-        elif self.marginal == 'bimodal_gaussian':
-            inputs_split = np.split(inputs, 2)
-            inputs_1 = inputs_split[0]
-            inputs_2 = inputs_split[1]
-
-            samples_1 = scipy.stats.norm.pdf(inputs_1,
-                                             loc=2,
-                                             scale=2)
-            samples_2 = scipy.stats.norm.pdf(inputs_2,
-                                             loc=12,
-                                             scale=2)
-
-            pdf_samples = np.concatenate([samples_1, samples_2])
         return pdf_samples
 
 
 class Copula_Distr:
-    def __init__(self, copula, theta, obs=None, transform=True):
+    def __init__(self, copula, theta, obs=None, transform=True, random_seed=None):
 
         self.copula = copula
         self.theta = theta
         self.obs = obs
         self.transform = transform
 
-        Copula_Distr.sampler(self, self.transform, self.obs)
+        Copula_Distr.sampler(self, self.transform, self.obs, random_seed=random_seed)
         trn, val, tst = split_train_val_test(self.xx)
 
         self.trn = trn.astype(np.float32)
         self.val = val.astype(np.float32)
         self.tst = tst.astype(np.float32)
 
-    def sampler(self, transform=None, obs=None):
+    def sampler(self, transform=None, obs=None, random_seed=None):
         """Produce obs samples of 2-dimensional Copula density distribution
         """
 
@@ -206,32 +200,19 @@ class Copula_Distr:
         # clayton copula
         if self.copula == 'clayton':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
-            uu, vv = sample_clayton([self.obs if obs is None else obs], self.theta)
+            uu, vv = sample_clayton([self.obs if obs is None else obs], self.theta, random_seed=None)
 
         # frank copula
         elif self.copula == 'frank':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
-            uu, vv = sample_frank([self.obs if obs is None else obs], self.theta)
+            uu, vv = sample_frank([self.obs if obs is None else obs], self.theta, random_seed=None)
 
         # gumbel copula
         elif self.copula == 'gumbel':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
-            uu, vv = sample_gumbel([self.obs if obs is None else obs], self.theta)
+            uu, vv = sample_gumbel([self.obs if obs is None else obs], self.theta, random_seed=None)
 
-        # gaussian copula
-        elif self.copula == 'gaussian':
-            assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.copula)
-
-            xx = sample_gaussian([self.obs if obs is None else obs], self.tau)
-
-        # T-Copula
-        elif self.copula == 'tdistr':
-            assert hasattr(self, 'tau'), 'Please specify tau for %r copula' % (self.copula)
-            assert hasattr(self, 'df'), 'Please specify df for %r copula' % (self.copula)
-            xx = sample_tdistr([self.obs if obs is None else obs], self.tau, self.df)
-
-        if self.copula not in ['gaussian', 'tdistr']:
-            xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
+        xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
 
         assert xx.all() > 0 & xx.all() < 1
 
@@ -249,7 +230,7 @@ class Copula_Distr:
         return copula_pdf_samples
 
 
-def sample_clayton(obs, theta, uu=None, ww=None):
+def sample_clayton(obs, theta, uu=None, ww=None, random_seed=None):
     """Sample from clayton copula density
 
     Params:
@@ -261,8 +242,13 @@ def sample_clayton(obs, theta, uu=None, ww=None):
         uu, vv: samples
     """
     if uu is None:
-        uu = np.random.uniform(size=obs)
-        ww = np.random.uniform(size=obs)
+        if random_seed is None:
+            uu = np.random.uniform(size=obs)
+            ww = np.random.uniform(size=obs)
+        else:
+            uu = np.random.RandomState(random_seed).uniform(size=obs)
+            ww = np.random.RandomState(random_seed + 1).uniform(size=obs)
+
 
     if theta <= -1:
         raise ValueError('the parameter for clayton copula should be more than -1')
@@ -276,7 +262,7 @@ def sample_clayton(obs, theta, uu=None, ww=None):
     return uu, vv
 
 
-def sample_frank(obs, theta, uu=None, ww=None):
+def sample_frank(obs, theta, uu=None, ww=None, random_seed=None):
     """Sample from frank copula density
 
     Params:
@@ -288,8 +274,12 @@ def sample_frank(obs, theta, uu=None, ww=None):
         uu, vv: samples
     """
     if uu is None:
-        uu = np.random.uniform(size=obs)
-        ww = np.random.uniform(size=obs)
+        if random_seed is None:
+            uu = np.random.uniform(size=obs)
+            ww = np.random.uniform(size=obs)
+        else:
+            uu = np.random.RandomState(random_seed).uniform(size=obs)
+            ww = np.random.RandomState(random_seed + 1).uniform(size=obs)
 
     if theta == 0:
         raise ValueError('The parameter for frank copula should not be 0')
@@ -305,7 +295,7 @@ def sample_frank(obs, theta, uu=None, ww=None):
     return uu, vv
 
 
-def sample_gumbel(obs, theta, uu=None, ww=None):
+def sample_gumbel(obs, theta, uu=None, ww=None, random_seed=None):
     """Sample from gumbel copula density
 
     Params:
@@ -319,14 +309,23 @@ def sample_gumbel(obs, theta, uu=None, ww=None):
     if theta <= 1:
         raise ValueError('the parameter for gumbel copula should be greater than 1')
     if theta < 1 + sys.float_info.epsilon:
-        if uu is None:
+        if random_seed is None:
             uu = np.random.uniform(size=obs)
             ww = np.random.uniform(size=obs)
+        else:
+            uu = np.random.RandomState(random_seed).uniform(size=obs)
+            ww = np.random.RandomState(random_seed + 1).uniform(size=obs)
     else:
-        u_int = np.random.uniform(size=obs)
-        ww = np.random.uniform(size=obs)
-        w1 = np.random.uniform(size=obs)
-        w2 = np.random.uniform(size=obs)
+        if random_seed is None:
+            u_int = np.random.uniform(size=obs)
+            ww = np.random.uniform(size=obs)
+            w1 = np.random.uniform(size=obs)
+            w2 = np.random.uniform(size=obs)
+        else:
+            u_int = np.random.RandomState(random_seed).uniform(size=obs)
+            ww = np.random.RandomState(random_seed + 1).uniform(size=obs)
+            w1 = np.random.RandomState(random_seed + 2).uniform(size=obs)
+            w2 = np.random.RandomState(random_seed + 3).uniform(size=obs)
 
         u_int = (u_int - 0.5) * np.pi
         u2 = u_int + np.pi / 2
@@ -342,65 +341,6 @@ def sample_gumbel(obs, theta, uu=None, ww=None):
     assert uu.all() >= 0
     assert vv.all() >= 0
     return uu, vv
-
-
-def sample_gaussian(obs, tau):
-    """Sample from gaussian copula density
-
-    Params:
-        obs: how many samples to generate
-        tau: gaussian copula parameter
-
-    Returns:
-        x_unif: samples
-    """
-    mvnorm = scipy.stats.multivariate_normal(mean=[0, 0], cov=[[1., tau],
-                                                               [tau, 1.]])
-    xx = mvnorm.rvs(obs)
-    norm = scipy.stats.norm()
-    x_unif = norm.cdf(xx)
-    return x_unif
-
-
-def sample_tdistr(obs, tau, df):
-    """Sample from t-distr copula density
-
-    Params:
-        obs: how many samples to generate
-        theta: t-distr copula parameter
-        uu, ww: fixed input grid
-
-    Returns:
-        x_unif: samples
-    """
-    x = multivariate_t(mu=[0, 0], sigma=[[1., tau],
-                                         [tau, 0.5]], dof=df, m=obs)
-
-    tt = scipy.stats.t(df=2)
-    x_unif = tt.cdf(x)
-    return x_unif
-
-
-def multivariate_t(mu, sigma, dof, m):
-    """
-    Produce m samples of d-dimensional multivariate t distribution
-
-    Args:
-        mu (numpy.ndarray): mean vector
-        sigma (numpy.ndarray): scale matrix (covariance)
-        dof (float): degrees of freedom
-        m (int): # of samples to produce
-
-    Returns:
-        numpy.ndarray
-
-    Source:
-        https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
-    """
-    d = len(sigma)
-    g = np.tile(np.random.gamma(dof / 2, 2 / dof, m), (d, 1)).T
-    z = np.random.multivariate_normal(np.zeros(d), sigma, m)
-    return mu + z / np.sqrt(g)
 
 
 def _g(theta, z):
@@ -439,7 +379,6 @@ def gumbel_cdf(theta, uu, vv):
 
 
 def remove_0_1(array):
-    #print(array[array==0])
     array[array == 0] = eps
     array[array == 1] = 1 - eps
     return array
@@ -460,7 +399,6 @@ def copula_pdf(copula, theta, uu, vv):
     assert np.min(vv) > 0 and np.max(vv) < 1, 'min: {}, max: {}'.format(np.min(vv), np.max(vv))
 
     if copula == 'clayton':
-        #pdf = (theta + 1) * np.power( uu*vv, -1*(theta+1) ) * np.power( np.power(uu, -theta) + np.power(vv, -theta) - 1, -1*(2*theta+1)/theta )
         assert not np.isnan(np.multiply(uu, vv).sum()), '{}'.format(np.multiply(uu, vv).sum())
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
         assert not np.isnan(a.sum())

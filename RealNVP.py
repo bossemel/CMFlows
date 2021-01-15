@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 import random
 import csv
+import json
 
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils

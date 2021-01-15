@@ -32,7 +32,7 @@ def gen_mv_copula(args):
 
     # Set-up a vine copula
     copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
-    copula_samples = copula.simulate(n=args.obs)
+    copula_samples = copula.simulate(n=args.obs, seeds=[args.random_state])
     if not args.disable_marginal:
         for dim in range(copula_samples.shape[1]):
             copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha))
