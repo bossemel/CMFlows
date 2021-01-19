@@ -194,11 +194,9 @@ def cop_flow_transform(self, uncon_node_data, cond_node_data):
 
 
 def plot_cop_flow(self, node_data, cond_node_data, edge):
-    gaussian_inputs = torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu()
     uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
     edge_str = re.sub('[, ()]', '', str(edge))
     visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
-    #visualize_joint(gaussian_inputs, self.args.figures_path, name='rvine_con_transform_gaussian_{}'.format(edge_str))
 
     context = torch.tensor(np.random.normal(size=(10000, 1))).float()
     con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
@@ -373,15 +371,12 @@ class RVine():
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
-                # print('tree number', ii)
                 # dim to be transformed: the one that has no common edge in the previous tree,
                 # the common edge is the condtional input
 
                 for node in self.tree_list[ii].nodes():
-                    #print('tree', ii, 'node', node)
                     uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
 
-                    #print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
                     cond_node_data = current_tree_samples[:, con_input_node:con_input_node + 1]
                     uncon_node_data = current_tree_samples[:, uncon_input_node:uncon_input_node + 1]
 
@@ -393,6 +388,10 @@ class RVine():
                                  send_to_device=True)
                     self.cop_flow.to(self.args.device)
                     self.cop_flow.eval()
+
+                    # plt cop flow
+                    test_samples = self.cop_flow.sample_copula(num_samples, context=cond_node_data, device=self.args.device)
+                    visualize_joint(test_samples.cpu(), self.args.figures_path, name='loaded_sampling_{}'.format(node))
 
                     # inverse H-function
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
@@ -418,20 +417,16 @@ class RVine():
         with torch.no_grad():
             current_tree_inputs = inputs.copy()
             pdf = torch.ones((current_tree_inputs.shape[0]))
-            #counted = []
             next_tree_inputs = current_tree_inputs.copy()
 
             for ii in range(1, len(self.tree_list)):
-                #counted = []
 
                 for node in self.tree_list[ii].nodes():
                     print('pdf tree', ii, 'node', node)
                     uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
 
-                    #if True: #uncon_input_node not in counted:
-                        #print('sampling uncon node {}, con node {}'.format(uncon_input_node, con_input_node))
-                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1]#.to(self.args.device)
-                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1]#.to(self.args.device)
+                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1]
+                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1]
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.cop_flow,
@@ -442,13 +437,9 @@ class RVine():
                     self.cop_flow.to(self.args.device)
                     self.cop_flow.eval()
 
-                    pdf *= self.cop_flow.pdf_uniform(uncon_node_data, context=cond_node_data)
-                    #pdf /= self.norm.pdf(uncon_node_data).reshape(-1,)
+                    pdf *= self.cop_flow.pdf_uniform(uncon_node_data, context=cond_node_data, device=self.args.device)
                     assert pdf.shape == (current_tree_inputs.shape[0],)
 
-                        #counted.append(uncon_input_node)
-
-                    # add ppf here!
                     uncon_node_data = torch.from_numpy(self.norm.ppf(uncon_node_data)).float().to(self.args.device)
                     cond_node_data = torch.from_numpy(self.norm.ppf(cond_node_data)).float().to(self.args.device)
                     transformed_inputs = self.cop_flow.transform_to_noise(uncon_node_data,
@@ -461,10 +452,6 @@ class RVine():
 
             assert torch.min(pdf) >= 0
             return pdf.cpu().numpy()
-
-    # def pdf_uniform(self, inputs, device=None):
-    #     with torch.no_grad():
-    #         return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.args.device)
 
     def jsd_vinecopula(self, args, true_cop_distr, num_samples=10000, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
@@ -480,7 +467,7 @@ class RVine():
         with torch.no_grad():
             # Samples from both distributinos
             samples_pred_uni = self.sample(num_samples=num_samples, transform=True)
-            samples_target_uni = true_cop_distr.simulate(num_samples, seeds=[args.random_state + 1])
+            samples_target_uni = true_cop_distr.simulate(num_samples)
 
             # @Todo: remove before submitting code
             if visualize:

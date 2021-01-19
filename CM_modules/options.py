@@ -28,7 +28,7 @@ class TrainOptions():
         parser.add_argument(
             '--marg_flow', default='DDSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
         parser.add_argument(
-            '--transform_full_ds', action='store_true', help='transform dataset in full, or at every batch')
+            '--transform_full_ds', action='store_false', help='transform dataset in full, or at every batch')
         parser.add_argument(
             '--four_dim', action='store_true')
 
@@ -70,9 +70,9 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in first dimension')
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal in first dimension')
         parser.add_argument(
-            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in second dimension')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal in second dimension')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
@@ -152,15 +152,15 @@ class TrainOptions():
 
         # DDSF options
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=10)
+            '--num_flow_layers_DDSF', type=int, default=9)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=1)
+            '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
-            '--num_ds_dim', type=int, default=16)
+            '--num_ds_dim', type=int, default=4)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=2)
+            '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=128)
+            '--dimh_DDSF', type=int, default=1)
 
         self.initialized = True
         return parser

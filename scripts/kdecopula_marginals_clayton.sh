@@ -4,7 +4,6 @@ echo 'Begin Copula: kdecopula estimation'
 python kdecopula.py \
 --exp_name kdecopula_clayton_uniform \
 --copula clayton \
---assumed_copula gaussian \
 --marginal_1 uniform \
 --marginal_2 uniform \
 --alpha 5 \
@@ -17,7 +16,6 @@ echo 'Begin Copula: kdecopula estimation'
 python kdecopula.py \
 --exp_name kdecopula_clayton_gaussian \
 --copula clayton \
---assumed_copula gaussian \
 --marginal_1 gaussian \
 --marginal_2 gaussian \
 --alpha 5 \
@@ -30,7 +28,6 @@ echo 'Begin Copula: kdecopula estimation'
 python kdecopula.py \
 --exp_name kdecopula_clayton_gamma \
 --copula clayton \
---assumed_copula gaussian \
 --marginal_1 gamma \
 --marginal_2 gamma \
 --alpha 5 \
@@ -43,7 +40,6 @@ echo 'Begin Copula: kdecopula estimation'
 python kdecopula.py \
 --exp_name kdecopula_clayton_lognormal \
 --copula clayton \
---assumed_copula gaussian \
 --marginal_1 lognormal \
 --marginal_2 lognormal \
 --alpha 5 \

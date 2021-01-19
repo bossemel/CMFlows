@@ -29,6 +29,30 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
     elif marginal == 'gamma':
         gamma = scipy.stats.gamma(alpha)
         inputs = gamma.ppf(inputs)
+    elif marginal == 'gmm':
+        norm_1 = scipy.stats.norm(loc=mu - 2, scale=var * 2)
+        norm_2 = scipy.stats.norm(loc=mu + 2, scale=var / 2)
+        norm_3 = scipy.stats.norm(loc=mu, scale=var / 4)
+        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
+        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
+        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
+        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+    elif marginal == 'mix_gamma':
+        norm_1 = scipy.stats.gamma(alpha * 5)
+        norm_2 = scipy.stats.gamma(alpha / 5)
+        norm_3 = scipy.stats.gamma(alpha)
+        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
+        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
+        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
+        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+    elif marginal == 'mix_lognormal':
+        norm_1 = scipy.stats.lognorm(s=0.2, loc=mu - 2, scale=var * 2)
+        norm_2 = scipy.stats.lognorm(s=0.9, loc=mu + 2, scale=var / 2)
+        norm_3 = scipy.stats.lognorm(s=0.5, loc=mu, scale=var)
+        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
+        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
+        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
+        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
     else:
         raise NotImplementedError
     return inputs
@@ -114,38 +138,8 @@ class Marginals():
     def sampler(self, obs=None, random_seed=None):
         """Returns marginal samples.
         """
-        if self.marginal == 'gaussian':
-            assert self.mu is not None, 'Please specify mean mu for %r distribution' % (self.marginal)
-            assert self.var is not None, 'Please specify variance var for %r distribution' % (self.marginal)
-            dataset = scipy.stats.norm.rvs(loc=self.mu,
-                                           scale=self.var,
-                                           size=[self.obs if obs is None else obs],
-                                           random_state=random_seed)
-        elif self.marginal == 'uniform':
-            assert hasattr(self, 'low'), 'Please specify lower bound a for %r distribution' % (self.marginal)
-            assert hasattr(self, 'high'), 'Please specify upper bound b for %r distribution' % (self.marginal)
-
-            dataset = scipy.stats.uniform.rvs(loc=self.low,
-                                              scale=self.high,
-                                              size=[self.obs if obs is None else obs],
-                                              random_state=random_seed)
-        elif self.marginal == 'gamma':
-            assert self.alpha is not None, 'Please specify alpha for %r distribution' % (self.marginal)
-
-            dataset = scipy.stats.gamma.rvs(a=self.alpha,
-                                            size=[self.obs if obs is None else obs],
-                                            random_state=random_seed)
-
-        elif self.marginal == 'lognormal':
-            assert hasattr(self, 'mu'), 'Please specify mu for %r distribution' % (self.marginal)
-            assert hasattr(self, 'var'), 'Please specify var %r distribution' % (self.marginal)
-
-            dataset = scipy.stats.lognorm.rvs(s=0.5,
-                                              loc=self.mu,
-                                              scale=self.var,
-                                              size=[self.obs if obs is None else obs],
-                                              random_state=random_seed)
-
+        dataset = scipy.stats.uniform.rvs(size=self.obs)
+        dataset = marginal_transform(dataset, self.marginal, mu=self.mu, var=self.var, alpha=self.alpha)
         return normalize(dataset.reshape(-1, 1))
 
     def pdf(self, inputs):

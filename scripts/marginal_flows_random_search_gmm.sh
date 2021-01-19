@@ -1,0 +1,12 @@
+set -e
+echo 'Gamma - random Search'
+
+python NSF.py \
+--exp_name NSF_gmm_random_search \
+--epochs 100 \
+--marginal gmm \
+--alpha 5 \
+--batch-size 100 \
+--obs 10000 \
+--random_search \
+--flow_type marg_flow

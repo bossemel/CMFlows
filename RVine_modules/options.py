@@ -83,16 +83,17 @@ class TrainOptions():
         parser.add_argument(
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
+        # DDSF options
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=1)
+            '--num_flow_layers_DDSF', type=int, default=9)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=4)
+            '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
             '--num_ds_dim', type=int, default=4)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=4)
+            '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=2)
+            '--dimh_DDSF', type=int, default=1)
 
         # # DDSF options
         # parser.add_argument(

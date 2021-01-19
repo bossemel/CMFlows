@@ -5,7 +5,7 @@ from DDSF import build_model as build_model_DDSF
 from NSF import build_model as build_model_nsf
 
 
-class CMFlow(nn.Module):
+class CMFlow():
     def __init__(self, transform,
                  device, batch_size, args):
         super(CMFlow, self).__init__()
@@ -44,3 +44,8 @@ class CMFlow(nn.Module):
         if self.four_dim:
             self.marg_flow_3.eval()
             self.marg_flow_4.eval()
+
+    def to(self, device):
+        self.cop_flow.to(device)
+        self.marg_flow_1.to(device)
+        self.marg_flow_2.to(device)

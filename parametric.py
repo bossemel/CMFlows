@@ -14,25 +14,22 @@ from utils.load_and_save import save_statistics, load_statistics
 eps = 0.0001
 
 
-def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
-    # Samples from both distributinos
-    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
-    normal_distr = scipy.stats.norm(0, 1)
-    samples_target = normal_distr.cdf(samples_target)
+def calc_jsd(test_dict, pred_distr, samples_pred):
     assert np.min(samples_pred) >= 0
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
-    true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
+    target_distr.sampler(obs=args.obs)
+    samples_target = target_distr.xx
 
     # Prob X in both distributions
-    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+    prob_X_in_p = pred_distr.pdf(samples_pred)
+    prob_X_in_q = target_distr.pdf(samples_pred)
 
     # Prob Y in both distributions
-    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
-    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+    prob_Y_in_q = target_distr.pdf(samples_target)
+    prob_Y_in_p = pred_distr.pdf(samples_target)
 
     assert not np.isnan(np.sum(prob_X_in_p))
     assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
@@ -69,17 +66,17 @@ def fit_copula(args, data):
 
 
 def train_and_evaluate(continue_from_mode, visualize):
-    cop = fit_copula(args, dataset.trn)
+    pred_distr = fit_copula(args, dataset.trn.copy())
 
     if visualize:
-        samples = cop.random(viz_obs)  # simulate random number
+        samples_pred = pred_distr.random(viz_obs)  # simulate random number
         # Visualize samples
-        visualize_joint(samples, args.figures_path, name='archmidean_samples')
+        visualize_joint(samples_pred, args.figures_path, name='archmidean_samples')
 
-    samples = cop.random(test_obs)  # simulate random number
+    samples_pred = pred_distr.random(args.obs)  # simulate random number
 
     test_dict = {}
-    test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples, samples_target=dataset.tst)
+    test_dict = calc_jsd(test_dict=test_dict, pred_distr=pred_distr, samples_pred=samples_pred)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -110,8 +107,9 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha)
-    test_obs = dataset.tst.shape[0]
+    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta,
+                                                 args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
+                                                 random_seed=args.random_seed)
     viz_obs = 100000
 
     # Calculate JSD

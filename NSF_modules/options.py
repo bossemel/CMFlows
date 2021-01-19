@@ -42,7 +42,9 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--clip', type=float, default=1.0)
+            '--clip_m', type=float, default=1.0)
+        parser.add_argument(
+            '--clip_c', type=float, default=1.0)
         parser.add_argument(
             '--weight_decay_c', type=float, default=1e-9, help='adam optimizer weight decay')
         parser.add_argument(
@@ -62,7 +64,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal in first dimension')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal in first dimension')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(

@@ -2,7 +2,7 @@ set -e
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gaussian_error_nsf_ddsfhp \
+--exp_name RVine_gumbel_gaussian_error_64 \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \
@@ -11,6 +11,6 @@ python RVine.py \
 --error_bars \
 --cop_flow NSF \
 --marg_flow DDSF \
---continue_error_bars 8
+--tail_bound_c 64
 
 

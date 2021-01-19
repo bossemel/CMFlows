@@ -160,7 +160,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name='cop_flow',
+                                     model_name='cop_flow_real',
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,

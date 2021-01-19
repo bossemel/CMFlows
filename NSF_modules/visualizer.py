@@ -18,22 +18,19 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
         obs: number of observations to samples
     """
     with torch.no_grad():
-        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
+        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var,
+                                                          alpha=args.alpha, low=args.low, high=args.high,
+                                                          random_seed=args.random_seed)
 
         fig = plt.figure(figsize=(8, 6))
 
-        data = marginal_distr.sampler(obs=obs)
+        data = marginal_distr.sampler(obs=obs, random_seed=args.random_seed)
         sns.distplot(data, bins=100, kde=False, label='Test Samples', norm_hist=True, color='orange')
 
         res = obs
         xx = torch.linspace(np.min(data), np.max(data), res).reshape(-1, 1)
 
-        #if args.marg_flow == 'NSF':
         Z = model._forward(xx.to(args.device)).data.detach().cpu().numpy()
-        #elif args.marg_flow == 'DDSF':
-        #    Z = model.log_density(xx.to(args.device)).data.detach().cpu().numpy()
-        #else:
-        #    raise ValueError('Unknown marginal flow type.')
 
         plt.plot(xx.numpy(), np.exp(Z), label='Predicted PDF', color='royalblue', linewidth=3.0)
         plt.xlabel('x', fontsize=20)

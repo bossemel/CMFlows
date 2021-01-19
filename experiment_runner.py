@@ -16,32 +16,40 @@ eps = 0.0001
 def single_model_forward(args, model, model_name, data, transform_inputs, device, cond_data=None):
     # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
     if model_name == 'marg_flow_1':
-        loss = model.marg_flow_1.loss(data[:, 0: 1])
+        loss = model.loss(data[:, 0: 1])
     elif model_name == 'marg_flow_2':
-        loss = model.marg_flow_2.loss(data[:, 1: 2])
-    elif model_name == 'marg_flow_3':
-        loss = model.marg_flow_3.loss(data[:, 1: 2])
-    elif model_name == 'marg_flow_4':
-        loss = model.marg_flow_4.loss(data[:, 1: 2])
+        loss = model.loss(data[:, 1: 2])
+    # elif model_name == 'marg_flow_3':
+    #     loss = model.marg_flow_3.loss(data[:, 1: 2])
+    # elif model_name == 'marg_flow_4':
+    #     loss = model.marg_flow_4.loss(data[:, 1: 2])
+    #elif model_name == 'cop_flow':
+        # if transform_inputs is True:
+        #     with torch.no_grad():
+        #         output_marg_flow_1 = model.marg_flow_1.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
+        #         output_marg_flow_2 = model.marg_flow_2.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
+        #     if not args.conditional_copula:
+        #         outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
+        #         loss = model.cop_flow.loss(outputs_marg_flows)
+        #     else:
+        #         loss = model.cop_flow.loss(output_marg_flow_1, context=output_marg_flow_2)
+        #else:
+
     elif model_name == 'cop_flow':
-        if transform_inputs is True:
-            with torch.no_grad():
-                output_marg_flow_1 = model.marg_flow_1.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
-                output_marg_flow_2 = model.marg_flow_2.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
-            if not args.conditional_copula:
-                outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
-                loss = model.cop_flow.loss(outputs_marg_flows)
-            else:
-                loss = model.cop_flow.loss(output_marg_flow_1, context=output_marg_flow_2)
-    elif model_name == 'cop_flow_NSF':
         if args.conditional_copula:
             loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
         else:
             loss = model.loss(data)
     elif model_name == 'cop_flow_rv':
         loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
+    elif model_name == 'cop_flow_real':
+        if args.conditional_copula:
+            loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
+        else:
+            loss = model.loss(data)
     else:
         loss = model.loss(data)
+
 
     return model, loss
 
@@ -88,22 +96,23 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
 
         # Perform gradient clipping
         if args.clip_grad_norm:
-            if model_name == 'marg_flow_1':
-                torch.nn.utils.clip_grad_norm_(model.marg_flow_1.parameters(), args.clip_m)
-            elif model_name == 'marg_flow_2':
-                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip_m)
-            elif model_name == 'marg_flow_3':
-                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip_m)
-            elif model_name == 'marg_flow_4':
-                torch.nn.utils.clip_grad_norm_(model.marg_flow_2.parameters(), args.clip_m)
-            elif model_name == 'marg_flow_rv':
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
-            elif model_name == 'cop_flow':
-                torch.nn.utils.clip_grad_norm_(model.cop_flow.parameters(), args.clip_c)
-            elif model_name == 'cop_flow_rv':
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_c)
-            else:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
+            # if model_name == 'marg_flow_1':
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
+            # elif model_name == 'marg_flow_2':
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
+            # elif model_name == 'marg_flow_3':
+            #     torch.nn.utils.clip_grad_norm_(model.marg_flow_3.parameters(), args.clip_m)
+            # elif model_name == 'marg_flow_4':
+            #     torch.nn.utils.clip_grad_norm_(model.marg_flow_4.parameters(), args.clip_m)
+            # elif model_name == 'marg_flow_rv':
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
+            # elif model_name == 'cop_flow':
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_c)
+            # elif model_name == 'cop_flow_rv':
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_c)
+            # else:
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
         if args.scheduler is None:
             args.optimizer.step()
@@ -334,10 +343,10 @@ def train_val(model, model_name, args, data_loaders, dataset,
         num_samples = int(0.2 * args.obs)
 
         # Calculate Jensen-Shannon Divergence of copula
-        if model_name == 'cop_flow' or model_name == 'cop_flow_NSF':
+        if model_name == 'cop_flow':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
-                                        model.cop_flow if cm_flow else model,
+                                        model,
                                         data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict,
@@ -345,7 +354,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
-                                          model=model.cop_flow if cm_flow else model,
+                                          model=model,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=num_samples,
@@ -371,7 +380,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
             args.marginal = args.marginal_1
             test_dict = jsd_eval_marginal(marginal=args.marginal_1,
                                           args=args,
-                                          model=model.marg_flow_1,
+                                          model=model,
                                           test_dict=test_dict,
                                           plotname='jsd_pretrain_marginal_0',
                                           cm_flow=True,
@@ -382,45 +391,11 @@ def train_val(model, model_name, args, data_loaders, dataset,
             args.marginal = args.marginal_2
             test_dict = jsd_eval_marginal(marginal=args.marginal_2,
                                           args=args,
-                                          model=model.marg_flow_2,
+                                          model=model,
                                           test_dict=test_dict,
                                           plotname='jsd_pretrain_marginal_1',
                                           cm_flow=True,
                                           marginal_num='1')
-
-        # if model_name == 'CM_Flow':
-        #     # args.marginal = args.marginal_1
-        #     test_dict = jsd_eval_copula(args,
-        #                                 best_dict['best_validation_epoch'],
-        #                                 model,
-        #                                 data_loaders['test_loader'],
-        #                                 device=args.device,
-        #                                 test_dict=test_dict,
-        #                                 cm_flow=args.cop_flow_part_of_CM_Flow)
-
-        #     test_dict = jsd_eval_marginal_cm(marginal_1=args.marginal_1,
-        #                                      marginal_2=args.marginal_2,
-        #                                      args=args,
-        #                                      model=model,
-        #                                      test_dict=test_dict,
-        #                                      plotname='jsd_cm_flow_marginal')
-            # args.marginal = args.marginal_2
-
-            # # Evaluate copula margins on test set
-            # test_dict = margin_uniformity(args=args,
-            #                               epoch=best_dict['best_validation_epoch'],
-            #                               model=model,
-            #                               context=torch.from_numpy(dataset.tst[:, 1:2]) if args.conditional_copula else None,
-            #                               transform_fct=args.transform_fct,
-            #                               test_dict=test_dict,
-            #                               num_samples=num_samples)
-
-            # if not error_bars:
-            #     # Visualize the marginals
-            #     visualize1D_CM(model=model,
-            #                    epoch=best_dict['best_validation_epoch'],
-            #                    args=args,
-            #                    best_val=True)
 
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)

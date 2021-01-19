@@ -22,13 +22,9 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
         parser.add_argument(
-            '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'gaussian'])
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal distribution')
         parser.add_argument(
-            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
-        parser.add_argument(
-            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
-        parser.add_argument(
-            '--mix', action='store_true', help='whether to create mixture R-vine as input')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal distribution')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(

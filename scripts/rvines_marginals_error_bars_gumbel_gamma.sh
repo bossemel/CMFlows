@@ -2,7 +2,7 @@ set -e
 echo 'Begin gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_error_nsf_64 \
+--exp_name RVine_gumbel_gamma_error_64 \
 --epochs 100 \
 --batch-size 100 \
 --copula gumbel \

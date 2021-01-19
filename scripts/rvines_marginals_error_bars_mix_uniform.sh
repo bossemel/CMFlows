@@ -1,13 +1,13 @@
 set -e
-echo 'Begin Frank Copula Rvine: RVine_frank'
+echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_frank_lognormal_error_64 \
+--exp_name RVine_mix_uniform_error_64 \
 --epochs 100 \
 --batch-size 100 \
---copula frank \
---marginal lognormal \
+--marginal uniform \
 --obs 10000 \
+--mix \
 --error_bars \
 --cop_flow NSF \
 --marg_flow DDSF \

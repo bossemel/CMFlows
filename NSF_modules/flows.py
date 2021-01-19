@@ -108,7 +108,7 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def pdf_normal(self, inputs, context=None):
+    def pdf_normal(self, inputs, context=None, device=None):
         # Here: context normally distirbuted
         with torch.no_grad():
             normal_distr = scipy.stats.norm()
@@ -118,7 +118,7 @@ class ConditionalFlow(nn.Module):
                 pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
             return pdf
 
-    def pdf_uniform(self, inputs, context=None):
+    def pdf_uniform(self, inputs, context=None, device=None):
         with torch.no_grad():
             return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
 
@@ -174,7 +174,7 @@ class ConditionalFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, num_samples=10000):
+    def jsd(self, args, num_samples=10000, device=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():

@@ -62,15 +62,15 @@ def random_search(args):
     np.random.seed(ii)
     random.seed(ii)
 
-    while ii < 100:
+    while ii < 50:
         n_layers = 5 * np.random.choice(range(1, 5))
-        hidden_units = 2**np.random.choice(range(8))
+        hidden_units = 2**np.random.choice(range(1, 8))
         n_blocks = np.random.choice(range(1, 6))
         n_bins = 5 * np.random.choice(range(2, 10))
-        lr_number = np.random.choice(range(2, 10))
+        lr_number = np.random.choice(range(2, 6))
         lr = 1 / 10**lr_number
         weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
-        tail_bound = 2**np.random.choice(range(6))
+        tail_bound = 2**np.random.choice(range(3, 7))
 
         if args.flow_type == 'cop_flow':
             dropout = 0.05 * np.random.choice(range(1, 6))

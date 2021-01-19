@@ -81,7 +81,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    dataset_trn, dim, pv_cop = gen_mv_copula(args)
+    dataset_trn, dim, pv_cop = gen_mv_copula(args, use_seed=True)
     args.viz_obs = 100000
     untransformed_samples = pv_cop.simulate(args.viz_obs)
 

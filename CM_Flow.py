@@ -42,22 +42,22 @@ def build_model(args):
     return model
 
 
-def visualize_marg_flow_output(model, dataset, args):
-    with torch.no_grad():
-        vizdata = torch.tensor(dataset.trn)
+# def visualize_marg_flow_output(model, dataset, args):
+#     with torch.no_grad():
+#         vizdata = torch.tensor(dataset.trn)
 
-        if args.marg_flow == 'NSF':
-            vizdata_1 = model.marg_flow_1.flow.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
-            vizdata_2 = model.marg_flow_2.flow.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
-        elif args.marg_flow == 'DDSF':
-            vizdata_1 = model.marg_flow_1.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
-            vizdata_2 = model.marg_flow_2.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
-        vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
+#         if args.marg_flow == 'NSF':
+#             vizdata_1 = model.marg_flow_1.flow.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+#             vizdata_2 = model.marg_flow_2.flow.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
+#         elif args.marg_flow == 'DDSF':
+#             vizdata_1 = model.marg_flow_1.transform_to_noise(vizdata[:, 0:1].to(args.device)).reshape(-1, 1) #, logdets, context))
+#             vizdata_2 = model.marg_flow_2.transform_to_noise(vizdata[:, 1:2].to(args.device)).reshape(-1, 1) #, logdets, context))
+#         vizdata = torch.cat((vizdata_1, vizdata_2), dim=1).cpu()
 
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        vizdata_uniform = normal_distr.cdf(vizdata)
-        visualize_joint(vizdata, args.figures_path, name='marg_flow_output')
-        visualize_joint(vizdata_uniform, args.figures_path, name='marg_flow_output_uniform')
+#         normal_distr = torch.distributions.normal.Normal(0, 1)
+#         vizdata_uniform = normal_distr.cdf(vizdata)
+#         visualize_joint(vizdata, args.figures_path, name='marg_flow_output')
+#         visualize_joint(vizdata_uniform, args.figures_path, name='marg_flow_output_uniform')
 
 
 def visualize_cop_flow_output(model, dataset, args):
@@ -100,7 +100,7 @@ def visualize_CM_Flow_output(model, dataset, args):
 def train_marginals(model, disable_tqdm, error_bars, rvine):
     # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
     # Train marg_flows
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.optimizer = optim.Adam(model.marg_flow_1.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     for param in model.marg_flow_2.parameters():
@@ -108,7 +108,7 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
     for param in model.cop_flow.parameters():
         param.requires_grad = False
 
-    best_dict_marg_flow_1, test_dict = train_val(model=model,
+    best_dict_marg_flow_1, test_dict = train_val(model=model.marg_flow_1,
                                                  model_name='marg_flow_1',
                                                  args=args,
                                                  data_loaders=data_loaders,
@@ -119,15 +119,16 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                                                  rvine=rvine,
                                                  cm_flow=True)
 
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+    model.marg_flow_1 = load_model(model.marg_flow_1, args.experiment_saved_models, 'best_epoch_model',
                        best_dict_marg_flow_1['best_validation_epoch'])
+
     visualize1D(model=model.marg_flow_1,
                 epoch=best_dict_marg_flow_1['best_validation_epoch'],
                 args=args,
                 best_val=True,
                 name='marg_flow_1')
 
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.optimizer = optim.Adam(model.marg_flow_2.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
     for param in model.marg_flow_1.parameters():
@@ -137,7 +138,14 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
     for param in model.cop_flow.parameters():
         param.requires_grad = False
 
-    best_dict_marg_flow_2, test_dict = train_val(model=model,
+    if args.marg_flow == 'NSF':
+        model.marg_flow_1.flow.eval()
+        marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+    elif args.marg_flow == 'DDSF':
+        model.marg_flow_1.eval()
+        marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+
+    best_dict_marg_flow_2, test_dict = train_val(model=model.marg_flow_2,
                                                  model_name='marg_flow_2',
                                                  args=args,
                                                  data_loaders=data_loaders,
@@ -148,7 +156,7 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                                                  rvine=rvine,
                                                  cm_flow=True)
 
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+    model.marg_flow_2 = load_model(model.marg_flow_2, args.experiment_saved_models, 'best_epoch_model',
                        best_dict_marg_flow_2['best_validation_epoch'])
 
     visualize1D(model=model.marg_flow_2,
@@ -157,29 +165,39 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                 best_val=True,
                 name='marg_flow_2')
 
+    visualize1D(model=model.marg_flow_1,
+                epoch=best_dict_marg_flow_1['best_validation_epoch'],
+                args=args,
+                best_val=True,
+                name='marg_flow_1_again')
+
     for param in model.marg_flow_2.parameters():
         param.requires_grad = False
 
-    # Visualize DDFS transformations
-    if not error_bars and not rvine:
-        visualize_marg_flow_output(model, dataset, args)
+    if args.marg_flow == 'NSF':
+        model.marg_flow_2.flow.eval()
+        marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+    elif args.marg_flow == 'DDSF':
+        model.marg_flow_2.eval()
+        marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
 
-    return model, best_dict_marg_flow_1, best_dict_marg_flow_2
+    return model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output
 
 
-def transform_dataset(model, train_dataset):
+def transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_output):
     with torch.no_grad():
-        train_dataset = torch.tensor(train_dataset)
-        if args.marg_flow == 'NSF':
-            model.marg_flow_1.flow.eval()
-            model.marg_flow_2.flow.eval()
-            marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
-            marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
-        elif args.marg_flow == 'DDSF':
-            model.marg_flow_1.eval()
-            model.marg_flow_2.eval()
-            marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
-            marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+        # train_dataset_1 = torch.tensor(train_dataset).detach().clone()
+        # train_dataset_2 = torch.tensor(train_dataset).detach().clone()
+        # if args.marg_flow == 'NSF':
+        #     # model.marg_flow_1.flow.eval()
+        #     # model.marg_flow_2.flow.eval()
+        #     marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset_1[:, 0:1].to(args.device)).reshape(-1, 1)
+        #     marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset_2[:, 1:2].to(args.device)).reshape(-1, 1)
+        # elif args.marg_flow == 'DDSF':
+        #     model.marg_flow_1.eval()
+        #     model.marg_flow_2.eval()
+        #     marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset_1[:, 0:1].to(args.device)).reshape(-1, 1)
+        #     marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset_2[:, 1:2].to(args.device)).reshape(-1, 1)
 
         train_dataset = torch.cat((marg_flow_1_output, marg_flow_2_output), dim=1).cpu()
         kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
@@ -200,15 +218,15 @@ def transform_dataset(model, train_dataset):
     return data_loaders, dataset.trn
 
 
-def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, transform_full_ds):
+def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, transform_full_ds, marg_flow_1_output, marg_flow_2_output):
     # Train cop_flow
     # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
+    args.optimizer = optim.Adam(model.cop_flow.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
-    data_loaders, dataset.trn = transform_dataset(model, train_dataset)
+    data_loaders, dataset.trn = transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_output)
 
-    best_dict_cop_flow, test_dict = train_val(model,
+    best_dict_cop_flow, test_dict = train_val(model.cop_flow,
                                               model_name='cop_flow',
                                               args=args,
                                               data_loaders=data_loaders,
@@ -219,7 +237,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, tra
                                               rvine=rvine,
                                               cm_flow=True)
 
-    model = load_model(model, args.experiment_saved_models, 'best_epoch_model',
+    model.cop_flow = load_model(model.cop_flow, args.experiment_saved_models, 'best_epoch_model',
                        best_dict_cop_flow['best_validation_epoch'])
 
     best_dict = best_dict_cop_flow
@@ -246,9 +264,12 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     # Build model and send to device
     model = build_model(args)
     model.state = dict()
+    model.marg_flow_1.state = dict()
+    model.marg_flow_2.state = dict()
+    model.cop_flow.state = dict()
     model.to(args.device)
 
-    model, best_dict_marg_flow_1, best_dict_marg_flow_2 = train_marginals(model, disable_tqdm, error_bars, rvine)
+    model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output = train_marginals(model, disable_tqdm, error_bars, rvine)
 
     model.marg_flow_1.eval()
     model.marg_flow_2.eval()
@@ -256,7 +277,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, args.transform_full_ds)
+    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, args.transform_full_ds, marg_flow_1_output, marg_flow_2_output)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in

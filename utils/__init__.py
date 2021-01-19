@@ -8,6 +8,7 @@ from torch.autograd import Variable
 import scipy.special
 import scipy.stats
 from utils.visualizer import visualize_joint
+import warnings
 eps = 1e-3
 
 
@@ -171,12 +172,12 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     Returns:
         divergence: int, JS-Divergence
     """
+    assert prob_X_in_p.shape[0] == prob_X_in_q.shape[0]
+    assert prob_X_in_q.shape[0] == prob_Y_in_p.shape[0]
+    assert prob_Y_in_p.shape[0] == prob_Y_in_q.shape[0]
 
     mix_X = prob_X_in_p + prob_X_in_q
     mix_Y = prob_Y_in_p + prob_Y_in_q
-
-    #mix_X[mix_X == 0] = 0 + eps
-    #mix_Y[mix_Y == 0] = 0 + eps
 
     prob_X_in_p[prob_X_in_p == 0] = 0 + eps
     prob_Y_in_q[prob_Y_in_q == 0] = 0 + eps
@@ -185,17 +186,17 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     assert np.min(mix_Y) > 0
 
     KL_PM = np.log2((2 * prob_X_in_p) / mix_X)
-
     KL_PM[mix_X == 0] = 0
     KL_PM = KL_PM.mean()
 
     KL_QM = np.log2((2 * prob_Y_in_q) / mix_Y)
-
     KL_QM[mix_Y == 0] = 0
     KL_QM = KL_QM.mean()
 
     divergence = (KL_PM + KL_QM) / 2
-    assert divergence >= 0
+
+    if divergence < 0:
+        warnings.warn("JSD estimate below zero.")
 
     return divergence
 

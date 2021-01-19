@@ -90,8 +90,8 @@ def random_search(args):
         args.dimh_DDSF = 2**np.random.choice(range(5))
         args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
         args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
-        args.clip_grad_norm = np.random.choice([True, False])
-        lr_number = np.random.choice(range(2, 10))
+        args.clip_grad_norm = True
+        lr_number = np.random.choice(range(2, 6))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
 
@@ -114,24 +114,26 @@ def random_search(args):
                                                                                    args.weight_decay,
                                                                                    args.clip_grad_norm,
                                                                                    args.lr))
-            # try:
-            with HiddenPrints():
-                __, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                          dataset=dataset,
-                                                                          data_loaders=data_loaders,
-                                                                          disable_tqdm=True,
-                                                                          grid_search=True)
-            results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                 current_best_dict['best_validation_loss'])
-            print(results_dict[current_hyperparams])
-            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                f.write(str(results_dict))
-            if current_best_dict['best_validation_loss'] < best_loss:
-                best_loss = current_best_dict['best_validation_loss']
-                best_hyperparams = current_hyperparams
-                best_dict = current_best_dict
-            tested_combinations.append(current_hyperparams)
-            ii += 1
+            try:
+                with HiddenPrints():
+                    __, current_best_dict, current_test_dict = train_and_plot(args,
+                                                                              dataset=dataset,
+                                                                              data_loaders=data_loaders,
+                                                                              disable_tqdm=True,
+                                                                              grid_search=True)
+                results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
+                                                     current_best_dict['best_validation_loss'])
+                print(results_dict[current_hyperparams])
+                with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
+                    f.write(str(results_dict))
+                if current_best_dict['best_validation_loss'] < best_loss:
+                    best_loss = current_best_dict['best_validation_loss']
+                    best_hyperparams = current_hyperparams
+                    best_dict = current_best_dict
+                tested_combinations.append(current_hyperparams)
+                ii += 1
+            except:
+                pass
     print('Random search complete for {}'.format(args.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))

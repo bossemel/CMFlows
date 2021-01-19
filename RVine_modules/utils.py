@@ -6,7 +6,7 @@ from datasets.distributions import marginal_transform
 from utils import normalize
 
 
-def gen_mv_copula(args):
+def gen_mv_copula(args, use_seed=False):
     if args.mix is False:
         if args.copula == 'clayton':
             pair_copula = pv.BicopFamily.clayton
@@ -32,7 +32,7 @@ def gen_mv_copula(args):
 
     # Set-up a vine copula
     copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
-    copula_samples = copula.simulate(n=args.obs, seeds=[args.random_state])
+    copula_samples = copula.simulate(n=args.obs, seeds=[args.random_seed] if use_seed else [])
     if not args.disable_marginal:
         for dim in range(copula_samples.shape[1]):
             copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha))

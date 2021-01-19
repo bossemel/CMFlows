@@ -4,7 +4,7 @@ echo 'Begin Copula: Parametric estimation'
 python parametric.py \
 --exp_name parametric_gumbel_uniform \
 --copula gumbel \
---assumed_copula gaussian \
+--assumed_copula frank \
 --marginal_1 uniform \
 --marginal_2 uniform \
 --alpha 5 \
@@ -17,7 +17,7 @@ echo 'Begin Copula: Parametric estimation'
 python parametric.py \
 --exp_name parametric_gumbel_gaussian \
 --copula gumbel \
---assumed_copula gaussian \
+--assumed_copula frank \
 --marginal_1 gaussian \
 --marginal_2 gaussian \
 --alpha 5 \
@@ -30,7 +30,7 @@ echo 'Begin Copula: Parametric estimation'
 python parametric.py \
 --exp_name parametric_gumbel_gamma \
 --copula gumbel \
---assumed_copula gaussian \
+--assumed_copula frank \
 --marginal_1 gamma \
 --marginal_2 gamma \
 --alpha 5 \
@@ -43,7 +43,7 @@ echo 'Begin Copula: Parametric estimation'
 python parametric.py \
 --exp_name parametric_gumbel_lognormal \
 --copula gumbel \
---assumed_copula gaussian \
+--assumed_copula frank \
 --marginal_1 lognormal \
 --marginal_2 lognormal \
 --alpha 5 \
