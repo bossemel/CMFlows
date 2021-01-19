@@ -103,11 +103,13 @@ if __name__ == '__main__':
         if args.continue_error_bars == 0:
             train_and_plot(visualize=True, continue_from_mode=False)
             for ii in range(1, 10):
-                rv = RVine(args=args, data=dataset_trn)
+                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+
                 train_and_plot(visualize=False, continue_from_mode=True)
         else:
             for ii in range(args.continue_error_bars, 10):
-                rv = RVine(args=args, data=dataset_trn)
+                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+
                 train_and_plot(visualize=False, continue_from_mode=True)
 
         # Load statistics and calculate mean and standard deviation

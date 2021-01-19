@@ -121,7 +121,7 @@ class Marginals():
                                               scale=self.high,
                                               size=[self.obs if obs is None else obs])
         elif self.marginal == 'gamma':
-            assert self.alpha is not None, 'Please specify %r for %r distribution' % (self.marginal)
+            assert self.alpha is not None, 'Please specify alpha for %r distribution' % (self.marginal)
 
             dataset = scipy.stats.gamma.rvs(a=self.alpha, size=[self.obs if obs is None else obs])
 

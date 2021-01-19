@@ -24,7 +24,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     model.eval()
     with torch.no_grad():
-        current_jsd = model.jsd(args=args, transform_fct=args.transform_fct).sum().item()
+        current_jsd = model.jsd(args=args).sum().item()
         if 'jsd_test_copula' in test_dict:
             test_dict["jsd_test_copula"].append(current_jsd)
         else:
@@ -101,13 +101,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
 
         # Prob vector pred
         args.obs = obs
-        if not cm_flow:
-            prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-        else:
-            if marginal_num == '1':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-            elif marginal_num == '2':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+        prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)

@@ -174,7 +174,7 @@ class ConditionalFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, transform_fct=None, num_samples=10000):
+    def jsd(self, args, num_samples=10000):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
