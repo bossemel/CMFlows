@@ -91,7 +91,7 @@ def random_search(args):
         args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
         args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
         args.clip_grad_norm = True
-        lr_number = np.random.choice(range(2, 6))
+        lr_number = np.random.choice(range(4, 7))
         args.lr = 1 / 10**lr_number
         args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
 
@@ -245,9 +245,9 @@ if __name__ == '__main__':
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 
     # Set Seed
-    np.random.seed(args.random_seed)
-    torch.manual_seed(args.random_seed)
-    random.seed(args.random_seed)
+    np.random.seed(args.random_seed + 1)
+    torch.manual_seed(args.random_seed + 1)
+    random.seed(args.random_seed + 1)
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 

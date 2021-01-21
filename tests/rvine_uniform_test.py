@@ -25,9 +25,8 @@ if __name__ == '__main__':
     args.RealNVP_part_of_CM_Flow = True
     args.disable_marginal = True
     # Create Folders
-    args.epochs = 10
+    args.epochs = 20
     args.obs = 10000
-    args.disable_marginal = False
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 

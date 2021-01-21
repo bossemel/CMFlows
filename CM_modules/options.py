@@ -48,9 +48,9 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
         parser.add_argument(
-            '--clip_m', type=float, default=1)
+            '--clip_m', type=float, default=1.0)
         parser.add_argument(
-            '--clip_c', type=float, default=5)
+            '--clip_c', type=float, default=5.0)
         parser.add_argument(
             '--weight_decay_c', type=float, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
@@ -102,7 +102,7 @@ class TrainOptions():
         parser.add_argument(
             '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=64, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=32, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(

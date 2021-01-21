@@ -367,7 +367,7 @@ class RVine():
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             current_tree_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-            next_tree_samples = current_tree_samples.detach().clone()
+            current_tree_samples = current_tree_samples.detach().clone()
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
@@ -395,9 +395,9 @@ class RVine():
 
                     # inverse H-function
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
-                    next_tree_samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
+                    current_tree_samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
 
-                current_tree_samples = next_tree_samples.detach().clone()
+                current_tree_samples = current_tree_samples.detach().clone()
 
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)

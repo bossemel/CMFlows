@@ -62,7 +62,7 @@ def random_search(args):
     np.random.seed(ii)
     random.seed(ii)
 
-    while ii < 50:
+    while ii < 30:
         n_layers = 5 * np.random.choice(range(1, 5))
         hidden_units = 2**np.random.choice(range(1, 8))
         n_blocks = np.random.choice(range(1, 6))

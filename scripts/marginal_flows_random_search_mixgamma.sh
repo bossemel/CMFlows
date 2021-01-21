@@ -2,7 +2,7 @@ set -e
 echo 'Gamma - random Search'
 
 python NSF.py \
---exp_name NSF_gmm_random_search \
+--exp_name NSF_mixgamma_random_search \
 --epochs 100 \
 --marginal mix_gamma \
 --alpha 5 \

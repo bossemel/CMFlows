@@ -19,38 +19,13 @@ def single_model_forward(args, model, model_name, data, transform_inputs, device
         loss = model.loss(data[:, 0: 1])
     elif model_name == 'marg_flow_2':
         loss = model.loss(data[:, 1: 2])
-    # elif model_name == 'marg_flow_3':
-    #     loss = model.marg_flow_3.loss(data[:, 1: 2])
-    # elif model_name == 'marg_flow_4':
-    #     loss = model.marg_flow_4.loss(data[:, 1: 2])
-    #elif model_name == 'cop_flow':
-        # if transform_inputs is True:
-        #     with torch.no_grad():
-        #         output_marg_flow_1 = model.marg_flow_1.transform_to_noise(data[:, 0: 1]).reshape(-1, 1)
-        #         output_marg_flow_2 = model.marg_flow_2.transform_to_noise(data[:, 1: 2]).reshape(-1, 1)
-        #     if not args.conditional_copula:
-        #         outputs_marg_flows = torch.cat((output_marg_flow_1, output_marg_flow_2), dim=1)
-        #         loss = model.cop_flow.loss(outputs_marg_flows)
-        #     else:
-        #         loss = model.cop_flow.loss(output_marg_flow_1, context=output_marg_flow_2)
-        #else:
-
-    elif model_name == 'cop_flow':
-        if args.conditional_copula:
-            loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
-        else:
-            loss = model.loss(data)
-    elif model_name == 'cop_flow_rv':
-        loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
-    elif model_name == 'cop_flow_real':
+    elif model_name in ['cop_flow', 'cop_flow_rv', 'cop_flow_real']:
         if args.conditional_copula:
             loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
         else:
             loss = model.loss(data)
     else:
         loss = model.loss(data)
-
-
     return model, loss
 
 
@@ -97,22 +72,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         # Perform gradient clipping
         if args.clip_grad_norm:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
-            # if model_name == 'marg_flow_1':
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
-            # elif model_name == 'marg_flow_2':
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
-            # elif model_name == 'marg_flow_3':
-            #     torch.nn.utils.clip_grad_norm_(model.marg_flow_3.parameters(), args.clip_m)
-            # elif model_name == 'marg_flow_4':
-            #     torch.nn.utils.clip_grad_norm_(model.marg_flow_4.parameters(), args.clip_m)
-            # elif model_name == 'marg_flow_rv':
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
-            # elif model_name == 'cop_flow':
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_c)
-            # elif model_name == 'cop_flow_rv':
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_c)
-            # else:
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
         if args.scheduler is None:
             args.optimizer.step()
@@ -124,27 +83,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         pbar.set_description('{} Train, Log likelihood: {:.6f}'.format(model_name, loss))
 
     pbar.close()
-
-    # for module in model.modules():
-    #     if isinstance(module, fnn.BatchNormFlow):
-    #         module.momentum = 0
-
-    # with torch.no_grad():
-    #     if model_name == 'cop_flow':
-    #         if transform_inputs is True:
-    #             move_transformed_outputs(args, train_loader, device, model, data)
-    #         else:
-    #             if args.conditional_copula:
-    #                 model.forward(inputs=train_loader.dataset.tensors[0][:, 0: 1].to(data.device),
-    #                               context=train_loader.dataset.tensors[0][:, 1: 2].to(data.device))
-    #             else:
-    #                 model(train_loader.dataset.tensors[0].to(data.device))
-    #     elif model_name == 'CM_Flow':
-    #         move_transformed_outputs(args, train_loader, device, model, data)
-
-    # for module in model.modules():
-    #     if isinstance(module, fnn.BatchNormFlow):
-    #         module.momentum = 1
 
     return current_epoch_losses
 
@@ -319,15 +257,9 @@ def train_val(model, model_name, args, data_loaders, dataset,
     # Load model with best validation epoch
     model = load_model(model, args.experiment_saved_models, 'train_model',
                        best_dict['best_validation_epoch'])
-
-    #
     model.eval()
 
     if not grid_search and not rvine:
-
-        # # Load model with best validation epoch
-        # model = load_model(model, args.experiment_saved_models, 'train_model',
-        #                    best_dict['best_validation_epoch'])
 
         # Perform test evaluation
         test_dict = test(args=args,
