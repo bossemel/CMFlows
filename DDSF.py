@@ -84,16 +84,16 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = 0
-    while ii < 50:
-        args.num_flow_layers_DDSF = np.random.choice(range(1, 5)) # 2**np.random.choice(range(5))
-        args.num_hid_layers_DDSF = np.random.choice(range(1, 5)) #2**np.random.choice(range(5))
+    while ii < 300:
+        args.epochs = 20
+        args.batch_size = 2**np.random.choice(range(5, 8))
+        args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
+        args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
         args.dimh_DDSF = 2**np.random.choice(range(5))
-        args.num_ds_dim = 2**np.random.choice(range(5)) # 2**np.random.choice(range(10))
-        args.num_ds_layers = np.random.choice(range(1, 5))# 2**np.random.choice(range(5))
-        args.clip_grad_norm = True
-        lr_number = np.random.choice(range(4, 7))
-        args.lr = 1 / 10**lr_number
-        args.weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
+        args.num_ds_dim = 2**np.random.choice(range(5))
+        args.num_ds_layers = np.random.choice(range(1, 5))
+        args.lr = 1 / 10**np.random.choice(range(4, 7))
+        args.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
@@ -101,19 +101,19 @@ def random_search(args):
                                args.num_ds_dim,
                                args.num_ds_layers,
                                args.weight_decay,
-                               args.clip_grad_norm,
-                               args.lr)
+                               args.lr,
+                               args.batch_size)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
-                Weight Decay: {}, Gradient clipping: {}, Learning Rate: {}'.format(args.num_flow_layers_DDSF,
-                                                                                   args.num_hid_layers_DDSF,
-                                                                                   args.dimh_DDSF,
-                                                                                   args.num_ds_dim,
-                                                                                   args.num_ds_layers,
-                                                                                   args.weight_decay,
-                                                                                   args.clip_grad_norm,
-                                                                                   args.lr))
+                Weight Decay: {}, Learning Rate: {}, Batch Size: {}'.format(args.num_flow_layers_DDSF,
+                                                                            args.num_hid_layers_DDSF,
+                                                                            args.dimh_DDSF,
+                                                                            args.num_ds_dim,
+                                                                            args.num_ds_layers,
+                                                                            args.weight_decay,
+                                                                            args.lr,
+                                                                            args.batch_size))
             try:
                 with HiddenPrints():
                     __, current_best_dict, current_test_dict = train_and_plot(args,
@@ -132,7 +132,7 @@ def random_search(args):
                     best_dict = current_best_dict
                 tested_combinations.append(current_hyperparams)
                 ii += 1
-            except:
+            except Exception:
                 pass
     print('Random search complete for {}'.format(args.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))

@@ -54,7 +54,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         data = data.to(device)
         args.optimizer.zero_grad()
 
-        assert not torch.isnan(torch.sum(data))
         model, loss = single_model_forward(args,
                                            model,
                                            model_name,
@@ -245,11 +244,6 @@ def train_val(model, model_name, args, data_loaders, dataset,
                             stats_dict=total_losses, current_epoch=epoch,
                             continue_from_mode=epoch)  # save statistics to stats file.
 
-        # Early stopping
-        if args.early_stopping:
-            if epoch - best_dict['best_validation_epoch'] >= 10:
-                break
-
         if not grid_search and not rvine:
             print('Best validation at epoch {}: Average Log Likelihood: {:.4f}'.
                   format(best_dict['best_validation_epoch'], best_dict['best_validation_loss']))
@@ -272,8 +266,6 @@ def train_val(model, model_name, args, data_loaders, dataset,
                          transform_inputs=transform_inputs,
                          disable_tqdm=disable_tqdm)
 
-        num_samples = int(0.2 * args.obs)
-
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'cop_flow':
             test_dict = jsd_eval_copula(args,
@@ -289,7 +281,7 @@ def train_val(model, model_name, args, data_loaders, dataset,
                                           model=model,
                                           transform_fct=args.transform_fct,
                                           test_dict=test_dict,
-                                          num_samples=num_samples,
+                                          num_samples=args.obs,
                                           cm_flow=args.cop_flow_part_of_CM_Flow)
 
         if model_name == 'marg_flow':

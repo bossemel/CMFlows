@@ -43,8 +43,6 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
         determinant = normal_distr.pdf(recast_inputs.cpu()) #.reshape(-1,)
 
     output = original_joint / determinant
-    assert not np.isnan(output.sum())
-    assert not np.isinf(output.sum())
     assert np.min(output) >= 0, '{}'.format(np.min(output))
     return output
 

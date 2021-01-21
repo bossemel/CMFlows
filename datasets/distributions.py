@@ -53,6 +53,14 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
         inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
         inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+    elif marginal == 'mix_gauss_gamma':
+        norm_1 = scipy.stats.norm(loc=mu, scale=var / 4)
+        norm_2 = scipy.stats.gamma(alpha)
+        norm_3 = scipy.stats.gamma(alpha * 5)
+        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
+        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
+        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
+        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
     else:
         raise NotImplementedError
     return inputs
@@ -95,7 +103,6 @@ class Joint_Distr():
                                                            transform=False,
                                                            random_seed=random_seed)
         copula_distr.sampler(transform=False, obs=self.obs)
-        assert not np.isnan(np.sum(copula_distr.xx))
         marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1],
                                         marginal=self.marginal_1,
                                         mu=self.mu,
@@ -108,8 +115,6 @@ class Joint_Distr():
                                         alpha=self.alpha)
 
         xx = np.concatenate([marginal_1, marginal_2], axis=1)
-        assert not np.isnan(np.sum(xx))
-        assert not np.isnan(np.sum(normalize(xx)))
 
         self.xx = normalize(xx)
 
@@ -393,14 +398,9 @@ def copula_pdf(copula, theta, uu, vv):
     assert np.min(vv) > 0 and np.max(vv) < 1, 'min: {}, max: {}'.format(np.min(vv), np.max(vv))
 
     if copula == 'clayton':
-        assert not np.isnan(np.multiply(uu, vv).sum()), '{}'.format(np.multiply(uu, vv).sum())
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
-        assert not np.isnan(a.sum())
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
-        assert not np.isnan(b.sum())
         c = -(2 * theta + 1) / theta
-        assert not np.isnan(c)
-        assert not np.isnan(np.power(b, c).sum())
         pdf = a * np.power(b, c, dtype=np.float)
         assert np.min(pdf) > 0, 'clayton_{}_{}_b:{} c: {}'.format(np.min(pdf), theta, b, c)
         return pdf
@@ -421,13 +421,10 @@ def copula_pdf(copula, theta, uu, vv):
 
         else:
             a = np.power(np.multiply(uu, vv), -1, dtype=np.float)
-            assert not np.isnan(a.sum())
             tmp = np.power(-np.log(uu), theta) + np.power(-np.log(vv), theta)
             b = np.power(tmp, -2 + 2.0 / theta, dtype=np.float)
-            assert not np.isnan(b.sum())
 
             c = np.power(np.multiply(np.log(uu), np.log(vv)), theta - 1)
-            assert not np.isnan(c.sum())
 
             d = 1 + (theta - 1) * np.power(tmp, -1.0 / theta, dtype=np.float)
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d

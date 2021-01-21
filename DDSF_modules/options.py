@@ -18,7 +18,8 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'])
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal',
+            'mix_gauss_gamma'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
@@ -35,7 +36,6 @@ class TrainOptions():
             '--num_ds_layers', type=int, default=2)
         parser.add_argument(
             '--dimh_DDSF', type=int, default=128)
-
 
         parser.add_argument(
             '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
@@ -70,9 +70,9 @@ class TrainOptions():
         parser.add_argument(
             '--random_search', action='store_true', help='random search over hyperparameters')
         parser.add_argument(
-            '--weight_decay', type=int, default=1e-09, help='adam optimizer weight decay')
+            '--weight_decay', type=float, default=1e-09, help='adam optimizer weight decay')
         parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
             '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
 

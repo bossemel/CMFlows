@@ -9,6 +9,7 @@ import DDSF_modules.iaf_modules as iaf_modules
 import numpy as np
 from DDSF_modules import nn_modules as nn_, utils
 from utils import flow_density
+eps = 1e-7
 
 
 class MAF(nn.Sequential):
@@ -16,7 +17,6 @@ class MAF(nn.Sequential):
     """
     def __init__(self, args, *modules):
         super(MAF, self).__init__(*modules)
-        #self.clip = args.clip_m
         self.device = args.device
         self.args = args
 
@@ -33,15 +33,12 @@ class MAF(nn.Sequential):
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
         outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
-        assert not torch.isnan(outputs.sum())
-        assert not torch.isnan(log_jacob.sum())
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
         return density
 
     def loss(self, inputs):
         """Loss is negative log density
         """
-        assert not torch.isnan((- self.log_density(inputs)).mean())
         return (- self.log_density(inputs)).mean()
 
     def _forward(self, inputs):
@@ -140,7 +137,6 @@ class LinearFlow(BaseFlow):
             size = x.size()
             x_ = mean.view(size) + std.view(size) * x
         logdet_ = nn_.sum_from_one(torch.log(std)) + logdet
-        assert not torch.isnan(logdet_.sum())
         return x_, logdet_, context
 
 
@@ -180,34 +176,26 @@ class DenseSigmoidFlow(BaseFlow):
         sigm = torch.sigmoid(pre_sigm)
         x_pre = torch.sum(w * sigm[:, :, None, :], dim=3)
         x_pre_clipped = x_pre * (1 - nn_.delta) + nn_.delta * 0.5
-        x_ = log(x_pre_clipped) - log(1 - x_pre_clipped)
+        x_ = log(x_pre_clipped) - log(1 - x_pre_clipped + eps)
         xnew = x_
 
         logj = F.log_softmax(pre_w, dim=3) + \
             nn_.logsigmoid(pre_sigm[:, :, None, :]) + \
             nn_.logsigmoid(-pre_sigm[:, :, None, :]) + log(a[:, :, None, :])
         # n, d, d2, dh
-        assert not torch.isnan(logj.sum())
 
         logj = logj[:, :, :, :, None] + F.log_softmax(pre_u, dim=3)[:, :, None, :, :]
         # n,  d, d2, dh, d1
-        assert not torch.isnan(logj.sum())
 
         logj = utils.log_sum_exp(logj, 3).sum(3)
         # n, d, d2, d1
-        assert not torch.isnan(logj.sum())
 
         logdet_ = logj + np.log(1 - nn_.delta) - \
-            (log(x_pre_clipped) + log(-x_pre_clipped + 1))[:, :, :, None]
+            (log(x_pre_clipped) + log(-x_pre_clipped + 1 + eps))[:, :, :, None]
 
-        assert not torch.isnan(logdet.sum())
-        assert not torch.isnan(logdet_[:, :, :, :, None].sum())
-        assert not torch.isnan(logdet[:, :, None, :, :].sum())
         logdet = utils.log_sum_exp(
             logdet_[:, :, :, :, None] + logdet[:, :, None, :, :], 3).sum(3)
         # n, d, d2, d1, d0 -> n, d, d2, d0
-        assert not torch.isnan(xnew.sum())
-        assert not torch.isnan(logdet.sum())
         return xnew, logdet
 
 
@@ -303,11 +291,6 @@ class IAF_DDSF(BaseFlow):
             h, lgd = getattr(self, 'sf{}'.format(i))(h, lgd, params)
             start = end
 
-        assert not torch.isnan(h[:, :, 0].sum())
-        assert not torch.isnan(lgd[:, :, 0, 0].sum(1).sum())
-        assert not torch.isnan(logdet.sum())
-        assert not torch.isnan(context.sum())
-        assert out_dim == 1, 'last dsf out dim should be 1'
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet.to(self.device), context.to(self.device)
 
 
@@ -325,7 +308,4 @@ class FlipFlow(BaseFlow):
                          'cpu', 'cuda')[inputs.is_cuda])().long())
 
         output = torch.index_select(inputs, dim, index)
-        assert not torch.isnan(output.sum())
-        assert not torch.isnan(logdet.sum())
-        assert not torch.isnan(context.sum())
         return output, logdet, context

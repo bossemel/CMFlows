@@ -40,7 +40,7 @@ class TrainOptions():
         parser.add_argument(
             '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
             '--clip_m', type=float, default=1.0)
         parser.add_argument(

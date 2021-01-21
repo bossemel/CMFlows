@@ -64,23 +64,18 @@ def summation(x, A_max, axis=-1, sum_op=torch.sum):
 
 def log_sum_exp(A, axis=-1, sum_op=torch.sum):
     A_max = oper_fct(array=A, oper=maximum, axis=axis, keepdims=True)
-    assert not torch.isnan(A_max.sum())
-    assert not torch.isnan(oper_fct(array=A, oper=summation, A_max=A_max, axis=axis, keepdims=True).sum())
     B = torch.log(oper_fct(array=A, oper=summation, A_max=A_max, axis=axis, keepdims=True)) + A_max
-    assert not torch.isnan(B.sum())
     return B
 
 
 def oper_fct(array, oper, A_max=None, axis=-1, keepdims=False):
     a_oper = oper(array, A_max, axis)
-    assert not torch.isnan(a_oper.sum())
     if keepdims:
         shape = []
         for j, s in enumerate(array.size()):
             shape.append(s)
         shape[axis] = -1
         a_oper = a_oper.view(*shape)
-    assert not torch.isnan(a_oper.sum())
     return a_oper
 
 

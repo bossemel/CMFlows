@@ -69,8 +69,8 @@ def random_search(args):
         n_bins = 5 * np.random.choice(range(2, 10))
         lr_number = np.random.choice(range(2, 6))
         lr = 1 / 10**lr_number
-        weight_decay = 1 / 10**(np.random.choice(range(lr_number, 11)))
-        tail_bound = 2**np.random.choice(range(3, 7))
+        weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
+        tail_bound = 2**np.random.choice(range(3, 8))
 
         if args.flow_type == 'cop_flow':
             dropout = 0.05 * np.random.choice(range(1, 6))
