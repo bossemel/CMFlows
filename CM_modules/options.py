@@ -34,9 +34,11 @@ class TrainOptions():
 
         # Training options
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training')
+            '--batch_size', type=int, default=100, help='input batch size for training')
         parser.add_argument(
-            '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
+            '--epochs_c', type=int, default=100, help='number of epochs to train (default: 100)')
+        parser.add_argument(
+            '--epochs_m', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
             '--lr_c', type=float, default=0.001, help='learning rate (default: 0.0001)')
         parser.add_argument(

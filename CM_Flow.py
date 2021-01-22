@@ -82,6 +82,8 @@ def visualize_CM_Flow_output(model, dataset, args):
 def train_marginals(model, disable_tqdm, error_bars, rvine):
     # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
     # Train marg_flows
+    args.epochs = args.epochs_m
+
     args.optimizer = optim.Adam(model.marg_flow_1.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
@@ -110,6 +112,13 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                 best_val=True,
                 name='marg_flow_1')
 
+    if args.marg_flow == 'NSF':
+        model.marg_flow_1.flow.eval()
+        marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+    elif args.marg_flow == 'DDSF':
+        model.marg_flow_1.eval()
+        marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+
     args.optimizer = optim.Adam(model.marg_flow_2.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
@@ -119,13 +128,6 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
         param.requires_grad = True
     for param in model.cop_flow.parameters():
         param.requires_grad = False
-
-    if args.marg_flow == 'NSF':
-        model.marg_flow_1.flow.eval()
-        marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
-    elif args.marg_flow == 'DDSF':
-        model.marg_flow_1.eval()
-        marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
 
     best_dict_marg_flow_2, test_dict = train_val(model=model.marg_flow_2,
                                                  model_name='marg_flow_2',
@@ -189,6 +191,7 @@ def transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_outp
 
 def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, transform_full_ds, marg_flow_1_output, marg_flow_2_output):
     # Train cop_flow
+    args.epochs = args.epochs_c
     args.optimizer = optim.Adam(model.cop_flow.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
