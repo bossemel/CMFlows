@@ -67,7 +67,7 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(

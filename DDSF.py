@@ -85,7 +85,7 @@ def random_search(args):
     best_loss = 1000
     ii = 0
     while ii < 100:
-        args.epochs = 50
+        args.epochs = 70
         args.batch_size = 2**np.random.choice(range(5, 8))
         args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
         args.num_hid_layers_DDSF = np.random.choice(range(1, 5))

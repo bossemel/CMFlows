@@ -36,7 +36,7 @@ class TrainOptions():
         parser.add_argument(
             '--alpha', type=float, default=5, help='Parameter for the Gamma distribution')
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
 
         # Save options
         parser.add_argument(
