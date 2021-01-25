@@ -11,5 +11,6 @@ python RVine.py \
 --error_bars \
 --cop_flow NSF \
 --marg_flow DDSF \
---tail_bound_c 64
+--tail_bound_c 64 \
+--use_ecdf
 

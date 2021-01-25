@@ -62,7 +62,8 @@ def random_search(args):
     np.random.seed(ii)
     random.seed(ii)
 
-    while ii < 30:
+    while ii < 100:
+        args.epochs = 70
         n_layers = 5 * np.random.choice(range(1, 5))
         hidden_units = 2**np.random.choice(range(1, 8))
         n_blocks = np.random.choice(range(1, 6))
@@ -168,7 +169,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
 
     # Train
     best_dict, test_dict = train_val(model=model,
-                                     model_name=args.flow_type + '_NSF',
+                                     model_name=args.flow_type,
                                      args=args,
                                      data_loaders=data_loaders,
                                      dataset=dataset,
@@ -232,17 +233,6 @@ if __name__ == '__main__':
 
     if args.random_search:
         random_search(args=args)
-    # elif args.grid_search:
-    #     # Hyperparameter options:
-    #     transform_functions = ['gaussian', 'sigmoid']
-    #     num_inv_blocks = [4, 8, 16]
-    #     num_hidden_units = [32, 64, 128]
-    #     grid_search(args=args,
-    #                 dataset=dataset,
-    #                 data_loaders=data_loaders,
-    #                 transform_functions=transform_functions,
-    #                 num_inv_blocks=num_inv_blocks,
-    #                 num_hidden_units=num_hidden_units)
     else:
         if args.error_bars is True:
             eval_dict = {}

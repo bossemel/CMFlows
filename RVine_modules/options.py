@@ -26,10 +26,12 @@ class TrainOptions():
             '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
         parser.add_argument(
             '--marg_flow', default='DDSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+        parser.add_argument(
+            '--use_ecdf', action='store_true')
 
         # Training options
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training')
+            '--batch-size', type=int, default=128, help='input batch size for training')
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
@@ -71,7 +73,7 @@ class TrainOptions():
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, default=2, help='theta for copula sampling')
+            '--theta', type=float, default=5, help='theta for copula sampling')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(

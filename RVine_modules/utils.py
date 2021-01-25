@@ -22,10 +22,10 @@ def gen_mv_copula(args, use_seed=False):
         bicop = pv.Bicop(family=pair_copula, parameters=[theta])
         pcs = [[bicop, bicop, bicop], [bicop, bicop], [bicop]]
     else:
-        bicop_1 = pv.Bicop(family=pv.BicopFamily.clayton, parameters=[2])
-        bicop_2 = pv.Bicop(family=pv.BicopFamily.frank, parameters=[5])
-        bicop_3 = pv.Bicop(family=pv.BicopFamily.gumbel, parameters=[5])
-        pcs = [[bicop_1, bicop_2, bicop_3], [bicop_1, bicop_2], [bicop_3]]
+        bicop_1 = pv.Bicop(family=pv.BicopFamily.gumbel, parameters=[5])
+        bicop_2 = pv.Bicop(family=pv.BicopFamily.clayton, parameters=[2])
+        bicop_3 = pv.Bicop(family=pv.BicopFamily.frank, parameters=[5])
+        pcs = [[bicop_1, bicop_2, bicop_3], [bicop_1, bicop_2], [bicop_1]]
 
     # Specify R-vine matrix
     mat = np.array([[1, 1, 1, 1], [2, 2, 2, 0], [3, 3, 0, 0], [4, 0, 0, 0]])

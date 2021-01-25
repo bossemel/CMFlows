@@ -4,6 +4,7 @@ import numpy as np
 import scipy.stats
 import sys
 import scipy
+import pynverse
 eps = 0.0001
 
 
@@ -30,39 +31,24 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         gamma = scipy.stats.gamma(alpha)
         inputs = gamma.ppf(inputs)
     elif marginal == 'gmm':
-        norm_1 = scipy.stats.norm(loc=mu - 2, scale=var * 2)
-        norm_2 = scipy.stats.norm(loc=mu + 2, scale=var / 2)
-        norm_3 = scipy.stats.norm(loc=mu, scale=var / 4)
-        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
-        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
-        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
-        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu - 2, scale=var * 2)
+        distr_2 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu + 2, scale=var / 2)
+        distr_3 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu, scale=var / 4)
     elif marginal == 'mix_gamma':
-        norm_1 = scipy.stats.gamma(alpha * 5)
-        norm_2 = scipy.stats.gamma(alpha / 5)
-        norm_3 = scipy.stats.gamma(alpha)
-        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
-        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
-        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
-        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+        distr_1 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 5)
+        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha / 5)
+        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha)
     elif marginal == 'mix_lognormal':
-        norm_1 = scipy.stats.lognorm(s=0.2, loc=mu - 2, scale=var * 2)
-        norm_2 = scipy.stats.lognorm(s=0.9, loc=mu + 2, scale=var / 2)
-        norm_3 = scipy.stats.lognorm(s=0.5, loc=mu, scale=var)
-        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
-        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
-        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
-        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
+        distr_1 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0, loc=mu - 2, scale=var * 2)
+        distr_2 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.9, loc=mu + 2, scale=var / 2)
+        distr_3 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.5, loc=mu, scale=var)
     elif marginal == 'mix_gauss_gamma':
-        norm_1 = scipy.stats.norm(loc=mu, scale=var / 4)
-        norm_2 = scipy.stats.gamma(alpha)
-        norm_3 = scipy.stats.gamma(alpha * 5)
-        uniform = scipy.stats.uniform.rvs(size=inputs.shape)
-        inputs[uniform < 0.4] = norm_1.ppf(inputs[uniform < 0.4])
-        inputs[(uniform >= 0.4) & (uniform < 0.8)] = norm_2.ppf(inputs[(uniform >= 0.4) & (uniform < 0.8)])
-        inputs[uniform > 0.8] = norm_3.ppf(inputs[uniform > 0.8])
-    else:
-        raise NotImplementedError
+        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu+1, scale=var / 5)
+        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha / 5)
+        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 10)
+    if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']:
+        inverse_cdf = pynverse.inversefunc(lambda xx: 0.4 * distr_1(xx) + 0.4 * distr_2(xx) + 0.2 * distr_3(xx))
+        inputs = inverse_cdf(inputs)
     return inputs
 
 
@@ -103,18 +89,23 @@ class Joint_Distr():
                                                            transform=False,
                                                            random_seed=random_seed)
         copula_distr.sampler(transform=False, obs=self.obs)
-        marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1],
-                                        marginal=self.marginal_1,
-                                        mu=self.mu,
-                                        var=self.var,
-                                        alpha=self.alpha)
-        marginal_2 = marginal_transform(inputs=copula_distr.xx[:, 1:2],
-                                        marginal=self.marginal_2,
-                                        mu=self.mu,
-                                        var=self.var,
-                                        alpha=self.alpha)
+        # marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1],
+        #                                 marginal=self.marginal_1,
+        #                                 mu=self.mu,
+        #                                 var=self.var,
+        #                                 alpha=self.alpha)
+        # marginal_2 = marginal_transform(inputs=copula_distr.xx[:, 1:2],
+        #                                 marginal=self.marginal_2,
+        #                                 mu=self.mu,
+        #                                 var=self.var,
+        #                                 alpha=self.alpha)
 
-        xx = np.concatenate([marginal_1, marginal_2], axis=1)
+        xx = marginal_transform(inputs=copula_distr.xx,
+                                marginal=self.marginal_1,
+                                mu=self.mu,
+                                var=self.var,
+                                alpha=self.alpha)
+        #xx = #np.concatenate([marginal_1, marginal_2], axis=1)
 
         self.xx = normalize(xx)
 

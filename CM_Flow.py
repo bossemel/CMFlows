@@ -20,7 +20,11 @@ import datasets.distributions
 
 from experiment_runner import train_val
 import json
-eps = 0.0001
+
+from statsmodels.distributions.empirical_distribution import ECDF
+import scipy.stats
+eps = 1e-07
+
 
 def build_model(args):
     """Builds the CM Flow model. It is a concatenation of cop_flow and marg_flow.
@@ -240,11 +244,23 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     model.cop_flow.state = dict()
     model.to(args.device)
 
-    model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output = train_marginals(model, disable_tqdm, error_bars, rvine)
+    if not args.use_ecdf:
+        model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output = train_marginals(model, disable_tqdm, error_bars, rvine)
 
-    model.marg_flow_1.eval()
-    model.marg_flow_2.eval()
-
+        model.marg_flow_1.eval()
+        model.marg_flow_2.eval()
+    else:
+        norm_distr = scipy.stats.norm()
+        ecdf_1 = ECDF(dataset.trn[:, 0])
+        uniform_1 = ecdf_1(dataset.trn[:, 0])
+        uniform_1[uniform_1 == 0] = eps
+        uniform_1[uniform_1 == 1] = 1 - eps
+        marg_flow_1_output = torch.from_numpy(norm_distr.ppf(uniform_1)).float().reshape(-1, 1)
+        ecdf_2 = ECDF(dataset.trn[:, 1])
+        uniform_2 = ecdf_2(dataset.trn[:, 1])
+        uniform_2[uniform_2 == 0] = eps
+        uniform_2[uniform_2 == 1] = 1 - eps
+        marg_flow_2_output = torch.from_numpy(norm_distr.ppf(uniform_2)).float().reshape(-1, 1)
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
@@ -254,9 +270,12 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     test_losses = {key: [np.mean(value)] for key, value in
                    test_dict.items()}  # save test set metrics in dict format
     sep = '_'
-    epochs = sep.join(list([str(best_dict_marg_flow_1['best_validation_epoch']),
-                            str(best_dict_marg_flow_2['best_validation_epoch']),
-                            str(best_dict_cop_flow['best_validation_epoch'])]))
+    if not args.use_ecdf:
+        epochs = sep.join(list([str(best_dict_marg_flow_1['best_validation_epoch']),
+                                str(best_dict_marg_flow_2['best_validation_epoch']),
+                                str(best_dict_cop_flow['best_validation_epoch'])]))
+    else:
+        epochs = sep.join(list([str(best_dict_cop_flow['best_validation_epoch'])]))
 
     if not rvine:
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',

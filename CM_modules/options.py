@@ -31,10 +31,12 @@ class TrainOptions():
             '--transform_full_ds', action='store_false', help='transform dataset in full, or at every batch')
         parser.add_argument(
             '--four_dim', action='store_true')
+        parser.add_argument(
+            '--use_ecdf', action='store_true')
 
         # Training options
         parser.add_argument(
-            '--batch_size', type=int, default=100, help='input batch size for training')
+            '--batch_size', type=int, default=128, help='input batch size for training')
         parser.add_argument(
             '--epochs_c', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
@@ -80,7 +82,7 @@ class TrainOptions():
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, default=2, help='theta for copula sampling')
+            '--theta', type=float, default=5, help='theta for copula sampling')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
@@ -104,7 +106,7 @@ class TrainOptions():
         parser.add_argument(
             '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=32, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=64, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(

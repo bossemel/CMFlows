@@ -74,7 +74,7 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
 
 
 def jsd_eval_1D(marginal, args, model, test_dict,
-             obs=1000, plotname='jsd_test_marginal',
+             obs=10000, plotname='jsd_test_marginal',
              cm_flow=False, marginal_num='1'):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 

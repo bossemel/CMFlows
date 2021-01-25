@@ -30,7 +30,7 @@ class TrainOptions():
         parser.add_argument(
             '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
-            '--theta', type=int, default=2)
+            '--theta', type=float, default=5)
         parser.add_argument(
             '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
         parser.add_argument(

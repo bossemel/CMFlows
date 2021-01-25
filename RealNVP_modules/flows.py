@@ -128,7 +128,7 @@ class FlowSequential(nn.Sequential):
         with torch.no_grad():
             return gaussian_change_of_var_ND(inputs, self.pdf_normal, device, context=context)
 
-    def jsd(self, args, num_samples=10000, device=None):
+    def jsd(self, args, num_samples=100000, device=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():

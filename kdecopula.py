@@ -34,8 +34,8 @@ def calc_jsd(test_dict, pred_distr, samples_pred):
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
-    target_distr.sampler(obs=args.obs)
+    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=viz_obs, transform=False)
+    target_distr.sampler(obs=viz_obs)
     samples_target = target_distr.xx
 
     # Prob X in both distributions
@@ -72,8 +72,9 @@ def ecdf(x):
 
 
 def fit_copula(data):
-    data = vinecopula.pobs(data)
     visualize_joint(np.array(data), args.figures_path, name='input_data')
+    data = vinecopula.pobs(data)
+    visualize_joint(np.array(data), args.figures_path, name='ecdf_transformed_data')
     kde = kdecopula.kdecop(data)
     return kde
 
@@ -85,7 +86,7 @@ def fit_and_evaluate(continue_from_mode, visualize):
         samples = np.array(stats.simulate(cop, nsim=viz_obs))
         visualize_joint(samples, args.figures_path, name='archmidean_samples')
 
-    samples = np.array(stats.simulate(cop, nsim=args.obs))
+    samples = np.array(stats.simulate(cop, nsim=viz_obs))
 
     test_dict = {}
     test_dict = calc_jsd(test_dict=test_dict, pred_distr=cop, samples_pred=samples)
@@ -121,6 +122,7 @@ if __name__ == '__main__':
     # dataset, data_loaders, train_dataset = utils.load_data(args)
     dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
                                                  mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
+    dataset.trn = np.concatenate([dataset.trn, dataset.val], axis=0)
     viz_obs = 100000
     #dataset_2 = datasets.distributions.Joint_Distr(args)
 

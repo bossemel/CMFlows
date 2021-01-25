@@ -89,8 +89,8 @@ def fit_and_evaluate(continue_from_mode, visualize):
         samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, pred_distr))
         visualize_joint(samples_pred, args.figures_path, name='archmidean_samples')
 
-    samples_pred = np.array(kdevine.rkdevinecop(args.obs, pred_distr))
-    samples_target = pv_cop.simulate(args.obs, seeds=[args.random_seed + 1])
+    samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, pred_distr))
+    samples_target = pv_cop.simulate(args.viz_obs, seeds=[args.random_seed + 1])
 
     test_dict = {}
     test_dict = calc_jsd(test_dict=test_dict, pred_distr=pred_distr, target_distr=pv_cop,
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     # Set up data loader
     dataset_trn, dim, pv_cop = gen_mv_copula(args, use_seed=True)
-    args.viz_obs = 10000
+    args.viz_obs = 100000
 
     # Calculate JSD
     if args.error_bars:

@@ -86,7 +86,6 @@ def random_search(args):
     ii = 0
     while ii < 100:
         args.epochs = 70
-        args.batch_size = 2**np.random.choice(range(5, 8))
         args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
         args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
         args.dimh_DDSF = 2**np.random.choice(range(5))
@@ -101,8 +100,7 @@ def random_search(args):
                                args.num_ds_dim,
                                args.num_ds_layers,
                                args.weight_decay,
-                               args.lr,
-                               args.batch_size)
+                               args.lr)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\

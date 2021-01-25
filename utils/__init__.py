@@ -173,7 +173,7 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     assert prob_X_in_p.shape[0] == prob_X_in_q.shape[0]
     assert prob_X_in_q.shape[0] == prob_Y_in_p.shape[0]
     assert prob_Y_in_p.shape[0] == prob_Y_in_q.shape[0]
-
+    assert prob_X_in_p.shape[0] == 100000
     mix_X = prob_X_in_p + prob_X_in_q
     mix_Y = prob_Y_in_p + prob_Y_in_q
 

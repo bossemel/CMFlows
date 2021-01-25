@@ -22,6 +22,7 @@ from RealNVP import build_model as build_model_rnvp
 from experiment_runner import train_val
 from utils import calc_jsd, normalize_torch
 from NSF_modules.visualizer import visualize1D
+from statsmodels.distributions.empirical_distribution import ECDF
 
 eps = 0.0001
 
@@ -125,7 +126,15 @@ def initialize_graph(self):
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
-            transformed_inputs = marg_flow(self, dataset, data_loaders, node)
+            if not self.args.use_ecdf:
+                transformed_inputs = marg_flow(self, dataset, data_loaders, node)
+            else:
+                norm_distr = scipy.stats.norm()
+                ecdf_1 = ECDF(self.data[:, node])
+                uniform_1 = ecdf_1(self.data[:, node])
+                uniform_1[uniform_1 == 0] = eps
+                uniform_1[uniform_1 == 1] = 1 - eps
+                transformed_inputs = torch.from_numpy(norm_distr.ppf(uniform_1)).float().reshape(-1, 1).to(self.args.device)
 
         # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
         # the real number line with the inverse Gaussian CDF
@@ -453,7 +462,7 @@ class RVine():
             assert torch.min(pdf) >= 0
             return pdf.cpu().numpy()
 
-    def jsd_vinecopula(self, args, true_cop_distr, num_samples=10000, visualize=True):
+    def jsd_vinecopula(self, args, true_cop_distr, num_samples=100000, visualize=True):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
 
         Params:
