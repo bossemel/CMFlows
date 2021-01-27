@@ -21,14 +21,14 @@ def load_data(args):
     dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
                                                  mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
 
-    train_tensor = torch.from_numpy(dataset.trn)
-    train_dataset = torch.utils.data.TensorDataset(train_tensor)
+    dataset.trn = torch.from_numpy(dataset.trn)
+    train_dataset = torch.utils.data.TensorDataset(dataset.trn)
 
-    valid_tensor = torch.from_numpy(dataset.val)
-    valid_dataset = torch.utils.data.TensorDataset(valid_tensor)
+    dataset.val = torch.from_numpy(dataset.val)
+    valid_dataset = torch.utils.data.TensorDataset(dataset.val)
 
-    test_tensor = torch.from_numpy(dataset.tst)
-    test_dataset = torch.utils.data.TensorDataset(test_tensor)
+    dataset.tst = torch.from_numpy(dataset.tst)
+    test_dataset = torch.utils.data.TensorDataset(dataset.tst)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -53,7 +53,7 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, data_loaders, train_tensor
+    return dataset, data_loaders
 
 
 def jsd_eval_marginal_cm(marginal_1, marginal_2, args, model, test_dict,

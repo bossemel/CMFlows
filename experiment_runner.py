@@ -126,7 +126,7 @@ def validate(args, epoch, model, loader, device,
         val_mean_loss = np.mean(current_epoch_losses['val_loss'])
 
         pbar.update(data.size(0))
-        pbar.set_description('{} Val, Log likelihood: {:.6f}'.format(model_name, val_mean_loss))
+    pbar.set_description('{} Val, Log likelihood: {:.6f}'.format(model_name, val_mean_loss))
 
     if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
         best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
@@ -171,7 +171,7 @@ def test(args, epoch, model, loader, device,
             test_dict[test_loss_name] = [loss.item()]  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
-        pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, np.mean(test_dict[test_loss_name])))
+    pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, np.mean(test_dict[test_loss_name])))
 
     pbar.close()
 
@@ -179,10 +179,11 @@ def test(args, epoch, model, loader, device,
 
 
 def train_val(model, model_name, args, data_loaders,
-              test_dict={}, disable_tqdm=False, hp_search=False, error_bars=False,
+              disable_tqdm=False, hp_search=False, error_bars=False,
               rvine=False, save_name=None, cm_flow=False):
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
+    test_dict = {}
 
     for epoch in range(args.epochs):
         if not hp_search and not error_bars and not rvine:
@@ -249,8 +250,6 @@ def train_val(model, model_name, args, data_loaders,
             if model_name in ['marg_flow', 'marg_flow_1', 'marg_flow_2']:
                 plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
             else:
-                print('creating plot', model_name)
-
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
 
         # Perform test evaluation

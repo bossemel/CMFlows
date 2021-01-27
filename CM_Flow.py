@@ -46,7 +46,7 @@ def build_model(args):
     return model
 
 
-def visualize_cop_flow_output(model, dataset, args):
+def visualize_cop_flow_output(model, args):
     with torch.no_grad():
         if args.conditional_copula:
             context = torch.tensor(np.random.normal(size=(100000, 1))).float()
@@ -59,28 +59,6 @@ def visualize_cop_flow_output(model, dataset, args):
             visualize_joint(output_copula, args.figures_path, name='output_copula')
             output_copula = model.cop_flow.sample(num_samples=100000, transform=None, device=args.device).cpu()
             visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
-
-
-def visualize_CM_Flow_output(model, dataset, args):
-    with torch.no_grad():
-        # Sample from the predicted copula
-        output_copula = model.sample_copula(num_samples=100000).cpu()
-        # Visualize the predicted copula
-        if args.cuda:
-            visualize_joint(output_copula, args.figures_path, name='output_copula_cm')
-        else:
-            visualize_joint(output_copula, args.figures_path, name='output_copula_cm')
-
-        # Sample from the true copula and visualize it
-        dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
-        visualize_joint(dataset.trn, args.figures_path, name='true_{}_copula_cm'.format(args.copula))
-
-        # Sample from the non-transformed copula (normal margins)
-        output_copula = model.sample(num_samples=100000).cpu()
-        if args.cuda:
-            visualize_joint(output_copula, args.figures_path, name='output_copula_normal_cm')
-        else:
-            visualize_joint(output_copula, args.figures_path, name='output_copula_normal_cm')
 
 
 def train_marginals(model, disable_tqdm, error_bars, rvine):
@@ -118,9 +96,15 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                 name='marg_flow_1')
 
     if args.marg_flow == 'NSF':
-        marg_flow_1_output = model.marg_flow_1.flow.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_trn = model.marg_flow_1.flow.transform_to_noise(dataset.trn[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_val = model.marg_flow_1.flow.transform_to_noise(dataset.val[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_tst = model.marg_flow_1.flow.transform_to_noise(dataset.tst[:, 0:1].to(args.device)).reshape(-1, 1)
     elif args.marg_flow == 'DDSF':
-        marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_trn = model.marg_flow_1.transform_to_noise(dataset.trn[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_val = model.marg_flow_1.transform_to_noise(dataset.val[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_tst = model.marg_flow_1.transform_to_noise(dataset.tst[:, 0:1].to(args.device)).reshape(-1, 1)
+
+    marg_flow_1_output = marg_flow_1_output_trn, marg_flow_1_output_val, marg_flow_1_output_tst
 
     args.optimizer = optim.Adam(model.marg_flow_2.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
@@ -158,16 +142,23 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
         param.requires_grad = False
 
     if args.marg_flow == 'NSF':
-        marg_flow_2_output = model.marg_flow_2.flow.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_trn = model.marg_flow_2.flow.transform_to_noise(dataset.trn[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_val = model.marg_flow_2.flow.transform_to_noise(dataset.val[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_tst = model.marg_flow_2.flow.transform_to_noise(dataset.tst[:, 1:2].to(args.device)).reshape(-1, 1)
     elif args.marg_flow == 'DDSF':
-        marg_flow_2_output = model.marg_flow_2.transform_to_noise(train_dataset[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_trn = model.marg_flow_2.transform_to_noise(dataset.trn[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_val = model.marg_flow_2.transform_to_noise(dataset.val[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_tst = model.marg_flow_2.transform_to_noise(dataset.tst[:, 1:2].to(args.device)).reshape(-1, 1)
 
+    marg_flow_2_output = marg_flow_2_output_trn, marg_flow_2_output_val, marg_flow_2_output_tst
     return model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output
 
 
 def transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_output):
     with torch.no_grad():
-        train_dataset = torch.cat((marg_flow_1_output, marg_flow_2_output), dim=1).cpu()
+        train_dataset = torch.cat((marg_flow_1_output[0], marg_flow_2_output[0]), dim=1).cpu()
+        valid_dataset = torch.cat((marg_flow_1_output[1], marg_flow_2_output[1]), dim=1).cpu()
+        test_dataset = torch.cat((marg_flow_1_output[2], marg_flow_2_output[2]), dim=1).cpu()
         kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
         train_loader = torch.utils.data.DataLoader(
@@ -176,14 +167,28 @@ def transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_outp
             shuffle=True,
             **kwargs)
 
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            **kwargs)
+
+        test_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            **kwargs)
+
         data_loaders['train_loader'] = train_loader
+        data_loaders['valid_loader'] = valid_loader
+        data_loaders['test_loader'] = test_loader
         dataset.trn = train_dataset
 
         normal_distr = torch.distributions.normal.Normal(0, 1)
         train_dataset_uniform = normal_distr.cdf(train_dataset)
         visualize_joint(train_dataset, args.figures_path, name='marg_flow_transform_output')
         visualize_joint(train_dataset_uniform, args.figures_path, name='marg_flow_transform_output_uniform')
-    return data_loaders, dataset.trn
+    return data_loaders
 
 
 def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, marg_flow_1_output, marg_flow_2_output):
@@ -192,7 +197,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, mar
     args.optimizer = optim.Adam(model.cop_flow.parameters(), lr=args.lr_c, weight_decay=args.weight_decay_c)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
-    data_loaders, dataset.trn = transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_output)
+    data_loaders = transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_output)
 
     best_dict_cop_flow, test_dict = train_val(model.cop_flow,
                                               model_name='cop_flow',
@@ -211,7 +216,7 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, mar
     best_dict = best_dict_cop_flow
 
     if not error_bars and not rvine:
-        visualize_cop_flow_output(model, dataset, args)
+        visualize_cop_flow_output(model, args)
     return model, best_dict, test_dict, best_dict_cop_flow
 
 
@@ -307,7 +312,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(args.random_seed)
 
     # Set up data loader
-    dataset, data_loaders, train_dataset = utils.load_data(args)
+    dataset, data_loaders = utils.load_data(args)
 
     # Specify, that this cop_flow is part of a CM_Flow
     args.cop_flow_part_of_CM_Flow = True
