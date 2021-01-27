@@ -84,7 +84,6 @@ def marg_flow(self, dataset, data_loaders, node):
     # Train marginal flow
     best_dict, __ = train_val(args=self.args,
                               model=self.marg_flow,
-                              dataset=dataset,
                               data_loaders=data_loaders,
                               save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
                               model_name='marg_flow_rv',
@@ -246,11 +245,9 @@ def add_new_node(self, new_graph, common_node, edge, plots):
 
     best_dict_con, __ = train_val(args=self.args,
                                   model=self.cop_flow,
-                                  dataset=dataset,
                                   data_loaders=data_loaders,
                                   save_name=re.sub('[, ()]', '', str(edge)) + 'cop_con',
                                   model_name='cop_flow_rv',
-                                  transform_inputs=False,
                                   disable_tqdm=True,
                                   rvine=True)
 

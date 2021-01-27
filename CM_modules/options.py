@@ -72,7 +72,7 @@ class TrainOptions():
 
         # Dataset options
         parser.add_argument(
-            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
+            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'uniform'])
         parser.add_argument(
             '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal in first dimension')
         parser.add_argument(

@@ -20,7 +20,7 @@ class MAF(nn.Sequential):
         self.device = args.device
         self.args = args
 
-    def log_density(self, inputs):
+    def _forward(self, inputs):
         """Returns log of target density of the Flow
 
         Params:
@@ -39,11 +39,7 @@ class MAF(nn.Sequential):
     def loss(self, inputs):
         """Loss is negative log density
         """
-        return (- self.log_density(inputs)).mean()
-
-    def _forward(self, inputs):
-        log_density = self.log_density(inputs)
-        return log_density
+        return (-self._forward(inputs)).mean()
 
     def transform_to_noise(self, inputs):
         self.n = inputs.shape[0]

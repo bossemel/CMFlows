@@ -58,7 +58,7 @@ def plot_result_graphs(figures_path, model_name, plot_name, stats, model_type=''
     ax_1.set_ylabel('Loss', fontsize=16)
     ax_1.set_xlabel('Epoch', fontsize=16)
 
-    path = os.path.join(figures_path, '{}_{}_loss_performance.pdf'.format(model_name, plot_name))
+    path = os.path.join(figures_path, '{}_{}_{}_loss_performance.pdf'.format(model_name, model_type, plot_name))
     fig_1.savefig(path, dpi=300, facecolor='w', edgecolor='w',
                   orientation='portrait', papertype=None, format='pdf',
                   transparent=False, bbox_inches='tight', pad_inches=0.1)

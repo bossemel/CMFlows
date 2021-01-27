@@ -9,6 +9,7 @@ import scipy.special
 import scipy.stats
 from utils.visualizer import visualize_joint
 import warnings
+from NSF_modules.utils import sum_except_batch
 eps = 1e-3
 
 
@@ -141,8 +142,8 @@ def flow_density(inputs, log_jacob):
     Returns:
         log density array
     """
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi)).sum(-1, keepdim=True)
-    return (log_prob + log_jacob).sum(-1, keepdim=True)
+    log_prob = -0.5 * sum_except_batch(inputs.pow(2), num_batch_dims=1) - 0.5 * math.log(2 * math.pi) # .sum(-1, keepdim=True)
+    return (log_prob + sum_except_batch(log_jacob, num_batch_dims=1)) #.sum(-1, keepdim=True)
 
 
 def js_divergence_grid(prob_vector_X, prob_vector_Y):

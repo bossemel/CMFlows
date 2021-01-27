@@ -122,7 +122,7 @@ def random_search(args):
                                                                           dataset=dataset,
                                                                           data_loaders=data_loaders,
                                                                           disable_tqdm=True,
-                                                                          grid_search=True)
+                                                                          hp_search=True)
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                  current_best_dict['best_validation_loss'])
             print(results_dict[current_hyperparams])
@@ -151,8 +151,8 @@ def random_search(args):
         print('Random search complete. See random_search.txt for results.')
 
 
-def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
-    if not grid_search and not rvine and not error_bars and args.flow_type == 'cop_flow':
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=False, rvine=False, error_bars=False, save_name=None):
+    if not hp_search and not rvine and not error_bars and args.flow_type == 'cop_flow':
         visualize_joint(dataset.trn, args.figures_path, name='input_dataset')
 
     # Build model and send to device
@@ -172,11 +172,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
                                      model_name=args.flow_type,
                                      args=args,
                                      data_loaders=data_loaders,
-                                     dataset=dataset,
-                                     transform_inputs=False,
                                      disable_tqdm=disable_tqdm,
                                      error_bars=error_bars,
-                                     grid_search=grid_search,
+                                     hp_search=hp_search,
                                      rvine=rvine,
                                      save_name=save_name)
 
@@ -241,7 +239,7 @@ if __name__ == '__main__':
                                                          dataset=dataset,
                                                          data_loaders=data_loaders,
                                                          disable_tqdm=True,
-                                                         grid_search=False,
+                                                         hp_search=False,
                                                          error_bars=False)
 
             model = load_model(model, args.experiment_saved_models, 'train_model',
@@ -266,7 +264,7 @@ if __name__ == '__main__':
                                                          dataset=dataset,
                                                          data_loaders=data_loaders,
                                                          disable_tqdm=False,
-                                                         grid_search=False)
+                                                         hp_search=False)
 
             model = load_model(model, args.experiment_saved_models, 'train_model',
                                best_dict['best_validation_epoch'])

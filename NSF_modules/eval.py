@@ -7,8 +7,7 @@ import scipy.stats
 from utils import js_divergence_grid
 
 
-def jsd_eval(args, epoch, model, loader, device, test_dict,
-             cm_flow=True):
+def jsd_eval(args, epoch, model, loader, device, test_dict):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:

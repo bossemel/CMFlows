@@ -43,9 +43,9 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         distr_2 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.9, loc=mu + 2, scale=var / 2)
         distr_3 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.5, loc=mu, scale=var)
     elif marginal == 'mix_gauss_gamma':
-        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu+1, scale=var / 5)
-        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha / 5)
-        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 10)
+        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu, scale=var / 5)
+        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha)
+        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 5)
     if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']:
         inverse_cdf = pynverse.inversefunc(lambda xx: 0.4 * distr_1(xx) + 0.4 * distr_2(xx) + 0.2 * distr_3(xx))
         inputs = inverse_cdf(inputs)
@@ -89,23 +89,12 @@ class Joint_Distr():
                                                            transform=False,
                                                            random_seed=random_seed)
         copula_distr.sampler(transform=False, obs=self.obs)
-        # marginal_1 = marginal_transform(inputs=copula_distr.xx[:, 0:1],
-        #                                 marginal=self.marginal_1,
-        #                                 mu=self.mu,
-        #                                 var=self.var,
-        #                                 alpha=self.alpha)
-        # marginal_2 = marginal_transform(inputs=copula_distr.xx[:, 1:2],
-        #                                 marginal=self.marginal_2,
-        #                                 mu=self.mu,
-        #                                 var=self.var,
-        #                                 alpha=self.alpha)
 
         xx = marginal_transform(inputs=copula_distr.xx,
                                 marginal=self.marginal_1,
                                 mu=self.mu,
                                 var=self.var,
                                 alpha=self.alpha)
-        #xx = #np.concatenate([marginal_1, marginal_2], axis=1)
 
         self.xx = normalize(xx)
 
@@ -202,7 +191,12 @@ class Copula_Distr:
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % (self.copula)
             uu, vv = sample_gumbel([self.obs if obs is None else obs], self.theta, random_seed=None)
 
-        xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
+        # gumbel copula
+        elif self.copula == 'uniform':
+            xx = scipy.stats.uniform.rvs(size=(self.obs, 2))
+
+        if self.copula in ['clayton', 'frank', 'gumbel']:
+            xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
 
         assert xx.all() > 0 & xx.all() < 1
 
@@ -421,3 +415,5 @@ def copula_pdf(copula, theta, uu, vv):
             pdf = gumbel_cdf(theta, uu, vv) * a * b * c * d
             assert np.min(pdf) >= 0, 'gumbel_{}'.format(np.min(pdf))
             return pdf
+    else:
+        raise NotImplementedError

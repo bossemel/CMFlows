@@ -81,7 +81,7 @@ def random_search(args):
                                                                           dataset=dataset,
                                                                           data_loaders=data_loaders,
                                                                           disable_tqdm=True,
-                                                                          grid_search=True)
+                                                                          hp_search=True)
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                  current_best_dict['best_validation_loss'])
             print(results_dict[current_hyperparams])
@@ -102,50 +102,8 @@ def random_search(args):
                 'Best Epoch: ' + str(best_dict['best_validation_epoch']))
 
 
-def grid_search(args, dataset, data_loaders, transform_functions, num_inv_blocks, num_hidden_units):
-    results_dict = {}
-    best_loss = 1000
-    print('Grid search over: transform_functions, num_inv_blocks, num_hidden_units')
-    for transform_fct in transform_functions:
-        args.transform_fct = transform_fct
-        for num_blocks in num_inv_blocks:
-            args.num_blocks = num_blocks
-            for num_hidden in num_hidden_units:
-                if num_hidden > num_blocks:
-                    args.num_hidden = num_hidden
-                    print(' transform_fct:', transform_fct,
-                          ' num_blocks:', num_blocks,
-                          ' num_hidden:', num_hidden)
-                    with HiddenPrints():
-                        current_model, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                                             dataset=dataset,
-                                                                                             data_loaders=data_loaders,
-                                                                                             disable_tqdm=True,
-                                                                                             grid_search=True)
-                    current_hyperparams = (transform_fct, num_blocks, num_hidden)
-                    results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
-                                                         current_best_dict['best_validation_loss'])
-                    print(results_dict[current_hyperparams])
-                    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'w') as f:
-                        f.write(str(results_dict))
-                    if current_best_dict['best_validation_loss'] < best_loss:
-                        best_loss = current_best_dict['best_validation_loss']
-                        best_hyperparams = current_hyperparams
-                        model = current_model
-                        best_dict = current_best_dict
-                        test_dict = current_test_dict
-    print('Grid search complete for ', args.copula)
-    print('Best hyperparams: ', best_hyperparams)
-    print('Lowest Val Loss: ', best_loss)
-    print('Lowest Val Loss Epoch', best_dict['best_validation_epoch'])
-    with open(os.path.join(args.experiment_logs, 'grid_search.txt'), 'a') as f:
-        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
-    return model, best_dict, test_dict
-
-
-def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=False, rvine=False, error_bars=False, save_name=None):
-    if not grid_search and not rvine and not error_bars:
+def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=False, rvine=False, error_bars=False, save_name=None):
+    if not hp_search and not rvine and not error_bars:
         visualize_joint(dataset.trn, args.figures_path, name='input_dataset')
 
     # Build model and send to device
@@ -163,11 +121,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, grid_search=
                                      model_name='cop_flow_real',
                                      args=args,
                                      data_loaders=data_loaders,
-                                     dataset=dataset,
-                                     transform_inputs=False,
                                      disable_tqdm=disable_tqdm,
                                      error_bars=error_bars,
-                                     grid_search=grid_search,
+                                     hp_search=hp_search,
                                      rvine=rvine,
                                      save_name=save_name)
 
@@ -218,17 +174,6 @@ if __name__ == '__main__':
 
     if args.random_search:
         random_search(args=args)
-    elif args.grid_search:
-        # Hyperparameter options:
-        transform_functions = ['gaussian', 'sigmoid']
-        num_inv_blocks = [4, 8, 16]
-        num_hidden_units = [32, 64, 128]
-        grid_search(args=args,
-                    dataset=dataset,
-                    data_loaders=data_loaders,
-                    transform_functions=transform_functions,
-                    num_inv_blocks=num_inv_blocks,
-                    num_hidden_units=num_hidden_units)
     else:
         if args.error_bars is True:
             eval_dict = {}
@@ -237,7 +182,7 @@ if __name__ == '__main__':
                                                          dataset=dataset,
                                                          data_loaders=data_loaders,
                                                          disable_tqdm=True,
-                                                         grid_search=False,
+                                                         hp_search=False,
                                                          error_bars=False)
 
             model = load_model(model, args.experiment_saved_models, 'train_model',
@@ -262,7 +207,7 @@ if __name__ == '__main__':
                                                          dataset=dataset,
                                                          data_loaders=data_loaders,
                                                          disable_tqdm=False,
-                                                         grid_search=False)
+                                                         hp_search=False)
 
             model = load_model(model, args.experiment_saved_models, 'train_model',
                                best_dict['best_validation_epoch'])

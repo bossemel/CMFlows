@@ -135,6 +135,9 @@ class ConditionalFlow(nn.Module):
         loss = -torch.mean(log_density)
         return loss
 
+    def eval(self):
+        self.flow.eval()
+
     def sample(self, num_samples=None, transform=None, context=None, num_inputs=None, device=None):
         """Returns an output sample without transformation
         """
@@ -278,22 +281,3 @@ class ConditionalFlow(nn.Module):
             t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
             return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
-
-
-
-# def gaussian_change_of_var_1D(inputs, original_pdf, device):
-#     raise NotImplementedError
-#     inputs[inputs == 0] = eps
-#     inputs[inputs == 1] = 1 - eps
-#     assert np.max(inputs) < 1
-#     assert np.min(inputs) > 0
-#     normal_distr = scipy.stats.norm()
-
-#     recast_inputs = normal_distr.ppf(inputs)
-#     assert not np.isnan(recast_inputs.sum())
-#     assert not np.isinf(recast_inputs.sum())
-#     output = original_pdf(recast_inputs) / normal_distr.pdf(recast_inputs)
-#     assert not np.isnan(output.sum())
-#     assert not np.isinf(output.sum())
-#     assert np.min(output) >= 0
-#     return output

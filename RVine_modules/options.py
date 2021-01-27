@@ -67,7 +67,7 @@ class TrainOptions():
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
         parser.add_argument(
-            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
+            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'uniform'])
         parser.add_argument(
             '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
         parser.add_argument(
