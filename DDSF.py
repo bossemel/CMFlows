@@ -33,7 +33,6 @@ def build_model(args):
     args.dimh = args.batch_size
     args.act = nn.ELU()
     args.dim = 1
-    #args.betas = (args.beta1, args.beta2)
 
     sequels = [nn_.SequentialFlow(
         flows.IAF_DDSF(dim=args.dim,
@@ -148,9 +147,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
     model.to(args.device)
 
     # Set optimizer
-    # args.optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=args.betas, weight_decay=args.weight_decay, amsgrad=args.amsgrad)
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, amsgrad=args.amsgrad)
+    args.scheduler = None
+    #args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    #args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
     best_dict, test_dict = train_val(model=model,

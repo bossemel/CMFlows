@@ -74,7 +74,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
-            '--amsgrad', action='store_false', default=True, help='whether to clip gradients')
+            '--amsgrad', action='store_true', default=False, help='whether to clip gradients')
 
         self.initialized = True
         return parser

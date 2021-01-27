@@ -87,10 +87,9 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
     # Pretrain models individually, with cop_flow using the outputs of marg_flow as inputs
     # Train marg_flows
     args.epochs = args.epochs_m
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
 
-    # args.optimizer = optim.Adam(model.marg_flow_1.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    # args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+    args.optimizer = optim.Adam(model.marg_flow_1.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     for param in model.marg_flow_2.parameters():
         param.requires_grad = False
@@ -123,9 +122,8 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
     elif args.marg_flow == 'DDSF':
         marg_flow_1_output = model.marg_flow_1.transform_to_noise(train_dataset[:, 0:1].to(args.device)).reshape(-1, 1)
 
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    # args.optimizer = optim.Adam(model.marg_flow_2.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    # args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
+    args.optimizer = optim.Adam(model.marg_flow_2.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
     for param in model.marg_flow_1.parameters():
         param.requires_grad = False

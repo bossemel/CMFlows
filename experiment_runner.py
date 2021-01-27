@@ -124,12 +124,13 @@ def validate(args, epoch, model, loader, device,
             current_epoch_losses["val_loss"] = [loss.item()]  # add current iter loss to val loss list.
 
         val_mean_loss = np.mean(current_epoch_losses['val_loss'])
-        if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
-            best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
-            best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
 
         pbar.update(data.size(0))
         pbar.set_description('{} Val, Log likelihood: {:.6f}'.format(model_name, val_mean_loss))
+
+    if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
+        best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
+        best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
 
     pbar.close()
     return current_epoch_losses, best_dict

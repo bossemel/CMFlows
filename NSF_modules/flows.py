@@ -49,6 +49,9 @@ class ConditionalFlow(nn.Module):
         self.device = args.device
 
         distribution = distributions.StandardNormal([dim]).to(args.device)
+        # if args.flow_type == 'marg_flow':
+        #     distribution = distributions.TweakedUniform(low=torch.zeros(dim), high=torch.ones(dim), device=args.device)
+
         transform = transforms.CompositeTransform([
             self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
         self.flow = flows.Flow(transform, distribution).to(args.device)
