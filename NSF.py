@@ -162,9 +162,8 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
     model.train()
 
     # Set optimizer
-    #args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(args.beta1, args.beta2))
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c if args.flow_type == 'cop_flow' else args.lr_m,
-        weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m)
+                                weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train
@@ -181,10 +180,10 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
     if not rvine:
         # Gather test losses and save statistics
         test_losses = {key: [np.mean(value)] for key, value in
-                       test_dict.items()}  # save test set metrics in dict format
+                       test_dict.items()}
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
-                        # save test set metrics on disk in .csv format
-                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=best_dict['best_validation_epoch'])
+                        stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars,
+                        test_epoch=best_dict['best_validation_epoch'])
 
     return model, best_dict, test_dict
 
@@ -203,8 +202,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(args.experiment_logs, 'args'), 'w') as f:
-        json.dump(args.__dict__, f, indent=2)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as file:
+        json.dump(args.__dict__, file, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -225,9 +224,6 @@ if __name__ == '__main__':
         dataset, data_loaders = RealNVP_utils.load_data(args)
     elif args.flow_type == 'marg_flow':
         dataset, data_loaders = DDSF_utils.load_data(args)
-
-    if args.no_tails:
-        args.tails = None
 
     if args.random_search:
         random_search(args=args)

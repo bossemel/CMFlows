@@ -2,7 +2,6 @@ import os
 import numpy as np
 import random
 from pathlib import Path
-import scipy.stats
 import csv
 
 from KDE_modules.options_kdecopula import TrainOptions

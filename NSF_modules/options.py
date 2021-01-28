@@ -111,8 +111,6 @@ class TrainOptions():
             '--use_batch_norm', type=int, default=True, help='Use batch norm in spline layers')
         parser.add_argument(
             '--unconditional_transform', type=int, default=False, help='Unconditionally transform identity features')
-        parser.add_argument(
-            '--no_tails', action='store_true', default=False, help='No tails')
 
         # NSF Options marginal
         parser.add_argument(

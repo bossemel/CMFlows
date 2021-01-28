@@ -67,7 +67,7 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
     args.epochs = args.epochs_m
 
     args.optimizer = optim.Adam(model.marg_flow_1.parameters(), lr=args.lr_m, weight_decay=args.weight_decay_m)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
     for param in model.marg_flow_2.parameters():
         param.requires_grad = False
@@ -113,8 +113,6 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
         param.requires_grad = False
     for param in model.marg_flow_2.parameters():
         param.requires_grad = True
-    for param in model.cop_flow.parameters():
-        param.requires_grad = False
 
     args.marginal = args.marginal_1
 
@@ -174,7 +172,7 @@ def transform_dataset(model, train_dataset, marg_flow_1_output, marg_flow_2_outp
             **kwargs)
 
         test_loader = torch.utils.data.DataLoader(
-            valid_dataset,
+            test_dataset,
             batch_size=args.batch_size,
             shuffle=True,
             **kwargs)
@@ -213,11 +211,9 @@ def train_copula_flow(model, train_dataset, disable_tqdm, error_bars, rvine, mar
 
     model.cop_flow.eval()
 
-    best_dict = best_dict_cop_flow
-
     if not error_bars and not rvine:
         visualize_cop_flow_output(model, args)
-    return model, best_dict, test_dict, best_dict_cop_flow
+    return model, test_dict, best_dict_cop_flow
 
 
 def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=False, rvine=False):
@@ -262,7 +258,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
     for param in model.cop_flow.parameters():
         param.requires_grad = True
 
-    model, best_dict, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, marg_flow_1_output, marg_flow_2_output)
+    model, test_dict, best_dict_cop_flow = train_copula_flow(model, dataset.trn, disable_tqdm, error_bars, rvine, marg_flow_1_output, marg_flow_2_output)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -279,8 +275,6 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, error_bars=F
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars, test_epoch=epochs)
-
-    return best_dict
 
 
 if __name__ == '__main__':
