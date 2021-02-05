@@ -5,7 +5,7 @@ import scipy.stats
 import sys
 import scipy
 import pynverse
-eps = 0.0001
+eps = 1e-07
 
 
 def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
@@ -192,7 +192,7 @@ class Copula_Distr:
             uu, vv = sample_gumbel([self.obs if obs is None else obs], self.theta, random_seed=None)
 
         # gumbel copula
-        elif self.copula == 'uniform':
+        elif self.copula == 'independent':
             xx = scipy.stats.uniform.rvs(size=(self.obs, 2))
 
         if self.copula in ['clayton', 'frank', 'gumbel']:
@@ -377,13 +377,14 @@ def copula_pdf(copula, theta, uu, vv):
     Source:
         https://github.com/sdv-dev/Copulas/blob/master/copulas/bivariate/clayton.py
     """
-    uu = remove_0_1(uu)
-    vv = remove_0_1(vv)
+    uu = remove_0_1(uu).astype('float64')
+    vv = remove_0_1(vv).astype('float64')
     assert np.min(uu) > 0 and np.max(uu) < 1, 'min: {}, max: {}'.format(np.min(uu), np.max(uu))
     assert np.min(vv) > 0 and np.max(vv) < 1, 'min: {}, max: {}'.format(np.min(vv), np.max(vv))
 
     if copula == 'clayton':
         a = (theta + 1) * np.power(np.multiply(uu, vv), -(theta + 1))
+        assert np.isfinite(a.sum()), 'np.multiply(uu, vv): {}, -(theta + 1): {}'.format(np.multiply(uu, vv).dtype, type(-(theta + 1)))
         b = np.power(uu, -theta) + np.power(vv, -theta) - 1
         c = -(2 * theta + 1) / theta
         pdf = a * np.power(b, c, dtype=np.float)

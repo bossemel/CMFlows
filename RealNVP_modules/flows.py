@@ -5,7 +5,7 @@ from utils import t_m_metric_eval, flow_density, js_divergence, gaussian_change_
 import numpy as np
 from utils.visualizer import visualize_joint
 import datasets.distributions
-eps = 0.0001
+eps = 1e-07
 
 
 class FlowSequential(nn.Sequential):

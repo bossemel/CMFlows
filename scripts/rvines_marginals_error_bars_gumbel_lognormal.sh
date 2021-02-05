@@ -4,7 +4,7 @@ echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 python RVine.py \
 --exp_name RVine_gumbel_lognormal_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula gumbel \
 --marginal lognormal \
 --obs 10000 \

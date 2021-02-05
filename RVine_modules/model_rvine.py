@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import os
 import torch.optim as optim
 
-from utils import split_train_val_test, js_divergence, gaussian_change_of_var_ND
+from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
 from NSF import build_model as build_model_nsf
@@ -24,7 +24,7 @@ from utils import calc_jsd, normalize_torch
 from NSF_modules.visualizer import visualize1D
 from statsmodels.distributions.empirical_distribution import ECDF
 
-eps = 0.0001
+eps = 1e-07
 
 
 def model_loader(model, args, edge, epoch, add_name, send_to_device=True):
@@ -57,11 +57,11 @@ def transform_marginals(self, node):
         self.marg_flow.eval()
         self.data = self.data.to(self.args.device)
         if self.args.marg_flow == 'NSF':
-            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
+            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float().clone())
 
         elif self.args.marg_flow == 'DDSF':
             assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
-            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
+            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float().clone())
         self.data = self.data.cpu()
         return transformed_inputs
 
@@ -459,7 +459,7 @@ class RVine():
             assert torch.min(pdf) >= 0
             return pdf.cpu().numpy()
 
-    def jsd_vinecopula(self, args, true_cop_distr, num_samples=100000, visualize=True):
+    def jsd_vinecopula(self, args, true_cop_distr, num_samples=100000):
         """Returns JS-Divergence of the predicted Copula and the true Copula.
 
         Params:
@@ -476,7 +476,7 @@ class RVine():
             samples_target_uni = true_cop_distr.simulate(num_samples)
 
             # @Todo: remove before submitting code
-            if visualize:
+            if not args.error_bars:
                 visualize_joint(samples_pred_uni[:, :2].cpu(), self.args.figures_path, name='samples_pred01')
                 visualize_joint(samples_target_uni[:, :2], self.args.figures_path, name='samples_target01')
                 visualize_joint(samples_pred_uni[:, 1:3].cpu(), self.args.figures_path, name='samples_pred12')
@@ -491,7 +491,6 @@ class RVine():
                 visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
                 visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
 
-            if not args.error_bars:
                 # @Todo: do with change of var
                 calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
                 calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
@@ -502,9 +501,6 @@ class RVine():
                          samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
                 calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
                          samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
-
-                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni.cpu(),
-                #          samples_target=samples_target_uni, name='full')
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0

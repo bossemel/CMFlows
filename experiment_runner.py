@@ -10,7 +10,7 @@ from NSF_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
 from NSF_modules.eval import jsd_eval_1D as jsd_eval_marginal
 from NSF_modules.visualizer import visualize1D
 
-eps = 0.0001
+eps = 1e-07
 
 
 def single_model_forward(args, model, model_name, data):
@@ -252,22 +252,21 @@ def train_val(model, model_name, args, data_loaders,
             else:
                 plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
 
-        # Perform test evaluation
-        test_dict = test(args=args,
-                         epoch=best_dict['best_validation_epoch'],
-                         model=model,
-                         loader=data_loaders['test_loader'],
-                         device=args.device,
-                         test_dict=test_dict,
-                         model_name=model_name,
-                         disable_tqdm=disable_tqdm)
+        # # Perform test evaluation
+        # test_dict = test(args=args,
+        #                  epoch=best_dict['best_validation_epoch'],
+        #                  model=model,
+        #                  loader=data_loaders['test_loader'],
+        #                  device=args.device,
+        #                  test_dict=test_dict,
+        #                  model_name=model_name,
+        #                  disable_tqdm=disable_tqdm)
 
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'cop_flow':
             test_dict = jsd_eval_copula(args,
                                         best_dict['best_validation_epoch'],
                                         model,
-                                        data_loaders['test_loader'],
                                         args.device,
                                         test_dict=test_dict)
             # Evaluate copula margins on test set

@@ -49,7 +49,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_c', type=float, default=5)
         parser.add_argument(
-            '--weight_decay_c', type=float, default=1e-09, help='adam optimizer weight decay')
+            '--weight_decay_c', type=float, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
             '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
@@ -97,17 +97,6 @@ class TrainOptions():
         parser.add_argument(
             '--dimh_DDSF', type=int, default=1)
 
-        # # DDSF options
-        # parser.add_argument(
-        #     '--num_flow_layers_DDSF', type=int, default=10)
-        # parser.add_argument(
-        #     '--num_hid_layers_DDSF', type=int, default=1)
-        # parser.add_argument(
-        #     '--num_ds_dim', type=int, default=16)
-        # parser.add_argument(
-        #     '--num_ds_layers', type=int, default=2)
-        # parser.add_argument(
-        #     '--dimh_DDSF', type=int, default=128)
 
         # Options NSF - Copula estimation
         parser.add_argument(
@@ -115,11 +104,11 @@ class TrainOptions():
         parser.add_argument(
             '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=32, help='Number of hidden units in spline layer')
         parser.add_argument(
             '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=64, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=128, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
@@ -131,7 +120,7 @@ class TrainOptions():
         parser.add_argument(
             '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
         parser.add_argument(
-            '--dropout_c', type=float, default=0.25, help='Dropout probability in flow')
+            '--dropout_c', type=float, default=0.2, help='Dropout probability in flow')
         parser.add_argument(
             '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
         parser.add_argument(

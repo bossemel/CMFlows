@@ -10,7 +10,7 @@ from utils import js_divergence, t_m_metric_eval, gaussian_change_of_var_ND
 import datasets.distributions
 from RVine_modules.utils import gen_mv_copula
 
-eps = 0.0001
+eps = 1e-07
 
 
 class ConditionalFlow(nn.Module):

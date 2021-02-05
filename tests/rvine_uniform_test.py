@@ -8,7 +8,6 @@ from utils.visualizer import visualize_joint
 import scipy.stats
 import matplotlib.pyplot as plt
 import seaborn as sns
-eps = 0.0001
 
 if __name__ == '__main__':
     args = TrainOptions().parse(print=False)   # get training options

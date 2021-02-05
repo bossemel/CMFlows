@@ -4,7 +4,7 @@ echo 'Begin Copula: Clayton Marginal: uniform Pretrain only'
 python RVine.py \
 --exp_name RVine_clayton_mix_gamma_nsfhp_uncon \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal mix_gamma \
 --alpha 5 \

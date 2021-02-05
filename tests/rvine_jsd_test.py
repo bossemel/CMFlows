@@ -14,7 +14,6 @@ import datasets
 import unittest
 import scipy.stats
 from RVine_modules.utils import gen_mv_copula
-eps = 0.0001
 
 
 def gen_mv_copula_3d(args):

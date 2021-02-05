@@ -7,7 +7,7 @@ python DDSF.py \
 --marginal gaussian \
 --mu -2 \
 --var 3 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_seed 4
 
@@ -19,7 +19,7 @@ python DDSF.py \
 --marginal uniform \
 --low -1 \
 --high 3 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_seed 4
 
@@ -30,7 +30,7 @@ python DDSF.py \
 --epochs 100 \
 --marginal gamma \
 --alpha 5 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_seed 4
 
@@ -42,6 +42,6 @@ python DDSF.py \
 --marginal lognormal \
 --mu 0 \
 --var 1 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_seed 4

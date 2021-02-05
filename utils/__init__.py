@@ -49,9 +49,6 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
 
 
 def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
-    visualize_joint(samples_target, args.figures_path, name='samples_target_jsd_{}'.format(name))
-    visualize_joint(samples_pred, args.figures_path, name='samples_pred_jsd_{}'.format(name))
-
     # Define distributions
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)

@@ -4,7 +4,7 @@ echo 'Begin Frank Copula Rvine: RVine_frank'
 python RVine.py \
 --exp_name RVine_frank_lognormal_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal lognormal \
 --obs 10000 \

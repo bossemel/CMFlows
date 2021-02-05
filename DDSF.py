@@ -83,14 +83,14 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = 0
-    while ii < 100:
-        args.epochs = 70
+    while ii < 200:
+        args.epochs = 50
         args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
         args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
-        args.dimh_DDSF = 2**np.random.choice(range(5))
-        args.num_ds_dim = 2**np.random.choice(range(5))
+        args.dimh_DDSF = 2**np.random.choice(range(7))
+        args.num_ds_dim = 2**np.random.choice(range(7))
         args.num_ds_layers = np.random.choice(range(1, 5))
-        args.lr = 1 / 10**np.random.choice(range(4, 7))
+        args.lr = 1 / 10**np.random.choice(range(2, 5))
         args.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
 
         current_hyperparams = (args.num_flow_layers_DDSF,

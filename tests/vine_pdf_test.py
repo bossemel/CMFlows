@@ -6,7 +6,8 @@ from utils import normalize
 import numpy as np
 import torch
 import scipy.stats
-eps = 0.001
+eps = 1e-07
+
 
 def gen_mv_copula(args, theta):
     if args.mix is False:

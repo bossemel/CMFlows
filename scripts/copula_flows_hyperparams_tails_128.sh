@@ -4,7 +4,7 @@ echo 'Begin Clayton Copula with different Hyperparameters'
 python NSF.py \
 --exp_name clayton_tails_128_cm  \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --theta 2 \
 --obs 10000 \
@@ -19,7 +19,7 @@ python NSF.py \
 python NSF.py \
 --exp_name clayton_tails_128_gum_hyp  \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --theta 2 \
 --obs 10000 \
@@ -36,7 +36,7 @@ echo 'Begin Frank Copula with different Hyperparameters'
 python NSF.py \
 --exp_name frank_tails_128_cm  \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --theta 2 \
 --obs 10000 \
@@ -53,7 +53,7 @@ echo 'Begin Gumbel Copula with different Hyperparameters'
 python NSF.py \
 --exp_name gumbel_tails_128_cm  \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula gumbel \
 --theta 2 \
 --obs 10000 \

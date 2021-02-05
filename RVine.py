@@ -20,26 +20,26 @@ import matplotlib
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 
-def train_and_plot(visualize=True, continue_from_mode=False):
+def train_and_plot(model, visualize=True, continue_from_mode=False):
     if not args.error_bars:
         if not args.load_model:
-            rv.fit(data=dataset_trn)
-            save_rvine(args.experiment_saved_models, 'rvine_object', rv)
+            model.fit(data=dataset_trn)
+            save_rvine(args.experiment_saved_models, 'rvine_object', model)
         else:
-            load_rvine(args.experiment_saved_models, 'rvine_object', rv)
+            load_rvine(args.experiment_saved_models, 'rvine_object', model)
     else:
-        rv.fit(data=dataset_trn)
-    rv.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs, visualize=visualize)
+        model.fit(data=dataset_trn)
+    model.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs)
 
     test_losses = {key: [np.mean(value)] for key, value in
-                   rv.results_dict.items()}  # save test set metrics in dict format
+                   model.results_dict.items()}  # save test set metrics in dict format
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
                     stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=None)
     if visualize:
-        rv.plot()
+        model.plot()
         # Simulate and visualize
-        samples = rv.sample(num_samples=args.viz_obs, transform=True)
+        samples = model.sample(num_samples=args.viz_obs, transform=True)
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
@@ -92,21 +92,21 @@ if __name__ == '__main__':
         visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
 
     # Initialize R-vine
-    rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
+    model = RVine(args=args, num_inputs=dataset_trn.shape[1])
 
     # Estimate R-vine
     if not args.error_bars:
-        train_and_plot(visualize=True, continue_from_mode=False)
+        train_and_plot(model, visualize=True, continue_from_mode=False)
     else:
         if args.continue_error_bars == 0:
-            train_and_plot(visualize=True, continue_from_mode=False)
+            train_and_plot(model, visualize=True, continue_from_mode=False)
             for ii in range(1, 10):
-                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
-                train_and_plot(visualize=False, continue_from_mode=True)
+                model = RVine(args=args, num_inputs=dataset_trn.shape[1])
+                train_and_plot(model, visualize=False, continue_from_mode=True)
         else:
             for ii in range(args.continue_error_bars, 10):
-                rv = RVine(args=args, num_inputs=dataset_trn.shape[1])
-                train_and_plot(visualize=False, continue_from_mode=True)
+                model = RVine(args=args, num_inputs=dataset_trn.shape[1])
+                train_and_plot(model, visualize=False, continue_from_mode=True)
 
         # Load statistics and calculate mean and standard deviation
         stats_dict = load_statistics(args.experiment_logs, 'test_summary.csv')

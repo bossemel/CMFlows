@@ -4,7 +4,7 @@ echo 'Begin Mix Copula Rvine: RVine_mix'
 python RVine.py \
 --exp_name RVine_mix_gaussian_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --marginal gaussian \
 --obs 10000 \
 --mix \

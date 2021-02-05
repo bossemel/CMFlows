@@ -9,7 +9,7 @@ import DDSF_modules.iaf_modules as iaf_modules
 import numpy as np
 from DDSF_modules import nn_modules as nn_, utils
 from utils import flow_density
-eps = 1e-7
+eps = 1e-6
 
 
 class MAF(nn.Sequential):
@@ -169,10 +169,15 @@ class DenseSigmoidFlow(BaseFlow):
         u = self.act_u(pre_u)
 
         pre_sigm = torch.sum(u * a[:, :, :, None] * x[:, :, None, :], 3) + b
+
         sigm = torch.sigmoid(pre_sigm)
+
         x_pre = torch.sum(w * sigm[:, :, None, :], dim=3)
+
         x_pre_clipped = x_pre * (1 - nn_.delta) + nn_.delta * 0.5
-        x_ = log(x_pre_clipped) - log(1 - x_pre_clipped + eps)
+
+        x_ = log(x_pre_clipped + eps) - log(1 - x_pre_clipped + eps)
+
         xnew = x_
 
         logj = F.log_softmax(pre_w, dim=3) + \
@@ -192,6 +197,7 @@ class DenseSigmoidFlow(BaseFlow):
         logdet = utils.log_sum_exp(
             logdet_[:, :, :, :, None] + logdet[:, :, None, :, :], 3).sum(3)
         # n, d, d2, d1, d0 -> n, d, d2, d0
+
         return xnew, logdet
 
 
@@ -304,4 +310,5 @@ class FlipFlow(BaseFlow):
                          'cpu', 'cuda')[inputs.is_cuda])().long())
 
         output = torch.index_select(inputs, dim, index)
+
         return output, logdet, context

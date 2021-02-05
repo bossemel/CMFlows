@@ -46,7 +46,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_c', type=float, default=1.0)
         parser.add_argument(
-            '--weight_decay_c', type=float, default=1e-9, help='adam optimizer weight decay')
+            '--weight_decay_c', type=float, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
             '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
@@ -62,7 +62,7 @@ class TrainOptions():
 
         # Dataset options
         parser.add_argument(
-            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'uniform'])
+            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'independent'])
         parser.add_argument(
             '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal in first dimension')
         parser.add_argument(
@@ -70,7 +70,7 @@ class TrainOptions():
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, default=5, help='theta for copula sampling')
+            '--theta', type=float, required=True, help='theta for copula sampling')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
@@ -88,13 +88,13 @@ class TrainOptions():
         parser.add_argument(
             '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
-            '--n_layers_c', type=int, default=15, help='Number of spline layers in flow')
+            '--n_layers_c', type=int, default=10, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=8, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=16, help='Number of hidden units in spline layer')
         parser.add_argument(
             '--n_blocks_c', type=int, default=3, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=8, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=64, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(

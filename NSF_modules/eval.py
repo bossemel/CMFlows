@@ -7,13 +7,12 @@ import scipy.stats
 from utils import js_divergence_grid
 
 
-def jsd_eval(args, epoch, model, loader, device, test_dict):
+def jsd_eval(args, epoch, model, device, test_dict):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
         epoch: best validation epoch
         model: best validation model
-        loader: whether to use train/val/test set loader
         device: used device
         test_dict: dictionary with the current epoch stats
 
@@ -39,7 +38,6 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
     Params:
         epoch: best validation epoch
         model: best validation model
-        loader: whether to use train/val/test set loader
         device: used device
         test_dict: dictionary with the current epoch stats
 

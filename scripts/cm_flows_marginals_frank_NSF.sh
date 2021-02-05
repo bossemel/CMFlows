@@ -4,7 +4,7 @@ echo 'Begin Copula: frank Marginal: uniform Pretrain only'
 python CM_Flow.py \
 --exp_name CM_Flow_frank_uniform_nsfnsf \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal_1 uniform \
 --marginal_2 uniform \
@@ -22,7 +22,7 @@ echo 'Begin Copula: frank Marginal: gaussian Pretrain only'
 python CM_Flow.py \
 --exp_name CM_Flow_frank_gaussian_nsfnsf \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal_1 gaussian \
 --marginal_2 gaussian \
@@ -39,7 +39,7 @@ echo 'Begin Copula: frank Marginal: gamma Pretrain only'
 python CM_Flow.py \
 --exp_name CM_Flow_frank_gamma_nsfnsf \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal_1 gamma \
 --marginal_2 gamma \
@@ -57,7 +57,7 @@ echo 'Begin Copula: frank Marginal: lognormal Pretrain only'
 python CM_Flow.py \
 --exp_name CM_Flow_frank_lognormal_nsfnsf \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal_1 lognormal \
 --marginal_2 lognormal \

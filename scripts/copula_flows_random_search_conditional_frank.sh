@@ -3,10 +3,10 @@ set -e
 
 # python NSF.py \
 # --exp_name clayton_random_search \
-# --epochs 100 \
+# --epochs 128 \
 # --copula clayton \
 # --theta 2 \
-# --batch-size 100 \
+# --batch-size 128 \
 # --obs 10000 \
 # --random_search \
 # --conditional_copula \
@@ -19,7 +19,7 @@ python NSF.py \
 --epochs 100 \
 --copula frank \
 --theta 5 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_search \
 --conditional_copula \
@@ -29,10 +29,10 @@ python NSF.py \
 
 # python NSF.py \
 # --exp_name gumbel_random_search \
-# --epochs 100 \
+# --epochs 128 \
 # --copula gumbel \
 # --theta 5 \
-# --batch-size 100 \
+# --batch-size 128 \
 # --obs 10000 \
 # --random_search \
 # --conditional_copula \

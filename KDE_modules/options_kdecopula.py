@@ -20,7 +20,7 @@ class TrainOptions():
 
         # Dataset options
         parser.add_argument(
-            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'uniform'])
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'independent'])
         parser.add_argument(
             '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
         parser.add_argument(

@@ -3,8 +3,8 @@ set -e
 
 # python CM_Flow.py \
 # --exp_name CM_Flow_Clayton_uniform_nsfnsf \
-# --epochs 100 \
-# --batch-size 100 \
+# --epochs 128 \
+# --batch-size 128 \
 # --copula clayton \
 # --marginal_1 uniform \
 # --marginal_2 uniform \
@@ -22,8 +22,8 @@ set -e
 
 # python CM_Flow.py \
 # --exp_name CM_Flow_clayton_gaussian_nsfnsf \
-# --epochs 100 \
-# --batch-size 100 \
+# --epochs 128 \
+# --batch-size 128 \
 # --copula clayton \
 # --marginal_1 gaussian \
 # --marginal_2 gaussian \
@@ -40,8 +40,8 @@ echo 'Begin Copula: clayton Marginal: gamma Pretrain only'
 
 python CM_Flow.py \
 --exp_name CM_Flow_clayton_gamma_nsfnsf_hp \
---epochs 100 \
---batch-size 100 \
+--epochs 128 \
+--batch-size 128 \
 --copula clayton \
 --marginal_1 gamma \
 --marginal_2 gamma \
@@ -66,8 +66,8 @@ python CM_Flow.py \
 
 # python CM_Flow.py \
 # --exp_name CM_Flow_clayton_lognormal_nsfnsf \
-# --epochs 100 \
-# --batch-size 100 \
+# --epochs 128 \
+# --batch-size 128 \
 # --copula clayton \
 # --marginal_1 lognormal \
 # --marginal_2 lognormal \

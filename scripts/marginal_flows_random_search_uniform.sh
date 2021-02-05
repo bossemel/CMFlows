@@ -7,7 +7,7 @@ python NSF.py \
 --marginal uniform \
 --low -1 \
 --high 3 \
---batch-size 100 \
+--batch-size 128 \
 --obs 10000 \
 --random_search \
 --flow_type marg_flow

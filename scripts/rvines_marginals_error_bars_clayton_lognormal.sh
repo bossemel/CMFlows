@@ -4,7 +4,7 @@ echo 'Begin Clayton Copula Rvine: RVine_clayton'
 python RVine.py \
 --exp_name RVine_clayton_lognormal_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal lognormal \
 --alpha 5 \

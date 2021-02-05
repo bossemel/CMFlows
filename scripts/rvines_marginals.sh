@@ -5,7 +5,7 @@ echo 'Begin Mix Copula Rvine: RVine_mix'
 python RVine.py \
 --exp_name RVine_mix_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -21,7 +21,7 @@ echo 'Begin Mix Copula Rvine: RVine_mix'
 python RVine.py \
 --exp_name RVine_mix_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -37,7 +37,7 @@ echo 'Begin Clayton Copula Rvine: RVine_clayton'
 python RVine.py \
 --exp_name RVine_clayton_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -52,7 +52,7 @@ echo 'Begin Clayton Copula Rvine: RVine_clayton'
 python RVine.py \
 --exp_name RVine_clayton_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -67,7 +67,7 @@ echo 'Begin Frank Copula Rvine: RVine_frank'
 python RVine.py \
 --exp_name RVine_frank_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -83,7 +83,7 @@ echo 'Begin Frank Copula Rvine: RVine_frank'
 python RVine.py \
 --exp_name RVine_frank_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -99,7 +99,7 @@ echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 python RVine.py \
 --exp_name RVine_gumbel_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
@@ -113,7 +113,7 @@ echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 python RVine.py \
 --exp_name RVine_gumbel_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
