@@ -95,13 +95,13 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
                 name='marg_flow_1')
 
     if args.marg_flow == 'NSF':
-        marg_flow_1_output_trn = model.marg_flow_1.flow.transform_to_noise(dataset.trn[:, 0:1].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_1_output_val = model.marg_flow_1.flow.transform_to_noise(dataset.val[:, 0:1].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_1_output_tst = model.marg_flow_1.flow.transform_to_noise(dataset.tst[:, 0:1].clone().to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_trn = model.marg_flow_1.flow.transform_to_noise(dataset.trn[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_val = model.marg_flow_1.flow.transform_to_noise(dataset.val[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_tst = model.marg_flow_1.flow.transform_to_noise(dataset.tst[:, 0:1].to(args.device)).reshape(-1, 1)
     elif args.marg_flow == 'DDSF':
-        marg_flow_1_output_trn = model.marg_flow_1.transform_to_noise(dataset.trn[:, 0:1].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_1_output_val = model.marg_flow_1.transform_to_noise(dataset.val[:, 0:1].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_1_output_tst = model.marg_flow_1.transform_to_noise(dataset.tst[:, 0:1].clone().to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_trn = model.marg_flow_1.transform_to_noise(dataset.trn[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_val = model.marg_flow_1.transform_to_noise(dataset.val[:, 0:1].to(args.device)).reshape(-1, 1)
+        marg_flow_1_output_tst = model.marg_flow_1.transform_to_noise(dataset.tst[:, 0:1].to(args.device)).reshape(-1, 1)
 
     marg_flow_1_output = marg_flow_1_output_trn, marg_flow_1_output_val, marg_flow_1_output_tst
 
@@ -139,13 +139,13 @@ def train_marginals(model, disable_tqdm, error_bars, rvine):
         param.requires_grad = False
 
     if args.marg_flow == 'NSF':
-        marg_flow_2_output_trn = model.marg_flow_2.flow.transform_to_noise(dataset.trn[:, 1:2].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_2_output_val = model.marg_flow_2.flow.transform_to_noise(dataset.val[:, 1:2].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_2_output_tst = model.marg_flow_2.flow.transform_to_noise(dataset.tst[:, 1:2].clone().to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_trn = model.marg_flow_2.flow.transform_to_noise(dataset.trn[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_val = model.marg_flow_2.flow.transform_to_noise(dataset.val[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_tst = model.marg_flow_2.flow.transform_to_noise(dataset.tst[:, 1:2].to(args.device)).reshape(-1, 1)
     elif args.marg_flow == 'DDSF':
-        marg_flow_2_output_trn = model.marg_flow_2.transform_to_noise(dataset.trn[:, 1:2].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_2_output_val = model.marg_flow_2.transform_to_noise(dataset.val[:, 1:2].clone().to(args.device)).reshape(-1, 1)
-        marg_flow_2_output_tst = model.marg_flow_2.transform_to_noise(dataset.tst[:, 1:2].clone().to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_trn = model.marg_flow_2.transform_to_noise(dataset.trn[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_val = model.marg_flow_2.transform_to_noise(dataset.val[:, 1:2].to(args.device)).reshape(-1, 1)
+        marg_flow_2_output_tst = model.marg_flow_2.transform_to_noise(dataset.tst[:, 1:2].to(args.device)).reshape(-1, 1)
 
     marg_flow_2_output = marg_flow_2_output_trn, marg_flow_2_output_val, marg_flow_2_output_tst
     return model, best_dict_marg_flow_1, best_dict_marg_flow_2, marg_flow_1_output, marg_flow_2_output

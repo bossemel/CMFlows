@@ -28,10 +28,10 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
         assert np.max(context) < 1, '{}'.format(np.max(context))
         assert np.min(context) > 0, '{}'.format(np.min(context))
         recast_context = torch.from_numpy(normal_distr.ppf(context)).float().to(device)
-        copy_recast_inputs = recast_inputs.detach().clone()
+        copy_recast_inputs = recast_inputs.detach()
         original_joint = np.array(original_pdf(copy_recast_inputs, context=recast_context))
     else:
-        copy_recast_inputs = recast_inputs.detach().clone()
+        copy_recast_inputs = recast_inputs.detach()
         original_joint = np.array(original_pdf(copy_recast_inputs))
 
     if context is not None:

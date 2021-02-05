@@ -57,11 +57,11 @@ def transform_marginals(self, node):
         self.marg_flow.eval()
         self.data = self.data.to(self.args.device)
         if self.args.marg_flow == 'NSF':
-            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float().clone())
+            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
 
         elif self.args.marg_flow == 'DDSF':
             assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
-            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float().clone())
+            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
         self.data = self.data.cpu()
         return transformed_inputs
 
@@ -254,8 +254,8 @@ def add_new_node(self, new_graph, common_node, edge, plots):
     model_loader(self.cop_flow, self.args, edge, best_dict_con['best_validation_epoch'], add_name='cop_con')
 
     with torch.no_grad():
-        _uncon_node = uncon_node_data.detach().clone()
-        _cond_node = cond_node_data.detach().clone()
+        _uncon_node = uncon_node_data
+        _cond_node = cond_node_data
         node_data = cop_flow_transform(self, _uncon_node, _cond_node)
         new_graph.add_node(edge,
                            node_data=node_data,
@@ -283,12 +283,12 @@ def assign_distr_to_nodes(edge, common_node, current_tree, tree_num=0):
     print('n0, n1, common node', n0, n1, common_node)
     print('Tree {}, common node {}'.format(tree_num, common_node))
     if n0 == common_node or n0 in common_node:
-        cond_node_data = current_tree.nodes[n0]['node_data'].detach().clone()
-        uncon_node_data = current_tree.nodes[n1]['node_data'].detach().clone()
+        cond_node_data = current_tree.nodes[n0]['node_data']
+        uncon_node_data = current_tree.nodes[n1]['node_data']
         edge = n1, n0
     elif n1 == common_node or n1 in common_node:
-        cond_node_data = current_tree.nodes[n1]['node_data'].detach().clone()
-        uncon_node_data = current_tree.nodes[n0]['node_data'].detach().clone()
+        cond_node_data = current_tree.nodes[n1]['node_data']
+        uncon_node_data = current_tree.nodes[n0]['node_data']
     else:
         raise ValueError('No common node found.')
     return uncon_node_data, cond_node_data, edge
@@ -373,7 +373,7 @@ class RVine():
         with torch.no_grad():
             # first: sample multivariate uniform distribution. then, transform the samples accordingly.
             current_tree_samples = torch.Tensor(num_samples, self.num_inputs).normal_()
-            current_tree_samples = current_tree_samples.detach().clone()
+            current_tree_samples = current_tree_samples
 
             # for each tree, find out which variable was transformed and transform it 'back'
             for ii in reversed(range(1, len(self.tree_list))):
@@ -402,8 +402,6 @@ class RVine():
                     # inverse H-function
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
                     current_tree_samples[:, uncon_input_node:uncon_input_node + 1] = transformed_marginal
-
-                current_tree_samples = current_tree_samples.detach().clone()
 
         if transform:
             normal_distr = torch.distributions.normal.Normal(0, 1)
@@ -454,7 +452,7 @@ class RVine():
                     next_tree_inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs_uni
                     normal_distr = torch.distributions.normal.Normal(0, 1)
                     visualize_joint(normal_distr.cdf(torch.cat([uncon_node_data[:, 0:1], transformed_inputs], axis=1)).cpu(), self.args.figures_path, name='transform_{}'.format(node))
-                current_tree_inputs = next_tree_inputs.copy()
+                current_tree_inputs = next_tree_inputs
 
             assert torch.min(pdf) >= 0
             return pdf.cpu().numpy()

@@ -10,68 +10,6 @@ import NSF_modules.utils as utils
 from NSF_modules.nde import transforms
 
 
-# class BatchNorm(transforms.Transform):
-#     """Transform that performs batch normalization.
-#
-#     Limitations:
-#         * It works only for 1-dim inputs.
-#         * Inverse is not available in training mode, only in eval mode.
-#     """
-#
-#     def __init__(self, features, eps=1e-5, momentum=0.1, affine=True):
-#         if not utils.is_positive_int(features):
-#             raise TypeError('Number of features must be a positive integer.')
-#         super().__init__()
-#
-#         self.batch_norm = nn.BatchNorm1d(
-#             num_features=features,
-#             eps=eps,
-#             momentum=momentum,
-#             affine=affine,
-#             track_running_stats=True,  # We mustn't use batch statistics in eval mode.
-#         )
-#
-#     def forward(self, inputs):
-#         if inputs.dim() != 2:
-#             raise ValueError('Expected 2-dim inputs, got inputs of shape: {}'.format(inputs.shape))
-#
-#         outputs = self.batch_norm(inputs)
-#
-#         if self.training:
-#             var = torch.var(inputs, dim=0, unbiased=False)
-#         else:
-#             var = self.batch_norm.running_var
-#         logabsdet = -0.5 * torch.log(var + self.batch_norm.eps)
-#         if self.batch_norm.affine:
-#             logabsdet += torch.log(self.batch_norm.weight)
-#         logabsdet = torch.sum(logabsdet)
-#         logabsdet = logabsdet * torch.ones(inputs.shape[0])
-#
-#         return outputs, logabsdet
-#
-#     def inverse(self, inputs):
-#         if self.training:
-#             raise transforms.InverseNotAvailable(
-#                 'Batch norm inverse is only available in eval mode, not in training mode.')
-#         if inputs.dim() != 2:
-#             raise ValueError('Expected 2-dim inputs, got inputs of shape: {}'.format(inputs.shape))
-#
-#         outputs = inputs.clone()
-#         if self.batch_norm.affine:
-#             outputs -= self.batch_norm.bias
-#             outputs /= self.batch_norm.weight
-#         outputs *= torch.sqrt(self.batch_norm.running_var + self.batch_norm.eps)
-#         outputs += self.batch_norm.running_mean
-#
-#         logabsdet = 0.5 * torch.log(self.batch_norm.running_var + self.batch_norm.eps)
-#         if self.batch_norm.affine:
-#             logabsdet -= torch.log(self.batch_norm.weight)
-#         logabsdet = torch.sum(logabsdet)
-#         logabsdet = logabsdet * torch.ones(inputs.shape[0])
-#
-#         return outputs, logabsdet
-
-
 class BatchNorm(transforms.Transform):
     """Transform that performs batch normalization.
 

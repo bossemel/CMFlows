@@ -66,7 +66,7 @@ def fit_copula(args, data):
 
 
 def train_and_evaluate(continue_from_mode, visualize):
-    pred_distr = fit_copula(args, dataset.trn.copy())
+    pred_distr = fit_copula(args, dataset.trn)
 
     if visualize:
         samples_pred = pred_distr.random(viz_obs)  # simulate random number
