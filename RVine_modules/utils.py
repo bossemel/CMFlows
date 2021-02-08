@@ -1,12 +1,15 @@
 import pyvinecopulib as pv
 import numpy as np
 import torch
+import os
 
-from datasets.distributions import marginal_transform
-from utils import normalize
+# from datasets.distributions import marginal_transform
+# from utils import normalize
 
 
-def gen_mv_copula(args, use_seed=False):
+def load_mv_copula(args):
+    dataset = torch.load(os.path.join('datasets', '4D_{}_{}_mix{}'.format(args.copula, args.marginal, args.mix)))
+
     if args.mix is False:
         if args.copula == 'clayton':
             pair_copula = pv.BicopFamily.clayton
@@ -17,7 +20,6 @@ def gen_mv_copula(args, use_seed=False):
         elif args.copula == 'gumbel':
             pair_copula = pv.BicopFamily.gumbel
             theta = 5
-
         # Specify pair-copulas
         bicop = pv.Bicop(family=pair_copula, parameters=[theta])
         pcs = [[bicop, bicop, bicop], [bicop, bicop], [bicop]]
@@ -32,9 +34,4 @@ def gen_mv_copula(args, use_seed=False):
 
     # Set-up a vine copula
     copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
-    copula_samples = copula.simulate(n=args.obs, seeds=[args.random_seed] if use_seed else [])
-    if not args.disable_marginal:
-        for dim in range(copula_samples.shape[1]):
-            copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=args.marginal, mu=args.mu, var=args.var, alpha=args.alpha))
-    assert not np.isnan(np.sum(copula_samples)), '{}'.format(copula_samples[np.isnan(copula_samples)])
-    return torch.from_numpy(copula_samples), copula_samples.shape[1], copula
+    return dataset, dataset.shape[1], copula

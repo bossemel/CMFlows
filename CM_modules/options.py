@@ -17,10 +17,6 @@ class TrainOptions():
         # CM Options
 
         # Architecture
-        # parser.add_argument(
-        #     '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
-        # parser.add_argument(
-        #     '--train_cm_flow', action='store_true', help='whether to train combined CM Flow')
         parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
         parser.add_argument(
@@ -29,8 +25,6 @@ class TrainOptions():
             '--marg_flow', default='DDSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
         parser.add_argument(
             '--transform_full_ds', action='store_false', help='transform dataset in full, or at every batch')
-        parser.add_argument(
-            '--four_dim', action='store_true')
         parser.add_argument(
             '--use_ecdf', action='store_true')
 

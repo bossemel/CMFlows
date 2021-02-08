@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 import csv
 import json
+import matplotlib
 
 import RealNVP_modules.flows as fnn
 import RealNVP_modules.utils as utils
@@ -19,7 +20,6 @@ import datasets.distributions
 from utils.load_and_save import save_statistics, load_statistics, load_model
 
 from experiment_runner import train_val
-import matplotlib
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 

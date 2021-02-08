@@ -8,9 +8,6 @@ from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval, gaussian_change_of_var_ND
 import datasets.distributions
-from RVine_modules.utils import gen_mv_copula
-
-eps = 1e-07
 
 
 class ConditionalFlow(nn.Module):
@@ -49,9 +46,6 @@ class ConditionalFlow(nn.Module):
         self.device = args.device
 
         distribution = distributions.StandardNormal([dim]).to(args.device)
-        # if args.flow_type == 'marg_flow':
-        #     distribution = distributions.TweakedUniform(low=torch.zeros(dim), high=torch.ones(dim), device=args.device)
-
         transform = transforms.CompositeTransform([
             self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
         self.flow = flows.Flow(transform, distribution).to(args.device)
@@ -73,9 +67,6 @@ class ConditionalFlow(nn.Module):
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
-                # min_bin_height=self.min_bin_height,
-                # min_bin_width=self.min_bin_width,
-                # min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
         if self.dim >= 2:
@@ -185,14 +176,9 @@ class ConditionalFlow(nn.Module):
         """
         with torch.no_grad():
             # Get ground truth
-            if not args.four_dim:
-                true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
-                true_cop_distr.sampler(obs=num_samples)
-                samples_target_uni = true_cop_distr.xx
-            else:
-                dataset_trn, dim, pv_cop = gen_mv_copula(args)
-                true_cop_distr = pv_cop
-                samples_target_uni = pv_cop.simulate(num_samples)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+            true_cop_distr.sampler(obs=num_samples)
+            samples_target_uni = true_cop_distr.xx
 
             # Samples from both distributions
             if args.conditional_copula:

@@ -3,18 +3,17 @@ import numpy as np
 import random
 from pathlib import Path
 import csv
-
-from KDE_modules.options_kdevine import TrainOptions
-from utils.visualizer import visualize_joint
-from utils import js_divergence
-from utils.load_and_save import save_statistics, load_statistics
+import matplotlib
 import rpy2.robjects.packages as rpackages
 from rpy2.robjects.vectors import StrVector
 from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 
-from RVine_modules.utils import gen_mv_copula
-import matplotlib
+from KDE_modules.options_kdevine import TrainOptions
+from utils.visualizer import visualize_joint
+from utils import js_divergence
+from utils.load_and_save import save_statistics, load_statistics
+from RVine_modules.utils import load_mv_copula
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 # Import R packages
@@ -32,9 +31,10 @@ kdevine = importr('kdevine')
 
 def calc_jsd(test_dict, pred_distr, target_distr, samples_pred, samples_target):
     # Samples from both distributinos
-
+    print('visualize pred and target')
     visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
     visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
+    print('calc jsd')
     samples_pred[samples_pred < 0] = 0
     samples_pred[samples_pred > 1] = 1
 
@@ -75,14 +75,23 @@ def ecdf(x):
 
 
 def fit_copula(data):
+    print('visualize input' )
     visualize_joint(np.array(data), args.figures_path, name='input_data')
+    print('create pseudo obs' )
     data = vinecopula.pobs(data.numpy())
+    print('vis pseudo')
     visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
+    print('fit cop')
     cop = kdevine.kdevinecop(data)
+    print('done fit')
     return cop
 
 
 def fit_and_evaluate(continue_from_mode, visualize):
+    print('load copula')
+    dataset_trn, dim, pv_cop = load_mv_copula(args)
+
+    print('fit copula')
     pred_distr = fit_copula(dataset_trn)
 
     if visualize:
@@ -120,14 +129,11 @@ if __name__ == '__main__':
 
     # Set number of obs for visualizations
     args.disable_marginal = False
+    args.viz_obs = 100000
 
     # Set Seed
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
-
-    # Set up data loader
-    dataset_trn, dim, pv_cop = gen_mv_copula(args, use_seed=True)
-    args.viz_obs = 100000
 
     # Calculate JSD
     if args.error_bars:

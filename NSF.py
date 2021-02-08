@@ -6,6 +6,8 @@ import numpy as np
 from pathlib import Path
 import random
 import csv
+import matplotlib
+import json
 
 import RealNVP_modules.utils as RealNVP_utils
 import DDSF_modules.utils as DDSF_utils
@@ -15,12 +17,10 @@ import datasets.distributions
 from utils.load_and_save import save_statistics, load_statistics, load_model
 
 from experiment_runner import train_val
-import matplotlib
 
 from NSF_modules import flows
 from NSF_modules.options import TrainOptions
 from utils import HiddenPrints
-import json
 
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
@@ -38,12 +38,8 @@ def build_model(args, flow_type='cop_flow'):
             num_inputs = 1
             context = 1
         else:
-            if args.four_dim:
-                num_inputs = 4
-                context = 0
-            else:
-                num_inputs = 2
-                context = 0
+            num_inputs = 2
+            context = 0
     elif flow_type == 'marg_flow':
         num_inputs = 1
         context = 0

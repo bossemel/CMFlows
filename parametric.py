@@ -3,7 +3,6 @@ import os
 import numpy as np
 import random
 from pathlib import Path
-import scipy.stats
 import csv
 
 from Parametric_modules.options import TrainOptions
@@ -11,7 +10,6 @@ from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
-eps = 1e-07
 
 
 def calc_jsd(test_dict, pred_distr, samples_pred):

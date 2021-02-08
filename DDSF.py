@@ -8,6 +8,7 @@ import random
 import torch.optim as optim
 import seaborn as sns
 import matplotlib.pyplot as plt
+import json
 
 from DDSF_modules import nn_modules as nn_, flows
 from DDSF_modules.utils import load_data
@@ -17,8 +18,6 @@ from DDSF_modules.flows import MAF
 from experiment_runner import train_val
 from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
-
-import json
 
 
 def build_model(args):
@@ -83,8 +82,8 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = 0
-    while ii < 200:
-        args.epochs = 50
+    while ii < 100:
+        args.epochs = 100
         args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
         args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
         args.dimh_DDSF = 2**np.random.choice(range(7))

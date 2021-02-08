@@ -3,6 +3,7 @@ import datasets.distributions
 import numpy as np
 import scipy.spatial
 from utils import flow_density, empty_logdets_context, js_divergence_grid
+import os
 
 
 def load_data(args):
@@ -18,17 +19,21 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
-                                                 mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
+    train = torch.load(os.path.join('datasets', '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join('datasets', '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    test = torch.load(os.path.join('datasets', '2D_{}_{}_{}_tst'.format(args.copula, args.marginal_1, args.marginal_2)))
 
-    dataset.trn = torch.from_numpy(dataset.trn)
-    train_dataset = torch.utils.data.TensorDataset(dataset.trn)
+    # dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
+    #                                              mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
 
-    dataset.val = torch.from_numpy(dataset.val)
-    valid_dataset = torch.utils.data.TensorDataset(dataset.val)
+    train = torch.from_numpy(train)
+    train_dataset = torch.utils.data.TensorDataset(train)
 
-    dataset.tst = torch.from_numpy(dataset.tst)
-    test_dataset = torch.utils.data.TensorDataset(dataset.tst)
+    val = torch.from_numpy(val)
+    valid_dataset = torch.utils.data.TensorDataset(val)
+
+    test = torch.from_numpy(test)
+    test_dataset = torch.utils.data.TensorDataset(test)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -53,7 +58,7 @@ def load_data(args):
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader,
                     'test_loader': test_loader}
-    return dataset, data_loaders
+    return (train, val, test), data_loaders
 
 
 def jsd_eval_marginal_cm(marginal_1, marginal_2, args, model, test_dict,

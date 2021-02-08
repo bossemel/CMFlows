@@ -3,16 +3,17 @@ import numpy as np
 import random
 from pathlib import Path
 import csv
+import torch
+import rpy2.robjects.packages as rpackages
+from rpy2.robjects.vectors import StrVector
+from rpy2.robjects.packages import importr
+import rpy2.robjects.numpy2ri
 
 from KDE_modules.options_kdecopula import TrainOptions
 from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
-import rpy2.robjects.packages as rpackages
-from rpy2.robjects.vectors import StrVector
-from rpy2.robjects.packages import importr
-import rpy2.robjects.numpy2ri
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
@@ -78,8 +79,16 @@ def fit_copula(data):
     return kde
 
 
+def load_data(args):
+    train = torch.load(os.path.join('datasets', '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join('datasets', '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    train = np.concatenate([train, val], axis=0)
+    return train
+
+
 def fit_and_evaluate(continue_from_mode, visualize):
-    cop = fit_copula(dataset.trn)
+    train = load_data(args)
+    cop = fit_copula(train)
 
     if visualize:
         samples = np.array(stats.simulate(cop, nsim=viz_obs))
@@ -118,12 +127,7 @@ if __name__ == '__main__':
     random.seed(args.random_seed)
 
     # Set up data loader
-    # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
-                                                 mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
-    dataset.trn = np.concatenate([dataset.trn, dataset.val], axis=0)
     viz_obs = 100000
-    #dataset_2 = datasets.distributions.Joint_Distr(args)
 
     # Calculate JSD
     if args.error_bars:

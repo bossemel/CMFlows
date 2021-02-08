@@ -5,6 +5,9 @@ import scipy.stats
 import sys
 import scipy
 import pynverse
+import torch
+import os
+import pyvinecopulib as pv
 eps = 1e-07
 
 
@@ -46,7 +49,11 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu, scale=var / 5)
         distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha)
         distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 5)
-    if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']:
+    elif marginal == 'mix_uniform':
+        distr_1 = lambda xx: scipy.stats.uniform.cdf(xx)
+        distr_2 = lambda xx: scipy.stats.uniform.cdf(xx)
+        distr_3 = lambda xx: scipy.stats.uniform.cdf(xx)
+    if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform']:
         inverse_cdf = pynverse.inversefunc(lambda xx: 0.4 * distr_1(xx) + 0.4 * distr_2(xx) + 0.2 * distr_3(xx))
         inputs = inverse_cdf(inputs)
     return inputs
@@ -418,3 +425,77 @@ def copula_pdf(copula, theta, uu, vv):
             return pdf
     else:
         raise NotImplementedError
+
+
+def gen_mv_copula(mix, copula='clayton', marginal='gamma', obs=10000, random_seed=4, disable_marginal=False):
+    if mix is False:
+        if copula == 'clayton':
+            pair_copula = pv.BicopFamily.clayton
+            theta = 2
+        elif copula == 'frank':
+            pair_copula = pv.BicopFamily.frank
+            theta = 5
+        elif copula == 'gumbel':
+            pair_copula = pv.BicopFamily.gumbel
+            theta = 5
+
+        # Specify pair-copulas
+        bicop = pv.Bicop(family=pair_copula, parameters=[theta])
+        pcs = [[bicop, bicop, bicop], [bicop, bicop], [bicop]]
+    else:
+        bicop_1 = pv.Bicop(family=pv.BicopFamily.gumbel, parameters=[5])
+        bicop_2 = pv.Bicop(family=pv.BicopFamily.clayton, parameters=[2])
+        bicop_3 = pv.Bicop(family=pv.BicopFamily.frank, parameters=[5])
+        pcs = [[bicop_1, bicop_2, bicop_3], [bicop_1, bicop_2], [bicop_1]]
+
+    # Specify R-vine matrix
+    mat = np.array([[1, 1, 1, 1], [2, 2, 2, 0], [3, 3, 0, 0], [4, 0, 0, 0]])
+
+    # Set-up a vine copula
+    copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
+    copula_samples = copula.simulate(n=obs, seeds=[random_seed])
+    if not disable_marginal:
+        for dim in range(copula_samples.shape[1]):
+            copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=marginal, mu=mu, var=var, alpha=alpha))
+    assert not np.isnan(np.sum(copula_samples)), '{}'.format(copula_samples[np.isnan(copula_samples)])
+    return torch.from_numpy(copula_samples)
+
+
+def save_dataset_2D(copula, marginal_1, marginal_2, theta, obs, mu, var, alpha, random_seed):
+    dataset = datasets.distributions.Joint_Distr(copula, marginal_1, marginal_2, theta, obs,
+                                                 mu=mu, var=var, alpha=alpha, random_seed=random_seed)
+
+    torch.save(dataset.trn, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(copula, marginal_1, marginal_2)))
+    torch.save(dataset.val, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(copula, marginal_1, marginal_2)))
+    torch.save(dataset.tst, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_tst'.format(copula, marginal_1, marginal_2)))
+
+
+def save_dataset_4D(mix, copula='clayton', marginal='gamma', obs=10000, random_seed=4):
+    dataset = gen_mv_copula(mix, copula, marginal, obs, random_seed, disable_marginal=False)
+
+    torch.save(dataset, os.path.join(os.path.join('datasets', 'joint_data'), '4D_{}_{}_mix{}'.format(copula, marginal, mix)))
+
+
+if __name__ == '__main__':
+
+    copula_list = ['clayton', 'frank', 'gumbel', 'independent']
+    marginal_1_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
+    marginal_2_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
+    alpha = 5
+    mu = 0
+    var = 1
+    obs = 10000
+    seed = 4
+    for copula in copula_list:
+        for marginal_1 in marginal_1_list:
+            #for marginal_2 in marginal_2_list:
+            if copula == 'clayton':
+                theta = 2
+            else:
+                theta = 5
+            save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
+            save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
+
+    for marginal_1 in marginal_1_list:
+        save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
+

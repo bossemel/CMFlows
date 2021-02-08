@@ -11,10 +11,7 @@ class CMFlow():
             self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
         elif args.cop_flow == 'RealNVP':
             self.cop_flow = build_model_RealNVP(args)
-        else:
-            raise ValueError('Copula Flow type unknown.')
 
-        self.four_dim = args.four_dim
         if args.marg_flow == 'NSF':
             self.marg_flow_1 = build_model_nsf(args, flow_type='marg_flow')
             self.marg_flow_2 = build_model_nsf(args, flow_type='marg_flow')
