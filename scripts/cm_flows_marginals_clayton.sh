@@ -2,9 +2,9 @@ set -e
 echo 'Begin Copula: Clayton Marginal: uniform Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_Clayton_uniform_nsf_error \
+--exp_name CM_Flow_clayton_uniform_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal_1 uniform \
 --marginal_2 uniform \
@@ -16,15 +16,15 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64
 
 
 echo 'Begin Copula: clayton Marginal: gaussian Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_gaussian_nsf_error \
+--exp_name CM_Flow_clayton_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal_1 gaussian \
 --marginal_2 gaussian \
@@ -35,15 +35,15 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64
 
 
 echo 'Begin Copula: clayton Marginal: gamma Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_gamma_nsf_error \
+--exp_name CM_Flow_clayton_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal_1 gamma \
 --marginal_2 gamma \
@@ -55,15 +55,15 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64
 
 
 echo 'Begin Copula: clayton Marginal: lognormal Pretrain only'
 
 python CM_Flow.py \
---exp_name CM_Flow_clayton_lognormal_nsf_error \
+--exp_name CM_Flow_clayton_lognormal_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula clayton \
 --marginal_1 lognormal \
 --marginal_2 lognormal \
@@ -74,4 +74,4 @@ python CM_Flow.py \
 --conditional \
 --marg_flow DDSF \
 --cop_flow NSF \
---error_bars
+--tail_bound_c 64

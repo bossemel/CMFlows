@@ -8,7 +8,6 @@ from utils.visualizer import visualize_joint
 import scipy.stats
 import matplotlib.pyplot as plt
 import seaborn as sns
-eps = 0.0001
 
 if __name__ == '__main__':
     args = TrainOptions().parse(print=False)   # get training options
@@ -23,10 +22,10 @@ if __name__ == '__main__':
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
 
     args.RealNVP_part_of_CM_Flow = True
+    args.disable_marginal = True
     # Create Folders
-    args.epochs = 1
+    args.epochs = 20
     args.obs = 10000
-    args.disable_marginal = False
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
 

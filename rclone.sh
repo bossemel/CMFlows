@@ -1,0 +1,2 @@
+PATH="/Users/leonie/Documents/MDS/thesis"
+rclone copy --update --verbose --transfers 30 --checkers 8 --contimeout 60s --timeout 300s --retries 3 --low-level-retries 10 --stats 1s "cmflows.nosync" "gdrive:CMFlows" --exclude .env/ --exclude __pycache__ --exclude datasets/__pycache__ --exclude old/ --exclude results/ --exclude saved_models --exclude .git/

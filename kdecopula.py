@@ -2,18 +2,18 @@ import os
 import numpy as np
 import random
 from pathlib import Path
-import scipy.stats
 import csv
+import torch
+import rpy2.robjects.packages as rpackages
+from rpy2.robjects.vectors import StrVector
+from rpy2.robjects.packages import importr
+import rpy2.robjects.numpy2ri
 
 from KDE_modules.options_kdecopula import TrainOptions
 from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
-import rpy2.robjects.packages as rpackages
-from rpy2.robjects.vectors import StrVector
-from rpy2.robjects.packages import importr
-import rpy2.robjects.numpy2ri
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
@@ -29,25 +29,22 @@ stats = importr('stats')
 vinecopula = importr('VineCopula')
 
 
-def calc_jsd(test_dict, samples_pred, samples_target):
-    # Samples from both distributinos
-    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
-    normal_distr = scipy.stats.norm(0, 1)
-    samples_target = normal_distr.cdf(samples_target)
+def calc_jsd(test_dict, pred_distr, samples_pred):
     assert np.min(samples_pred) >= 0
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
-    true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
+    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=viz_obs, transform=False)
+    target_distr.sampler(obs=viz_obs)
+    samples_target = target_distr.xx
 
     # Prob X in both distributions
-    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+    prob_X_in_p = np.asarray(kdecopula.dkdecop(samples_pred, pred_distr))
+    prob_X_in_q = target_distr.pdf(samples_pred)
 
     # Prob Y in both distributions
-    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
-    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+    prob_Y_in_q = target_distr.pdf(samples_target)
+    prob_Y_in_p = np.asarray(kdecopula.dkdecop(samples_target, pred_distr))
 
     assert not np.isnan(np.sum(prob_X_in_p))
     assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
@@ -75,23 +72,32 @@ def ecdf(x):
 
 
 def fit_copula(data):
-    data = vinecopula.pobs(data)
     visualize_joint(np.array(data), args.figures_path, name='input_data')
+    data = vinecopula.pobs(data)
+    visualize_joint(np.array(data), args.figures_path, name='ecdf_transformed_data')
     kde = kdecopula.kdecop(data)
     return kde
 
 
+def load_data(args):
+    train = torch.load(os.path.join('datasets', '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join('datasets', '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    train = np.concatenate([train, val], axis=0)
+    return train
+
+
 def fit_and_evaluate(continue_from_mode, visualize):
-    cop = fit_copula(dataset.trn)
+    train = load_data(args)
+    cop = fit_copula(train)
 
     if visualize:
         samples = np.array(stats.simulate(cop, nsim=viz_obs))
         visualize_joint(samples, args.figures_path, name='archmidean_samples')
 
-    samples = np.array(stats.simulate(cop, nsim=test_obs))
+    samples = np.array(stats.simulate(cop, nsim=viz_obs))
 
     test_dict = {}
-    test_dict = calc_jsd(test_dict=test_dict, samples_pred=samples, samples_target=dataset.tst)
+    test_dict = calc_jsd(test_dict=test_dict, pred_distr=cop, samples_pred=samples)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -121,11 +127,7 @@ if __name__ == '__main__':
     random.seed(args.random_seed)
 
     # Set up data loader
-    # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha)
-    test_obs = dataset.tst.shape[0]
     viz_obs = 100000
-    #dataset_2 = datasets.distributions.Joint_Distr(args)
 
     # Calculate JSD
     if args.error_bars:

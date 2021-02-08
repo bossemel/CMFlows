@@ -14,9 +14,9 @@ class TrainOptions():
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
-            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel'])
+            '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'independent'])
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training')
+            '--batch-size', type=int, default=128, help='input batch size for training')
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train')
         parser.add_argument(
@@ -30,7 +30,7 @@ class TrainOptions():
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, default=2, help='theta for copula sampling')
+            '--theta', type=float, default=5, help='theta for copula sampling')
         parser.add_argument(
             '--num_hidden_RealNVP', type=int, default=32, help='number of hidden units')
         parser.add_argument(
@@ -64,7 +64,7 @@ class TrainOptions():
         parser.add_argument(
             '--error_bars', action='store_true', help='calculate mean and std over 10 experiments')
         parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
             '--clip', type=float, default=5.0)
 

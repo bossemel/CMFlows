@@ -1,27 +1,16 @@
 set -e
-
-# echo 'Begin Frank Copula Rvine: RVine_frank'
-
-# python RVine.py \
-# --exp_name RVine_frank_gaussian_error_new \
-# --epochs 100 \
-# --batch-size 100 \
-# --copula frank \
-# --marginal gaussian \
-# --mu 0 \
-# --var 1 \
-# --obs 10000 \
-# --error_bars
-
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_error_nsf \
+--exp_name RVine_frank_gamma_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula frank \
 --marginal gamma \
---mu 0 \
---var 1 \
 --obs 10000 \
---error_bars
+--error_bars \
+--cop_flow NSF \
+--marg_flow DDSF \
+--tail_bound_c 64 \
+--use_ecdf
+

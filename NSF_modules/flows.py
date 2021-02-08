@@ -8,9 +8,6 @@ from utils.visualizer import visualize_joint
 import numpy as np
 from utils import js_divergence, t_m_metric_eval, gaussian_change_of_var_ND
 import datasets.distributions
-from RVine_modules.utils import gen_mv_copula
-
-eps = 0.0001
 
 
 class ConditionalFlow(nn.Module):
@@ -70,9 +67,6 @@ class ConditionalFlow(nn.Module):
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
-                # min_bin_height=self.min_bin_height,
-                # min_bin_width=self.min_bin_width,
-                # min_derivative=self.min_derivative,
                 apply_unconditional_transform=self.unconditional_transform,
             )
         if self.dim >= 2:
@@ -108,7 +102,7 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def pdf_normal(self, inputs, context=None):
+    def pdf_normal(self, inputs, context=None, device=None):
         # Here: context normally distirbuted
         with torch.no_grad():
             normal_distr = scipy.stats.norm()
@@ -118,7 +112,7 @@ class ConditionalFlow(nn.Module):
                 pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
             return pdf
 
-    def pdf_uniform(self, inputs, context=None):
+    def pdf_uniform(self, inputs, context=None, device=None):
         with torch.no_grad():
             return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
 
@@ -134,6 +128,9 @@ class ConditionalFlow(nn.Module):
         log_density = self._forward(inputs, context)
         loss = -torch.mean(log_density)
         return loss
+
+    def eval(self):
+        self.flow.eval()
 
     def sample(self, num_samples=None, transform=None, context=None, num_inputs=None, device=None):
         """Returns an output sample without transformation
@@ -174,21 +171,14 @@ class ConditionalFlow(nn.Module):
         samples = normal_distr.cdf(samples)
         return samples
 
-    def jsd(self, args, transform_fct=None, num_samples=10000):
+    def jsd(self, args, num_samples=100000, device=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
         with torch.no_grad():
             # Get ground truth
-            if not args.four_dim:
-                true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
-                true_cop_distr.sampler(obs=num_samples)
-                samples_target_uni = true_cop_distr.xx
-            else:
-                dataset_trn, dim, pv_cop = gen_mv_copula(args)
-                true_cop_distr = pv_cop
-                samples_target_uni = pv_cop.simulate(num_samples)
-
-            #samples_target_normal = torch.tensor(scipy.stats.norm.ppf(samples_target_uni, loc=0, scale=1)).float()
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
+            true_cop_distr.sampler(obs=num_samples)
+            samples_target_uni = true_cop_distr.xx
 
             # Samples from both distributions
             if args.conditional_copula:
@@ -199,7 +189,6 @@ class ConditionalFlow(nn.Module):
                 context_normal = None
                 context_uni = None
 
-            #samples_pred_norm = self.sample(num_samples=num_samples, context=context_normal if args.conditional_copula else None, transform=None, device=args.device)
             samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
             samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
 
@@ -212,11 +201,6 @@ class ConditionalFlow(nn.Module):
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0
-            # assert torch.max(samples_pred_norm) > 1
-            # assert torch.min(samples_pred_norm) < 0
-
-            # assert torch.max(samples_target_normal) > 1
-            # assert torch.min(samples_target_normal) < 0
             assert np.max(samples_target_uni) <= 1
             assert np.min(samples_target_uni) >= 0
 
@@ -227,7 +211,6 @@ class ConditionalFlow(nn.Module):
             # Prob X in both distributions
             if args.conditional_copula:
                 prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=context_uni.numpy())
-                #gaussian_change_of_var_ND(np.array(samples_pred_uni[:, 0].cpu()), self._forward, args.device, context_uni.cpu())
             else:
                 prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
 
@@ -236,11 +219,9 @@ class ConditionalFlow(nn.Module):
             # Prob Y in both distributions
             if args.conditional_copula:
                 prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
-                #gaussian_change_of_var_ND(samples_target_uni[:, 0:1], self._forward, args.device, torch.tensor(samples_target_uni[:, 1:2]).float())
                 prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
             else:
                 prob_Y_in_p = self.pdf_uniform(samples_target_uni)
-                #gaussian_change_of_var_ND(samples_target_uni, self._forward, args.device)
                 prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
 
             assert np.min(prob_X_in_p) >= 0
@@ -289,22 +270,3 @@ class ConditionalFlow(nn.Module):
             t_metric_x2, m_metric_x2 = t_m_metric_eval(margin_x2, intervals)
             return t_metric_x1, m_metric_x1, t_metric_x2, m_metric_x2
 
-
-
-
-# def gaussian_change_of_var_1D(inputs, original_pdf, device):
-#     raise NotImplementedError
-#     inputs[inputs == 0] = eps
-#     inputs[inputs == 1] = 1 - eps
-#     assert np.max(inputs) < 1
-#     assert np.min(inputs) > 0
-#     normal_distr = scipy.stats.norm()
-
-#     recast_inputs = normal_distr.ppf(inputs)
-#     assert not np.isnan(recast_inputs.sum())
-#     assert not np.isinf(recast_inputs.sum())
-#     output = original_pdf(recast_inputs) / normal_distr.pdf(recast_inputs)
-#     assert not np.isnan(output.sum())
-#     assert not np.isinf(output.sum())
-#     assert np.min(output) >= 0
-#     return output

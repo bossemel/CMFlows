@@ -25,11 +25,13 @@ class TrainOptions():
         parser.add_argument(
             '--cop_flow', default='NSF', choices=['NSF', 'RealNVP'], help='which flow type to use for copula flow')
         parser.add_argument(
-            '--marg_flow', default='NSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+            '--marg_flow', default='DDSF', choices=['NSF', 'DDSF'], help='which flow type to use for marginal flow')
+        parser.add_argument(
+            '--use_ecdf', action='store_true')
 
         # Training options
         parser.add_argument(
-            '--batch-size', type=int, default=100, help='input batch size for training')
+            '--batch-size', type=int, default=128, help='input batch size for training')
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
@@ -41,15 +43,15 @@ class TrainOptions():
         parser.add_argument(
             '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
-            '--clip_grad_norm', action='store_false', default=True, help='whether to clip gradients')
+            '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
-            '--clip_c', type=float, default=5.0)
+            '--clip_m', type=float, default=1)
         parser.add_argument(
-            '--clip_m', type=float, default=1.0)
+            '--clip_c', type=float, default=5)
         parser.add_argument(
-            '--weight_decay_c', type=int, default=1e-9, help='adam optimizer weight decay')
+            '--weight_decay_c', type=float, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
-            '--weight_decay_m', type=int, default=1e-10, help='adam optimizer weight decay')
+            '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
@@ -65,13 +67,13 @@ class TrainOptions():
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
         parser.add_argument(
-            '--copula', default='clayton', choices='[gaussian | tdistr | clayton | frank | gumbel]')
+            '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'uniform'])
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
-            '--theta', type=float, default=2, help='theta for copula sampling')
+            '--theta', type=float, default=5, help='theta for copula sampling')
         parser.add_argument(
             '--df', type=int, required=False, help='degrees of freedom for student-t copula')
         parser.add_argument(
@@ -85,15 +87,16 @@ class TrainOptions():
 
         # DDSF options
         parser.add_argument(
-            '--num_flow_layers_DDSF', type=int, default=1)
+            '--num_flow_layers_DDSF', type=int, default=9)
         parser.add_argument(
-            '--num_hid_layers_DDSF', type=int, default=4)
+            '--num_hid_layers_DDSF', type=int, default=2)
         parser.add_argument(
             '--num_ds_dim', type=int, default=4)
         parser.add_argument(
-            '--num_ds_layers', type=int, default=4)
+            '--num_ds_layers', type=int, default=1)
         parser.add_argument(
-            '--dimh_DDSF', type=int, default=2)
+            '--dimh_DDSF', type=int, default=1)
+
 
         # Options NSF - Copula estimation
         parser.add_argument(
@@ -101,11 +104,11 @@ class TrainOptions():
         parser.add_argument(
             '--n_layers_c', type=int, default=5, help='Number of spline layers in flow')
         parser.add_argument(
-            '--hidden_units_c', type=int, default=64, help='Number of hidden units in spline layer')
+            '--hidden_units_c', type=int, default=32, help='Number of hidden units in spline layer')
         parser.add_argument(
             '--n_blocks_c', type=int, default=4, help='Number of residual blocks in each spline layer')
         parser.add_argument(
-            '--tail_bound_c', type=float, default=16, help='Bounds of spline region')
+            '--tail_bound_c', type=float, default=128, help='Bounds of spline region')
         parser.add_argument(
             '--tails', type=str, default='linear', help='Function type outside spline region')
         parser.add_argument(
@@ -117,7 +120,7 @@ class TrainOptions():
         parser.add_argument(
             '--min_derivative', type=float, default=1e-3, help='Minimum derivative at bin edges')
         parser.add_argument(
-            '--dropout_c', type=float, default=0.25, help='Dropout probability in flow')
+            '--dropout_c', type=float, default=0.2, help='Dropout probability in flow')
         parser.add_argument(
             '--use_batch_norm', type=int, default=1, help='Use batch norm in spline layers')
         parser.add_argument(

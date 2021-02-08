@@ -3,10 +3,7 @@ echo 'Gamma - random Search'
 
 python NSF.py \
 --exp_name NSF_gamma_random_search \
---epochs 100 \
 --marginal gamma \
---alpha 5 \
---batch-size 100 \
 --obs 10000 \
 --random_search \
 --flow_type marg_flow

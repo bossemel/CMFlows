@@ -8,6 +8,8 @@ from torch.autograd import Variable
 import scipy.special
 import scipy.stats
 from utils.visualizer import visualize_joint
+import warnings
+from NSF_modules.utils import sum_except_batch
 eps = 1e-3
 
 
@@ -26,10 +28,10 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
         assert np.max(context) < 1, '{}'.format(np.max(context))
         assert np.min(context) > 0, '{}'.format(np.min(context))
         recast_context = torch.from_numpy(normal_distr.ppf(context)).float().to(device)
-        copy_recast_inputs = recast_inputs.detach().clone()
+        copy_recast_inputs = recast_inputs.detach()
         original_joint = np.array(original_pdf(copy_recast_inputs, context=recast_context))
     else:
-        copy_recast_inputs = recast_inputs.detach().clone()
+        copy_recast_inputs = recast_inputs.detach()
         original_joint = np.array(original_pdf(copy_recast_inputs))
 
     if context is not None:
@@ -42,16 +44,11 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
         determinant = normal_distr.pdf(recast_inputs.cpu()) #.reshape(-1,)
 
     output = original_joint / determinant
-    assert not np.isnan(output.sum())
-    assert not np.isinf(output.sum())
     assert np.min(output) >= 0, '{}'.format(np.min(output))
     return output
 
 
 def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
-    visualize_joint(samples_target, args.figures_path, name='samples_target_jsd_{}'.format(name))
-    visualize_joint(samples_pred, args.figures_path, name='samples_pred_jsd_{}'.format(name))
-
     # Define distributions
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
@@ -142,8 +139,8 @@ def flow_density(inputs, log_jacob):
     Returns:
         log density array
     """
-    log_prob = (-0.5 * inputs.pow(2) - 0.5 * math.log(2 * math.pi)).sum(-1, keepdim=True)
-    return (log_prob + log_jacob).sum(-1, keepdim=True)
+    log_prob = -0.5 * sum_except_batch(inputs.pow(2), num_batch_dims=1) - 0.5 * math.log(2 * math.pi) # .sum(-1, keepdim=True)
+    return (log_prob + sum_except_batch(log_jacob, num_batch_dims=1)) #.sum(-1, keepdim=True)
 
 
 def js_divergence_grid(prob_vector_X, prob_vector_Y):
@@ -171,12 +168,12 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     Returns:
         divergence: int, JS-Divergence
     """
-
+    assert prob_X_in_p.shape[0] == prob_X_in_q.shape[0]
+    assert prob_X_in_q.shape[0] == prob_Y_in_p.shape[0]
+    assert prob_Y_in_p.shape[0] == prob_Y_in_q.shape[0]
+    assert prob_X_in_p.shape[0] == 100000
     mix_X = prob_X_in_p + prob_X_in_q
     mix_Y = prob_Y_in_p + prob_Y_in_q
-
-    #mix_X[mix_X == 0] = 0 + eps
-    #mix_Y[mix_Y == 0] = 0 + eps
 
     prob_X_in_p[prob_X_in_p == 0] = 0 + eps
     prob_Y_in_q[prob_Y_in_q == 0] = 0 + eps
@@ -185,16 +182,17 @@ def js_divergence(prob_X_in_p, prob_X_in_q,
     assert np.min(mix_Y) > 0
 
     KL_PM = np.log2((2 * prob_X_in_p) / mix_X)
-
     KL_PM[mix_X == 0] = 0
     KL_PM = KL_PM.mean()
 
     KL_QM = np.log2((2 * prob_Y_in_q) / mix_Y)
-
     KL_QM[mix_Y == 0] = 0
     KL_QM = KL_QM.mean()
 
     divergence = (KL_PM + KL_QM) / 2
+
+    if divergence < 0:
+        warnings.warn("JSD estimate below zero.")
 
     return divergence
 

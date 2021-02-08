@@ -9,6 +9,7 @@ import DDSF_modules.iaf_modules as iaf_modules
 import numpy as np
 from DDSF_modules import nn_modules as nn_, utils
 from utils import flow_density
+eps = 1e-6
 
 
 class MAF(nn.Sequential):
@@ -16,11 +17,10 @@ class MAF(nn.Sequential):
     """
     def __init__(self, args, *modules):
         super(MAF, self).__init__(*modules)
-        #self.clip = args.clip_m
         self.device = args.device
         self.args = args
 
-    def log_density(self, inputs):
+    def _forward(self, inputs):
         """Returns log of target density of the Flow
 
         Params:
@@ -32,39 +32,21 @@ class MAF(nn.Sequential):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, log_jacob, __ = self((inputs, self.logdets, self.context))
-        # assert not torch.isnan(torch.sum(log_jacob)), '%r' % (len(log_jacob[torch.isnan(log_jacob)]))
         density = flow_density(outputs, log_jacob.reshape(-1, 1))
-        # assert not torch.isnan(torch.sum(density))
         return density
 
     def loss(self, inputs):
         """Loss is negative log density
         """
-        return (- self.log_density(inputs)).mean()
-
-    def _forward(self, inputs):
-        #self.n = inputs.shape[0]
-        #self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
-        #self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        log_density = self.log_density(inputs)
-        return log_density
-        #outputs, __, __ = self((inputs, self.logdets, self.context))
-        #return outputs
+        return (-self._forward(inputs)).mean()
 
     def transform_to_noise(self, inputs):
         self.n = inputs.shape[0]
         self.context = Variable(torch.FloatTensor(self.n, 1).zero_()).to(self.device)
         self.logdets = Variable(torch.FloatTensor(self.n).zero_()).to(self.device)
-        # assert not torch.isnan(torch.sum(inputs))
         outputs, __, __ = self((inputs, self.logdets, self.context))
         return outputs
-
-    # def clip_grad_norm(self):
-    #     """Performs gradient clipping
-    #     """
-    #     nn.utils.clip_grad_norm_(self.parameters(), self.clip)
 
 
 class BaseFlow(Module):
@@ -187,10 +169,15 @@ class DenseSigmoidFlow(BaseFlow):
         u = self.act_u(pre_u)
 
         pre_sigm = torch.sum(u * a[:, :, :, None] * x[:, :, None, :], 3) + b
+
         sigm = torch.sigmoid(pre_sigm)
+
         x_pre = torch.sum(w * sigm[:, :, None, :], dim=3)
+
         x_pre_clipped = x_pre * (1 - nn_.delta) + nn_.delta * 0.5
-        x_ = log(x_pre_clipped) - log(1 - x_pre_clipped)
+
+        x_ = log(x_pre_clipped + eps) - log(1 - x_pre_clipped + eps)
+
         xnew = x_
 
         logj = F.log_softmax(pre_w, dim=3) + \
@@ -205,7 +192,7 @@ class DenseSigmoidFlow(BaseFlow):
         # n, d, d2, d1
 
         logdet_ = logj + np.log(1 - nn_.delta) - \
-            (log(x_pre_clipped) + log(-x_pre_clipped + 1))[:, :, :, None]
+            (log(x_pre_clipped) + log(-x_pre_clipped + 1 + eps))[:, :, :, None]
 
         logdet = utils.log_sum_exp(
             logdet_[:, :, :, :, None] + logdet[:, :, None, :, :], 3).sum(3)
@@ -306,7 +293,6 @@ class IAF_DDSF(BaseFlow):
             h, lgd = getattr(self, 'sf{}'.format(i))(h, lgd, params)
             start = end
 
-        assert out_dim == 1, 'last dsf out dim should be 1'
         return h[:, :, 0], lgd[:, :, 0, 0].sum(1) + logdet.to(self.device), context.to(self.device)
 
 

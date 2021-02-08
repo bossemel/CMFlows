@@ -7,14 +7,12 @@ import scipy.stats
 from utils import js_divergence_grid
 
 
-def jsd_eval(args, epoch, model, loader, device, test_dict,
-             cm_flow=True):
+def jsd_eval(args, epoch, model, device, test_dict):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
         epoch: best validation epoch
         model: best validation model
-        loader: whether to use train/val/test set loader
         device: used device
         test_dict: dictionary with the current epoch stats
 
@@ -24,7 +22,7 @@ def jsd_eval(args, epoch, model, loader, device, test_dict,
 
     model.eval()
     with torch.no_grad():
-        current_jsd = model.jsd(args=args, transform_fct=args.transform_fct).sum().item()
+        current_jsd = model.jsd(args=args, device=args.device).sum().item()
         if 'jsd_test_copula' in test_dict:
             test_dict["jsd_test_copula"].append(current_jsd)
         else:
@@ -40,7 +38,6 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
     Params:
         epoch: best validation epoch
         model: best validation model
-        loader: whether to use train/val/test set loader
         device: used device
         test_dict: dictionary with the current epoch stats
 
@@ -74,7 +71,7 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
 
 
 def jsd_eval_1D(marginal, args, model, test_dict,
-             obs=1000, plotname='jsd_test_marginal',
+             obs=10000, plotname='jsd_test_marginal',
              cm_flow=False, marginal_num='1'):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 
@@ -101,13 +98,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
 
         # Prob vector pred
         args.obs = obs
-        if not cm_flow:
-            prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-        else:
-            if marginal_num == '1':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
-            elif marginal_num == '2':
-                prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+        prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)

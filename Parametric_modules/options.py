@@ -24,9 +24,9 @@ class TrainOptions():
         parser.add_argument(
             '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'gaussian'])
         parser.add_argument(
-            '--marginal_1', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
-            '--marginal_2', default='bimodal_gaussian', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'bimodal_gaussian'], help='marginal distribution')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
         parser.add_argument(
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(
@@ -34,7 +34,7 @@ class TrainOptions():
         parser.add_argument(
             '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
-            '--theta', type=int, default=2)
+            '--theta', type=int, default=5)
         parser.add_argument(
             '--mu', type=float, default=0, help='Mean of the Gaussian Distribution')
         parser.add_argument(

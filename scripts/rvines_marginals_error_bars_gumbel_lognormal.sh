@@ -2,23 +2,13 @@ set -e
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_lognormal_error_4_256 \
+--exp_name RVine_gumbel_lognormal_error_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
 --copula gumbel \
 --marginal lognormal \
 --obs 10000 \
 --error_bars \
---num_hidden_RealNVP 256 \
---num-blocks 4
-
-# echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
-
-# python RVine.py \
-# --exp_name RVine_gumbel_gamma_error_new \
-# --epochs 100 \
-# --batch-size 100 \
-# --copula gumbel \
-# --marginal gamma \
-# --obs 10000 \
-# --error_bars
+--cop_flow NSF \
+--marg_flow DDSF \
+--tail_bound_c 64

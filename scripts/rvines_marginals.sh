@@ -3,11 +3,13 @@ set -e
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gaussian_nsf \
+--exp_name RVine_mix_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --marginal gamma \
 --mu 0 \
 --var 1 \
@@ -17,11 +19,13 @@ python RVine.py \
 echo 'Begin Mix Copula Rvine: RVine_mix'
 
 python RVine.py \
---exp_name RVine_mix_gamma_nsf \
+--exp_name RVine_mix_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --marginal gamma \
 --mu 0 \
 --var 1 \
@@ -31,11 +35,13 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gaussian_nsf \
+--exp_name RVine_clayton_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula clayton \
 --marginal gaussian \
 --alpha 5 \
@@ -44,11 +50,13 @@ python RVine.py \
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
---exp_name RVine_clayton_gamma_nsf \
+--exp_name RVine_clayton_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula clayton \
 --marginal gamma \
 --alpha 5 \
@@ -57,11 +65,13 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gaussian_nsf \
+--exp_name RVine_frank_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula frank \
 --marginal gaussian \
 --mu 0 \
@@ -71,11 +81,13 @@ python RVine.py \
 echo 'Begin Frank Copula Rvine: RVine_frank'
 
 python RVine.py \
---exp_name RVine_frank_gamma_nsf \
+--exp_name RVine_frank_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula frank \
 --marginal gamma \
 --mu 0 \
@@ -85,11 +97,13 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gaussian_nsf \
+--exp_name RVine_gumbel_gaussian_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula gumbel \
 --marginal gaussian \
 --obs 10000
@@ -97,11 +111,13 @@ python RVine.py \
 echo 'Begin Gumbel Copula Rvine: RVine_gumbel'
 
 python RVine.py \
---exp_name RVine_gumbel_gamma_nsf \
+--exp_name RVine_gumbel_gamma_64 \
 --epochs 100 \
---batch-size 100 \
+--batch-size 128 \
+--random_seed 2 \
 --cop_flow NSF \
 --marg_flow DDSF \
+--tail_bound_c 64 \
 --copula gumbel \
 --marginal gamma \
 --obs 10000

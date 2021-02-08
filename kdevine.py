@@ -2,72 +2,52 @@ import os
 import numpy as np
 import random
 from pathlib import Path
-import scipy.stats
 import csv
-
-from KDE_modules.options_kdevine import TrainOptions
-from utils.visualizer import visualize_joint
-from utils import js_divergence
-from utils.load_and_save import save_statistics, load_statistics
+import matplotlib
 import rpy2.robjects.packages as rpackages
 from rpy2.robjects.vectors import StrVector
 from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
 
-from RVine_modules.utils import gen_mv_copula
-from utils import calc_jsd as calc_jsd_utils
-import matplotlib
+from KDE_modules.options_kdevine import TrainOptions
+from utils.visualizer import visualize_joint
+from utils import js_divergence
+from utils.load_and_save import save_statistics, load_statistics
+from RVine_modules.utils import load_mv_copula
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
 utils = rpackages.importr('utils')  # select a mirror for R packages
 utils.chooseCRANmirror(ind=1)  # select the first mirror in the list
-packnames = ('gsl', 'kdecopula', 'stats', 'VineCopula', 'kdevine')  # Selectively install what needs to be install.
+packnames = ('gsl', 'VineCopula', 'kdevine')  # Selectively install what needs to be install.
 names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
 if len(names_to_install) > 0:
     utils.install_packages(StrVector(names_to_install))
 
-kdecopula = importr('kdecopula')
-stats = importr('stats')
 vinecopula = importr('VineCopula')
 kdevine = importr('kdevine')
 
 
-def calc_jsd(test_dict, copula_pred, samples_pred, samples_target):
+def calc_jsd(test_dict, pred_distr, target_distr, samples_pred, samples_target):
     # Samples from both distributinos
-
+    print('visualize pred and target')
     visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
     visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
+    print('calc jsd')
     samples_pred[samples_pred < 0] = 0
     samples_pred[samples_pred > 1] = 1
 
     assert np.min(samples_pred) >= 0, '{}'.format(np.min(samples_pred))
     assert np.max(samples_pred) <= 1, '{}'.format(np.max(samples_pred))
 
-    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, :2], samples_target=samples_target[:, :2], name='01')
-    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 1:3], samples_target=samples_target[:, 1:3], name='12')
-    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred[:, 2:4], samples_target=samples_target[:, 2:4], name='23')
-    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 2:3]], axis=1),
-    #          samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 2:3]], axis=1), name='02')
-    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 1:2], samples_pred[:, 3:4]], axis=1),
-    #          samples_target=np.concatenate([samples_target[:, 1:2], samples_target[:, 3:4]], axis=1), name='13')
-    # calc_jsd_utils(args, test_dict={}, samples_pred=np.concatenate([samples_pred[:, 0:1], samples_pred[:, 3:4]], axis=1),
-    #          samples_target=np.concatenate([samples_target[:, 0:1], samples_target[:, 3:4]], axis=1), name='03')
-
-    # calc_jsd_utils(args, test_dict={}, samples_pred=samples_pred,
-    #          samples_target=samples_target, name='full')
-    # Define distributions
-    pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
-    true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
-
     # Prob X in both distributions
-    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+    prob_X_in_p = np.asarray(kdevine.dkdevinecop(samples_pred, pred_distr))
+    prob_X_in_q = target_distr.pdf(samples_pred)
 
     # Prob Y in both distributions
-    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
-    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+    prob_Y_in_q = target_distr.pdf(samples_target)
+    prob_Y_in_p = np.asarray(kdevine.dkdevinecop(samples_target, pred_distr))
 
     assert not np.isnan(np.sum(prob_X_in_p))
     assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
@@ -95,31 +75,35 @@ def ecdf(x):
 
 
 def fit_copula(data):
+    print('visualize input' )
     visualize_joint(np.array(data), args.figures_path, name='input_data')
+    print('create pseudo obs' )
     data = vinecopula.pobs(data.numpy())
+    print('vis pseudo')
     visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
+    print('fit cop')
     cop = kdevine.kdevinecop(data)
+    print('done fit')
     return cop
 
 
 def fit_and_evaluate(continue_from_mode, visualize):
-    cop = fit_copula(dataset_trn)
+    print('load copula')
+    dataset_trn, dim, pv_cop = load_mv_copula(args)
+
+    print('fit copula')
+    pred_distr = fit_copula(dataset_trn)
 
     if visualize:
-        #print('args viz', args.viz_obs)
-        samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, cop)) #stats.simulate(cop, nsim=args.viz_obs))
+        samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, pred_distr))
         visualize_joint(samples_pred, args.figures_path, name='archmidean_samples')
 
-    #print(cop)
-    #print(args.test_obs)
-    samples_pred = np.array(kdevine.rkdevinecop(args.test_obs, cop))
-    args.obs = args.viz_obs
-    samples_target = pv_cop.simulate(args.test_obs)
-    #samples_target, dim, pv_cop = gen_mv_copula(args)
-    #untransformed_samples = pv_cop.simulate(args.viz_obs)
+    samples_pred = np.array(kdevine.rkdevinecop(args.viz_obs, pred_distr))
+    samples_target = pv_cop.simulate(args.viz_obs, seeds=[args.random_seed + 1])
 
     test_dict = {}
-    test_dict = calc_jsd(test_dict=test_dict, copula_pred=cop, samples_pred=samples_pred, samples_target=samples_target)
+    test_dict = calc_jsd(test_dict=test_dict, pred_distr=pred_distr, target_distr=pv_cop,
+                         samples_pred=samples_pred, samples_target=samples_target)
 
     # Gather test losses and save statistics
     test_losses = {key: [np.mean(value)] for key, value in
@@ -144,17 +128,12 @@ if __name__ == '__main__':
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
 
     # Set number of obs for visualizations
-    args.test_obs = 10000
     args.disable_marginal = False
+    args.viz_obs = 100000
 
     # Set Seed
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
-
-    # Set up data loader
-    dataset_trn, dim, pv_cop = gen_mv_copula(args)
-    args.viz_obs = 10000
-    untransformed_samples = pv_cop.simulate(args.viz_obs)
 
     # Calculate JSD
     if args.error_bars:

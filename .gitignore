@@ -1,5 +1,6 @@
 data/
 datasets/__pycache__/
+datasets/joint_data/
 plots/
 runs/
 .env/

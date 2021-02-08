@@ -11,6 +11,7 @@ from torch.autograd import Variable
 softplus_ = nn.Softplus()
 delta = 1e-7
 N_ = None
+eps = 1e-7
 
 
 def softplus(x, delta=1e-6):
@@ -83,7 +84,7 @@ class WNlinear(Module):
     def forward(self, input):
         if self.norm:
             dir_ = self.direction
-            direction = dir_.div(dir_.pow(2).sum(1).sqrt()[:, None])
+            direction = dir_.div(torch.sqrt(dir_.pow(2).sum(1) + eps)[:, None])
             weight = self.scale[:, None].mul(direction)
         else:
             weight = self.scale[:, None].mul(self.direction)
