@@ -421,7 +421,6 @@ def main():
         num_blocks=2
     )
     outputs, logabsdet = transform(inputs, context)
-    print(outputs.shape)
 
 
 if __name__ == '__main__':

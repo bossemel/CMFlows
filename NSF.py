@@ -61,13 +61,14 @@ def random_search(args):
     while ii < 200:
         args.epochs = 50
         n_layers = np.random.choice(range(1, 10))
-        hidden_units = 2**np.random.choice(range(1, 8))
+        hidden_units = 2**np.random.choice(range(1, 7))
         n_blocks = np.random.choice(range(1, 10))
         n_bins = 5 * np.random.choice(range(2, 10))
-        lr_number = np.random.choice(range(2, 5))
-        lr = 1 / 10**lr_number
+        lr = 1 / 10**np.random.choice(range(2, 5))
         weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
-        tail_bound = 2**np.random.choice(range(5, 7))
+        tail_bound = 2**np.random.choice(range(5, 7)).item()
+        amsgrad = np.random.choice([True, False])
+        clip_grad_norm = np.random.choice([True, False])
 
         if args.flow_type == 'cop_flow':
             args.n_layers_c = n_layers
@@ -78,6 +79,10 @@ def random_search(args):
             args.lr_c = lr
             args.weight_decay_c = weight_decay
             args.tail_bound_c = tail_bound
+            args.use_batch_norm_c = np.random.choice([True, False])
+            args.amsgrad_c = amsgrad
+            args.clip_grad_norm = clip_grad_norm
+
             current_hyperparams = (args.n_layers_c,
                                    args.hidden_units_c,
                                    args.n_blocks_c,
@@ -85,7 +90,10 @@ def random_search(args):
                                    args.dropout_c,
                                    args.lr_c,
                                    args.weight_decay_c,
-                                   args.tail_bound_c)
+                                   args.tail_bound_c,
+                                   args.use_batch_norm_c,
+                                   args.amsgrad_c,
+                                   args.clip_grad_norm)
 
         elif args.flow_type == 'marg_flow':
             args.n_layers_m = n_layers
@@ -108,7 +116,7 @@ def random_search(args):
 
         if current_hyperparams not in tested_combinations:
             if args.flow_type == 'cop_flow':
-                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, dropout, lr, weight_decay, tail_bound'
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, dropout, lr, weight_decay, tail_bound, batch_norm, amsgrad, clip_grad'
             else:
                 hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, lr, weight_decay, tail_bound'
             print('{}: {}'.format(hyperparams_string, current_hyperparams))
@@ -158,8 +166,9 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
 
     # Set optimizer
     args.optimizer = optim.Adam(model.parameters(), lr=args.lr_c if args.flow_type == 'cop_flow' else args.lr_m,
-                                weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+                                weight_decay=args.weight_decay_c if args.flow_type == 'cop_flow' else args.weight_decay_m,
+                                amsgrad=args.amsgrad_c if args.flow_type == 'cop_flow' else args.amsgrad_m)
+    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs)
 
     # Train
     best_dict, test_dict = train_val(model=model,

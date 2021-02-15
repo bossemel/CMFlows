@@ -4,6 +4,7 @@ import numpy as np
 import random
 from pathlib import Path
 import csv
+import torch
 
 from Parametric_modules.options import TrainOptions
 from utils.visualizer import visualize_joint
@@ -59,12 +60,13 @@ def fit_copula(args, data):
         cop = copulae.elliptical.GaussianCopula(dim=2)
     else:
         raise ValueError('Assumed copula not in list')
-    cop.fit(dataset.trn)
+    cop.fit(data)
     return cop
 
 
 def train_and_evaluate(continue_from_mode, visualize):
-    pred_distr = fit_copula(args, dataset.trn)
+    train = load_data(args)
+    pred_distr = fit_copula(args, train)
 
     if visualize:
         samples_pred = pred_distr.random(viz_obs)  # simulate random number
@@ -82,6 +84,13 @@ def train_and_evaluate(continue_from_mode, visualize):
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
                     stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=0)
+
+
+def load_data(args):
+    train = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    train = np.concatenate([train, val], axis=0)
+    return train
 
 
 if __name__ == '__main__':
@@ -105,9 +114,9 @@ if __name__ == '__main__':
 
     # Set up data loader
     # dataset, data_loaders, train_dataset = utils.load_data(args)
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta,
-                                                 args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
-                                                 random_seed=args.random_seed)
+    # dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta,
+    #                                              args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
+    #                                              random_seed=args.random_seed)
     viz_obs = 100000
 
     # Calculate JSD

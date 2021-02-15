@@ -37,7 +37,7 @@ class ConditionalFlow(nn.Module):
             self.n_bins_c = args.n_bins_c
             self.tail_bound_c = args.tail_bound_c
 
-        self.use_batch_norm = args.use_batch_norm
+        self.use_batch_norm_c = args.use_batch_norm_c
         self.tails = args.tails
         self.min_bin_height = args.min_bin_height
         self.min_bin_width = args.min_bin_width
@@ -63,7 +63,7 @@ class ConditionalFlow(nn.Module):
                         hidden_features=self.hidden_units_c,
                         num_blocks=self.n_blocks_c,
                         dropout_probability=self.dropout_c,
-                        use_batch_norm=self.use_batch_norm,),
+                        use_batch_norm=self.use_batch_norm_c,),
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
@@ -78,7 +78,7 @@ class ConditionalFlow(nn.Module):
                     hidden_features=self.hidden_units_c,
                     num_blocks=self.n_blocks_c,
                     dropout_probability=self.dropout_c,
-                    use_batch_norm=self.use_batch_norm
+                    use_batch_norm=self.use_batch_norm_c
                 ),
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,

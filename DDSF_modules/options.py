@@ -19,7 +19,7 @@ class TrainOptions():
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
             '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal',
-            'mix_gauss_gamma'])
+            'mix_gauss_gamma', 'mix_uniform'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(

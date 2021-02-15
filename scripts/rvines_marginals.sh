@@ -1,37 +1,4 @@
 set -e
-
-echo 'Begin Mix Copula Rvine: RVine_mix'
-
-python RVine.py \
---exp_name RVine_mix_gaussian_64 \
---epochs 100 \
---batch-size 128 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---tail_bound_c 64 \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
-
-echo 'Begin Mix Copula Rvine: RVine_mix'
-
-python RVine.py \
---exp_name RVine_mix_gamma_64 \
---epochs 100 \
---batch-size 128 \
---random_seed 2 \
---cop_flow NSF \
---marg_flow DDSF \
---tail_bound_c 64 \
---marginal gamma \
---mu 0 \
---var 1 \
---obs 10000 \
---mix
-
 echo 'Begin Clayton Copula Rvine: RVine_clayton'
 
 python RVine.py \
@@ -121,3 +88,35 @@ python RVine.py \
 --copula gumbel \
 --marginal gamma \
 --obs 10000
+
+echo 'Begin Mix Copula Rvine: RVine_mix'
+
+python RVine.py \
+--exp_name RVine_mix_gaussian_64 \
+--epochs 100 \
+--batch-size 128 \
+--random_seed 2 \
+--cop_flow NSF \
+--marg_flow DDSF \
+--tail_bound_c 64 \
+--marginal gamma \
+--mu 0 \
+--var 1 \
+--obs 10000 \
+--mix
+
+echo 'Begin Mix Copula Rvine: RVine_mix'
+
+python RVine.py \
+--exp_name RVine_mix_gamma_64 \
+--epochs 100 \
+--batch-size 128 \
+--random_seed 2 \
+--cop_flow NSF \
+--marg_flow DDSF \
+--tail_bound_c 64 \
+--marginal gamma \
+--mu 0 \
+--var 1 \
+--obs 10000 \
+--mix

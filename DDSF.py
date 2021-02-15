@@ -82,15 +82,17 @@ def random_search(args):
     tested_combinations = []
     best_loss = 1000
     ii = 0
-    while ii < 100:
-        args.epochs = 100
+    while ii < 200:
+        args.epochs = 50
         args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
         args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
-        args.dimh_DDSF = 2**np.random.choice(range(7))
-        args.num_ds_dim = 2**np.random.choice(range(7))
+        args.dimh_DDSF = 2**np.random.choice(range(1, 7))
+        args.num_ds_dim = 2**np.random.choice(range(1, 7))
         args.num_ds_layers = np.random.choice(range(1, 5))
         args.lr = 1 / 10**np.random.choice(range(2, 5))
         args.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
+        args.clip_grad_norm = np.random.choice([True, False])
+        args.amsgrad = np.random.choice([True, False])
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
@@ -98,18 +100,21 @@ def random_search(args):
                                args.num_ds_dim,
                                args.num_ds_layers,
                                args.weight_decay,
-                               args.lr)
+                               args.lr,
+                               args.clip_grad_norm,
+                               args.amsgrad)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
-                Weight Decay: {}, Learning Rate: {}, Batch Size: {}'.format(args.num_flow_layers_DDSF,
-                                                                            args.num_hid_layers_DDSF,
-                                                                            args.dimh_DDSF,
-                                                                            args.num_ds_dim,
-                                                                            args.num_ds_layers,
-                                                                            args.weight_decay,
-                                                                            args.lr,
-                                                                            args.batch_size))
+                Weight Decay: {}, Learning Rate: {}, Clipping: {}, amsgrad: {}'.format(args.num_flow_layers_DDSF,
+                                                                                       args.num_hid_layers_DDSF,
+                                                                                       args.dimh_DDSF,
+                                                                                       args.num_ds_dim,
+                                                                                       args.num_ds_layers,
+                                                                                       args.weight_decay,
+                                                                                       args.lr,
+                                                                                       args.clip_grad_norm,
+                                                                                       args.amsgrad))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -144,7 +149,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
     model.to(args.device)
 
     # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, amsgrad=args.amsgrad)
     args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
 
     # Train

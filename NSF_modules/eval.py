@@ -71,7 +71,7 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
 
 
 def jsd_eval_1D(marginal, args, model, test_dict,
-             obs=10000, plotname='jsd_test_marginal',
+             obs=1000, plotname='jsd_test_marginal',
              cm_flow=False, marginal_num='1'):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 
@@ -88,6 +88,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
     Returns:
         test_dict: test_dict with evaluation metrics
     """
+    print(obs)
     with torch.no_grad():
         # Get distributions
         marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)

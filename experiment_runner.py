@@ -15,12 +15,13 @@ eps = 1e-07
 def single_model_forward(args, model, model_name, data):
     # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
     if model_name == 'marg_flow_1':
-        loss = model.loss(data[:, 0: 1])
+        loss = model.loss(data[:, 0:1])
     elif model_name == 'marg_flow_2':
-        loss = model.loss(data[:, 1: 2])
+        loss = model.loss(data[:, 1:2])
     elif model_name in ['cop_flow', 'cop_flow_rv', 'cop_flow_real']:
+    #else:
         if args.conditional_copula:
-            loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
+            loss = model.loss(inputs=data[:, 0:1], context=data[:, 1:2])
         else:
             loss = model.loss(data)
     else:
@@ -51,7 +52,6 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
             data = data[0]
         data = data.to(device)
         args.optimizer.zero_grad()
-
         model, loss = single_model_forward(args,
                                            model,
                                            model_name,
@@ -68,11 +68,8 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
         if args.clip_grad_norm:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
 
-        if args.scheduler is None:
-            args.optimizer.step()
-        else:
-            args.optimizer.step()
-            args.scheduler.step()
+        args.optimizer.step()
+        args.scheduler.step()
 
         pbar.update(data.size(0))
         pbar.set_description('{} Train, Log likelihood: {:.6f}'.format(model_name, loss))
@@ -103,8 +100,8 @@ def validate(args, epoch, model, loader, device,
 
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')
+
     for batch_idx, data in enumerate(loader):
-        model.eval()
 
         if isinstance(data, list):
             data = data[0]
@@ -149,8 +146,6 @@ def test(args, epoch, model, loader, device,
     Returns:
         test_dict: updated test_dict
     """
-    model.eval()
-
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
