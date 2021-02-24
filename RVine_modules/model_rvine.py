@@ -645,7 +645,7 @@ def create_dataset(uncon_node_data, con_node_data, args):
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
     dataset = Rvine_data(uncon_node_data, con_node_data)
-    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     train_dataset = torch.utils.data.TensorDataset(dataset.trn)
     valid_dataset = torch.utils.data.TensorDataset(dataset.val)
@@ -688,7 +688,7 @@ def create_dataset_1dim(inputs, args):
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
     dataset = Rvine_data_1dim(inputs)
-    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     train_dataset = torch.utils.data.TensorDataset(dataset.trn)
 

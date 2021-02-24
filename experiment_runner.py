@@ -271,7 +271,6 @@ def train_val(model, model_name, args, data_loaders,
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
                                           model=model,
-                                          transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=args.obs,
                                           cm_flow=args.cop_flow_part_of_CM_Flow)

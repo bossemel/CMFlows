@@ -68,14 +68,13 @@ def random_search(args):
     best_loss = 1000
     ii = 0
     while ii < 30:
-        args.transform_fct = np.random.choice(['gaussian', 'sigmoid'])
         pot_num_blocks = np.random.choice(range(7))
         args.num_blocks = 2**pot_num_blocks
         args.num_hidden = 2**np.random.choice(range(pot_num_blocks, 10))
-        current_hyperparams = (args.transform_fct, args.num_blocks, args.num_hidden)
+        current_hyperparams = (args.num_blocks, args.num_hidden)
         if current_hyperparams not in tested_combinations:
-            print('Transformation function: {}, Num. Invertible Blocks: {}, Num. Hidden Units: {}'.format(
-                args.transform_fct, args.num_blocks, args.num_hidden))
+            print('Num. Invertible Blocks: {}, Num. Hidden Units: {}'.format(
+                args.num_blocks, args.num_hidden))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -215,14 +214,14 @@ if __name__ == '__main__':
             with torch.no_grad():
                 if args.conditional_copula:
                     context = torch.tensor(np.random.normal(size=(100000, 1))).float()
-                    output_copula = model.sample(num_samples=100000, context=context, transform=args.transform_fct, device=args.device).cpu()
+                    output_copula = model.sample_copula(num_samples=100000, context=context, device=args.device).cpu()
                     visualize_joint(output_copula, args.figures_path, name='output_copula')
-                    output_copula = model.sample(num_samples=100000, context=context, transform=None, device=args.device).cpu()
+                    output_copula = model.sample_copula(num_samples=100000, context=context, device=args.device).cpu()
                     visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
                 else:
-                    output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+                    output_copula = model.sample_copula(num_samples=100000, device=args.device).cpu()
                     visualize_joint(output_copula, args.figures_path, name='output_copula')
-                    output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
+                    output_copula = model.sample_copula(num_samples=100000, device=args.device).cpu()
                     visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
 
         # Sample from true copula and visualize it

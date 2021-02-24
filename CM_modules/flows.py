@@ -4,7 +4,7 @@ from NSF import build_model as build_model_nsf
 
 
 class CMFlow():
-    def __init__(self, transform,
+    def __init__(self,
                  device, batch_size, args):
         super(CMFlow, self).__init__()
 

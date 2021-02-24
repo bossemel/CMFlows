@@ -31,8 +31,7 @@ def build_model(args):
         marg_flow_1: 1st marg_flow model
         marg_flow_2: 2nd marg_flow model
     """
-    model = flows.CMFlow(transform=args.transform_fct,
-                         device=args.device,
+    model = flows.CMFlow(device=args.device,
                          batch_size=args.batch_size,
                          args=args)
 
@@ -162,24 +161,24 @@ def transform_dataset(marg_flow_1_output, marg_flow_2_output):
         train_dataset = torch.cat((marg_flow_1_output[0], marg_flow_2_output[0]), dim=1).detach().clone().cpu()
         valid_dataset = torch.cat((marg_flow_1_output[1], marg_flow_2_output[1]), dim=1).detach().clone().cpu()
         test_dataset = torch.cat((marg_flow_1_output[2], marg_flow_2_output[2]), dim=1).detach().clone().cpu()
-        kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
+        kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=args.batch_size,
-            shuffle=True,
+            shuffle=False,
             **kwargs)
 
         valid_loader = torch.utils.data.DataLoader(
             valid_dataset,
             batch_size=args.batch_size,
-            shuffle=True,
+            shuffle=False,
             **kwargs)
 
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=args.batch_size,
-            shuffle=True,
+            shuffle=False,
             **kwargs)
 
         data_loaders['train_loader'] = train_loader

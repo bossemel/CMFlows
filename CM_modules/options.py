@@ -84,8 +84,6 @@ class TrainOptions():
 
         # Options NSF - Copula estimation
         parser.add_argument(
-            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
-        parser.add_argument(
             '--n_layers_c', type=int, default=10, help='Number of spline layers in flow')
         parser.add_argument(
             '--hidden_units_c', type=int, default=16, help='Number of hidden units in spline layer')

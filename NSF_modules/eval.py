@@ -27,7 +27,7 @@ def jsd_eval(args, epoch, model, device, test_dict):
     return test_dict
 
 
-def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, num_samples=10000, cm_flow=False):
+def margin_uniformity(args, epoch, model, test_dict=None, num_samples=10000, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -43,7 +43,7 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
+            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, cm_flow=cm_flow, device=args.device)
     test_dict["t_1"] = current_t_metric_x1 / num_samples
     test_dict["m_1"] = current_m_metric_x1 / num_samples
     test_dict["t_2"] = current_t_metric_x2 / num_samples
@@ -98,7 +98,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
         divergence = js_divergence_grid(prob_vector_X, prob_vector_Y)
         print('JS divergence: ', divergence)
 
-        if cm_flow is not None:
+        if cm_flow:
             jsd_name = plotname + '_' + str(cm_flow)
             test_dict[jsd_name] = divergence
         else:

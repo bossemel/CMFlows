@@ -15,7 +15,7 @@ def load_data(args):
         num_inputs: dimensions of data
         data_loaders: dictionary containing train, val and test set loader
     """
-    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
     dataset = datasets.distributions.Marginals(args.marginal, args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
                                                low=args.low, high=args.high, random_seed=args.random_seed)
