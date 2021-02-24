@@ -6,8 +6,6 @@ import torch.nn as nn
 from pathlib import Path
 import random
 import torch.optim as optim
-import seaborn as sns
-import matplotlib.pyplot as plt
 import json
 
 from DDSF_modules import nn_modules as nn_, flows
@@ -29,7 +27,7 @@ def build_model(args):
     Returns:
         model: DDSF model
     """
-    args.dimh = args.batch_size
+    args.dimh = args.dimh_DDSF
     args.act = nn.ELU()
     args.dim = 1
 
@@ -50,49 +48,23 @@ def build_model(args):
     return model
 
 
-def visualize_DDSF_output(model, dataset, args):
-    with torch.no_grad():
-        vizdata = torch.tensor(dataset.trn)
-        n = vizdata.shape[0]
-        context = torch.FloatTensor(n, 1).zero_().to(args.device)
-        logdets = torch.FloatTensor(n).zero_().to(args.device)
-        vizdata, __, __ = model.forward((vizdata, logdets, context))
-        normal_distr = torch.distributions.normal.Normal(0, 1)
-        vizdata_uniform = normal_distr.cdf(vizdata)
-        fig = plt.figure(figsize=(8, 6))
-
-        sns.distplot(vizdata.cpu())
-        plt.xlabel('x', fontsize=20)
-        plt.ylabel('Probability', fontsize=20)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        fig.savefig(os.path.join(args.figures_path, 'DDSF_output' + '.pdf'), dpi=300, bbox_inches='tight')
-        fig = plt.figure(figsize=(8, 6))
-
-        sns.distplot(vizdata_uniform.cpu())
-        plt.xlabel('x', fontsize=20)
-        plt.ylabel('Probability', fontsize=20)
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        fig.savefig(os.path.join(args.figures_path, 'DDSF_output_uniform' + '.pdf'), dpi=300, bbox_inches='tight')
-
-
 def random_search(args):
     results_dict = {}
     tested_combinations = []
     best_loss = 1000
     ii = 0
     while ii < 200:
-        args.epochs = 50
-        args.num_flow_layers_DDSF = np.random.choice(range(1, 5))
-        args.num_hid_layers_DDSF = np.random.choice(range(1, 5))
+        args.epochs = 80
+        args.num_flow_layers_DDSF = np.random.choice(range(1, 8))
+        args.num_hid_layers_DDSF = np.random.choice(range(1, 8))
         args.dimh_DDSF = 2**np.random.choice(range(1, 7))
         args.num_ds_dim = 2**np.random.choice(range(1, 7))
-        args.num_ds_layers = np.random.choice(range(1, 5))
-        args.lr = 1 / 10**np.random.choice(range(2, 5))
+        args.num_ds_layers = np.random.choice(range(1, 8))
+        args.lr = 1 / 10**np.random.choice(range(2, 6))
         args.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
         args.clip_grad_norm = np.random.choice([True, False])
         args.amsgrad = np.random.choice([True, False])
+        args.clip_m = np.random.choice(range(1, 6))
 
         current_hyperparams = (args.num_flow_layers_DDSF,
                                args.num_hid_layers_DDSF,
@@ -102,7 +74,8 @@ def random_search(args):
                                args.weight_decay,
                                args.lr,
                                args.clip_grad_norm,
-                               args.amsgrad)
+                               args.amsgrad,
+                               args.clip_m)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
@@ -114,7 +87,8 @@ def random_search(args):
                                                                                        args.weight_decay,
                                                                                        args.lr,
                                                                                        args.clip_grad_norm,
-                                                                                       args.amsgrad))
+                                                                                       args.amsgrad,
+                                                                                       args.clip_m ))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
                                                                           dataset=dataset,
@@ -185,6 +159,7 @@ if __name__ == '__main__':
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.device = torch.device("cuda:0" if args.cuda else "cpu")
+    args.conditional_copula = False
 
     # Set Seed
     np.random.seed(args.random_seed + 1)
@@ -210,9 +185,8 @@ if __name__ == '__main__':
         model = load_model(model, args.experiment_saved_models, 'train_model',
                            best_dict['best_validation_epoch'])
 
-        visualize_DDSF_output(model, dataset, args)
         # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
+        test_losses = {key: [torch.mean(torch.tensor(value))] for key, value in
                        test_dict.items()}  # save test set metrics in dict format
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         # save test set metrics on disk in .csv format

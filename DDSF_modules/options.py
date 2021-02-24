@@ -54,7 +54,7 @@ class TrainOptions():
         parser.add_argument(
             '--lr', type=float, default=1e-05)
         parser.add_argument(
-            '--clip_m', type=float, default=1.0)
+            '--clip_m', type=float, default=5.0)
         parser.add_argument(
             '--beta1', type=float, default=0.9)
         parser.add_argument(

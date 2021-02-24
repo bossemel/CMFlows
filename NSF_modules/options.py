@@ -36,9 +36,7 @@ class TrainOptions():
         parser.add_argument(
             '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
-            '--clip_m', type=float, default=5.0)
-        parser.add_argument(
-            '--clip_c', type=float, default=5.0)
+            '--clip', type=float, default=5.0)
         parser.add_argument(
             '--weight_decay_c', type=float, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
@@ -60,7 +58,7 @@ class TrainOptions():
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
-            '--theta', type=float, required=True, help='theta for copula sampling')
+            '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
         parser.add_argument(
@@ -117,6 +115,10 @@ class TrainOptions():
             '--dropout_m', type=float, default=0.25, help='Dropout probability in flow')
         parser.add_argument(
             '--amsgrad_m', action='store_true', default=False)
+        parser.add_argument(
+            '--identity_init_m', action='store_true')
+        parser.add_argument(
+            '--tails_m', type=str, default='linear', help='Function type outside spline region')
 
         # Save options
         parser.add_argument(

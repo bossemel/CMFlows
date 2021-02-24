@@ -220,7 +220,7 @@ class IAF_DDSF(BaseFlow):
                                          context_dim=context_dim,
                                          num_layers=num_layers,
                                          device=device,
-                                         num_outlayers=num_ds_multiplier * (hid_dim / dim) * num_ds_layers,
+                                         num_outlayers=num_ds_multiplier * (hid_dim // dim) * num_ds_layers,
                                          activation=activation,
                                          fixed_order=fixed_order)
 

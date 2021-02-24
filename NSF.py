@@ -59,16 +59,18 @@ def random_search(args):
     random.seed(ii)
 
     while ii < 200:
-        args.epochs = 50
+        args.epochs = 100
         n_layers = np.random.choice(range(1, 10))
         hidden_units = 2**np.random.choice(range(1, 7))
         n_blocks = np.random.choice(range(1, 10))
         n_bins = 5 * np.random.choice(range(2, 10))
         lr = 1 / 10**np.random.choice(range(2, 5))
         weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
-        tail_bound = 2**np.random.choice(range(5, 7)).item()
+        tail_bound = 2**np.random.choice(range(5, 8)).item()
         amsgrad = np.random.choice([True, False])
         clip_grad_norm = np.random.choice([True, False])
+        identity_init = np.random.choice([True, False])
+        tails = np.random.choice(['linear', None])
 
         if args.flow_type == 'cop_flow':
             args.n_layers_c = n_layers
@@ -82,7 +84,8 @@ def random_search(args):
             args.use_batch_norm_c = np.random.choice([True, False])
             args.amsgrad_c = amsgrad
             args.clip_grad_norm = clip_grad_norm
-
+            args.identity_init_c = identity_init
+            args.tails_c = tails
             current_hyperparams = (args.n_layers_c,
                                    args.hidden_units_c,
                                    args.n_blocks_c,
@@ -93,7 +96,9 @@ def random_search(args):
                                    args.tail_bound_c,
                                    args.use_batch_norm_c,
                                    args.amsgrad_c,
-                                   args.clip_grad_norm)
+                                   args.clip_grad_norm,
+                                   args.identity_init_c,
+                                   args.tails_c)
 
         elif args.flow_type == 'marg_flow':
             args.n_layers_m = n_layers
@@ -103,6 +108,10 @@ def random_search(args):
             args.lr_m = lr
             args.weight_decay_m = weight_decay
             args.tail_bound_m = tail_bound
+            args.amsgrad_m = amsgrad
+            args.clip_grad_norm = clip_grad_norm
+            args.identity_init_m = identity_init
+            args.tails_m = tails
             current_hyperparams = (args.n_layers_m,
                                    args.hidden_units_m,
                                    args.n_blocks_m,
@@ -110,7 +119,9 @@ def random_search(args):
                                    args.lr_m,
                                    args.weight_decay_m,
                                    args.clip_grad_norm,
-                                   args.tail_bound_m)
+                                   args.tail_bound_m,
+                                   args.identity_init_m,
+                                   args.tails_m)
         else:
             raise ValueError('Unknown Flow type')
 
@@ -118,7 +129,7 @@ def random_search(args):
             if args.flow_type == 'cop_flow':
                 hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, dropout, lr, weight_decay, tail_bound, batch_norm, amsgrad, clip_grad'
             else:
-                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, lr, weight_decay, tail_bound'
+                hyperparams_string = 'n_layers, hidden_units, n_blocks, n_bins, lr, weight_decay, clip_grad_norm, tail_bound, identity_init_m, tails_m'
             print('{}: {}'.format(hyperparams_string, current_hyperparams))
             with HiddenPrints():
                 __, current_best_dict, current_test_dict = train_and_plot(args,
@@ -183,7 +194,7 @@ def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=Fa
 
     if not rvine:
         # Gather test losses and save statistics
-        test_losses = {key: [np.mean(value)] for key, value in
+        test_losses = {key: [torch.mean(torch.tensor(value))] for key, value in
                        test_dict.items()}
         save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                         stats_dict=test_losses, current_epoch=0, continue_from_mode=error_bars,
@@ -270,12 +281,12 @@ if __name__ == '__main__':
                                best_dict['best_validation_epoch'])
             # Sample from predicted copual and visualize it
             with torch.no_grad():
-                if args.flow_type == 'marg_flow':
-                    norm = torch.distributions.normal.Normal(loc=0, scale=1)
-                    marg_flow_noise = model.flow.transform_to_noise(torch.tensor(dataset.trn)).reshape(-1, 1)
-                    visualize_joint(norm.cdf(torch.cat([marg_flow_noise, marg_flow_noise], axis=1)), args.figures_path, name='outputs_marginal_noise')
-                    sample = model.flow.sample(num_samples=10000).reshape(-1, 1)
-                    visualize_joint(norm.cdf(torch.cat([sample, sample], axis=1)), args.figures_path, name='outputs_marginal_sample')
+                # if args.flow_type == 'marg_flow':
+                #     norm = torch.distributions.normal.Normal(loc=0, scale=1)
+                #     marg_flow_noise = model.flow.transform_to_noise(torch.tensor(dataset.trn).to(args.device)).detach().cpu().reshape(-1, 1)
+                #     visualize_joint(norm.cdf(torch.cat([marg_flow_noise, marg_flow_noise], axis=1)), args.figures_path, name='outputs_marginal_noise')
+                #     sample = model.flow.sample(num_samples=10000).reshape(-1, 1)
+                #     visualize_joint(norm.cdf(torch.cat([sample, sample], axis=1)), args.figures_path, name='outputs_marginal_sample')
 
                 if args.flow_type == 'cop_flow':
                     if args.conditional_copula:
@@ -285,7 +296,7 @@ if __name__ == '__main__':
                         output_copula = model.sample(num_samples=100000, context=context, transform=None, device=args.device).cpu()
                         visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
                     else:
-                        output_copula = model.sample(num_samples=100000, transform=args.transform_fct, device=args.device).cpu()
+                        output_copula = model.sample_copula(num_samples=100000, device=args.device).cpu()
                         visualize_joint(output_copula, args.figures_path, name='output_copula')
                         output_copula = model.sample(num_samples=100000, transform=None, device=args.device).cpu()
                         visualize_joint(output_copula, args.figures_path, name='output_copula_untransformed')
@@ -298,7 +309,7 @@ if __name__ == '__main__':
                     args.obs = obs
 
             # Gather test losses and save statistics
-            test_losses = {key: [np.mean(value)] for key, value in
+            test_losses = {key: [torch.mean(torch.tensor(value))] for key, value in
                            test_dict.items()}  # save test set metrics in dict format
             save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                             # save test set metrics on disk in .csv format

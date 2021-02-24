@@ -17,7 +17,7 @@ def load_data(args):
         num_inputs: dimensions of data
         data_loaders: dictionary containing train, val and test set loader
     """
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 
     train = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
     val = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))

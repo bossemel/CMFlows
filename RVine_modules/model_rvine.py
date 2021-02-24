@@ -52,6 +52,13 @@ def flatten(nested_tuple):
         yield from [i] if not isinstance(i, tuple) else flatten(i)
 
 
+def batch_transform(batch_size, transform_fct, dataset):
+    split = torch.split(dataset, dataset.shape[0] % batch_size, dim=0)
+    split = torch.cat([transform_fct(sp) for sp in split], dim=0)
+    assert split.shape == dataset.shape
+    return split
+
+
 def transform_marginals(self, node):
     with torch.no_grad():
         self.marg_flow.eval()
@@ -61,9 +68,17 @@ def transform_marginals(self, node):
 
         elif self.args.marg_flow == 'DDSF':
             assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
-            transformed_inputs = self.marg_flow.transform_to_noise(self.data[:, node:node + 1].float())
+            transformed_inputs = batch_transform(batch_size=self.args.batch_size,
+                                                 transform_fct=self.marg_flow.transform_to_noise,
+                                                 dataset=self.data[:, node:node + 1].float())
         self.data = self.data.cpu()
         return transformed_inputs
+
+
+def set_optimizer_scheduler(model, lr, weight_decay, amsgrad, epochs):
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, amsgrad=amsgrad)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
+    return optimizer, scheduler
 
 
 def marg_flow(self, dataset, data_loaders, node):
@@ -78,20 +93,38 @@ def marg_flow(self, dataset, data_loaders, node):
     self.marg_flow.to(self.args.device)
     self.marg_flow.state = dict()
     self.marg_flow.train()
-    self.args.optimizer = optim.Adam(self.marg_flow.parameters(), lr=self.args.lr_m, weight_decay=self.args.weight_decay_m)
-    self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+    self.args.optimizer, self.args.scheduler = set_optimizer_scheduler(self.marg_flow,
+                                                                       self.args.lr_m,
+                                                                       self.args.weight_decay_m,
+                                                                       self.args.amsgrad_m,
+                                                                       self.args.epochs)
+    #self.args.optimizer = optim.Adam(self.marg_flow.parameters(), lr=self.args.lr_m, weight_decay=self.args.weight_decay_m)
+    #self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+    self.args.clip_grad_norm = self.args.clip_grad_norm_m
 
     # Train marginal flow
-    best_dict, __ = train_val(args=self.args,
-                              model=self.marg_flow,
-                              data_loaders=data_loaders,
-                              save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
-                              model_name='marg_flow_rv',
-                              rvine=True,
-                              disable_tqdm=True)
+    model_dict = {}
+    best_loss = 1000
+    for ii in range(3):
+        current_name = 'marg_flow_rv' + '_' + str(ii)
+        print('Training {}'.format(current_name))
+        best_dict, __ = train_val(args=self.args,
+                                  model=self.marg_flow,
+                                  data_loaders=data_loaders,
+                                  save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
+                                  model_name=current_name,
+                                  rvine=True,
+                                  disable_tqdm=True)
+        model_dict[current_name] = self.marg_flow
+        if best_dict['best_validation_loss'] < best_loss:
+            best_model = current_name
+            best_epoch = best_dict['best_validation_epoch']
+            best_loss = best_dict['best_validation_loss']
 
+    # self.marg_flow = load_model(model=model_dict[best_model], model_save_dir=args.experiment_saved_models, model_save_name='best_epoch_model',
+    #                     model_idx=best_epoch)
     # Load best model for marginal flow
-    model_loader(self.marg_flow, self.args, node, best_dict['best_validation_epoch'], add_name='marginal')
+    model_loader(model_dict[best_model], self.args, node, best_epoch, add_name='marginal')
 
     # Transform inputs using the trained marginal flow
     transformed_inputs = transform_marginals(self, node)
@@ -230,18 +263,21 @@ def add_new_node(self, new_graph, common_node, edge, plots):
     print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
 
     # Initialize conditional copula Flow
-    args = self.args
-    args.conditional_copula = True
+    self.args.conditional_copula = True
     if self.args.cop_flow == 'NSF':
-        self.cop_flow = build_model_nsf(args, flow_type='cop_flow')
+        self.cop_flow = build_model_nsf(self.args, flow_type='cop_flow')
     elif self.args.cop_flow == 'RealNVP':
-        self.cop_flow = build_model_rnvp(args)
+        self.cop_flow = build_model_rnvp(self.args)
 
     self.cop_flow.to(self.args.device)
     self.cop_flow.state = dict()
     self.cop_flow.train()
-    self.args.optimizer = optim.Adam(self.cop_flow.parameters(), lr=self.args.lr_c, weight_decay=self.args.weight_decay_c)
-    self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+    self.args.optimizer, self.args.scheduler = set_optimizer_scheduler(self.cop_flow,
+                                                                       self.args.lr_c,
+                                                                       self.args.weight_decay_c,
+                                                                       self.args.amsgrad_c,
+                                                                       self.args.epochs)
+    self.args.clip_grad_norm = self.args.clip_grad_norm_c
 
     best_dict_con, __ = train_val(args=self.args,
                                   model=self.cop_flow,
@@ -609,7 +645,7 @@ def create_dataset(uncon_node_data, con_node_data, args):
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
     dataset = Rvine_data(uncon_node_data, con_node_data)
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 
     train_dataset = torch.utils.data.TensorDataset(dataset.trn)
     valid_dataset = torch.utils.data.TensorDataset(dataset.val)
@@ -652,7 +688,7 @@ def create_dataset_1dim(inputs, args):
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
     dataset = Rvine_data_1dim(inputs)
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 
     train_dataset = torch.utils.data.TensorDataset(dataset.trn)
 

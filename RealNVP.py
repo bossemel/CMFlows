@@ -57,7 +57,7 @@ def build_model(args):
     for module in model.modules():
         if isinstance(module, nn.Linear):
             nn.init.orthogonal_(module.weight)
-            if hasattr(module, 'bias') and module.bias is not None:
+            if hasattr(module, 'bias') and module.bias:
                 module.bias.data.fill_(0)
     return model
 
