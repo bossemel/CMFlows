@@ -16,7 +16,6 @@ from utils import split_train_val_test, js_divergence
 from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
 from NSF import build_model as build_model_nsf
-# from RealNVP import train_and_plot as RealNVP_train_and_plot, build_model as RealNVP_build_model
 from DDSF import build_model as build_model_ddsf
 from RealNVP import build_model as build_model_rnvp
 from experiment_runner import train_val
@@ -64,13 +63,13 @@ def transform_marginals(self, node):
         self.marg_flow.eval()
         self.data = self.data.to(self.args.device)
         if self.args.marg_flow == 'NSF':
-            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].float())
+            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].detach().clone().float())
 
         elif self.args.marg_flow == 'DDSF':
             assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
             transformed_inputs = batch_transform(batch_size=self.args.batch_size,
                                                  transform_fct=self.marg_flow.transform_to_noise,
-                                                 dataset=self.data[:, node:node + 1].float())
+                                                 dataset=self.data[:, node:node + 1].detach().clone().float())
         self.data = self.data.cpu()
         return transformed_inputs
 
@@ -81,7 +80,7 @@ def set_optimizer_scheduler(model, lr, weight_decay, amsgrad, epochs):
     return optimizer, scheduler
 
 
-def marg_flow(self, dataset, data_loaders, node):
+def marg_flow(self, data_loaders, node):
     print('Train Marginal Flow for tree {}, node {}'.format(len(self.tree_list), node))
 
     # Initialize marginal flow
@@ -92,14 +91,12 @@ def marg_flow(self, dataset, data_loaders, node):
 
     self.marg_flow.to(self.args.device)
     self.marg_flow.state = dict()
-    self.marg_flow.train()
     self.args.optimizer, self.args.scheduler = set_optimizer_scheduler(self.marg_flow,
                                                                        self.args.lr_m,
                                                                        self.args.weight_decay_m,
                                                                        self.args.amsgrad_m,
                                                                        self.args.epochs)
-    #self.args.optimizer = optim.Adam(self.marg_flow.parameters(), lr=self.args.lr_m, weight_decay=self.args.weight_decay_m)
-    #self.args.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.args.optimizer, self.args.epochs) #, args.num_training_steps, 0)
+    self.args.clip = self.args.clip_m
     self.args.clip_grad_norm = self.args.clip_grad_norm_m
 
     # Train marginal flow
@@ -111,31 +108,23 @@ def marg_flow(self, dataset, data_loaders, node):
         best_dict, __ = train_val(args=self.args,
                                   model=self.marg_flow,
                                   data_loaders=data_loaders,
-                                  save_name=re.sub('[, ()]', '', str(node)) + 'marginal',
+                                  save_name=re.sub('[, ()]', '', str(node)) + 'marginal' + str(ii),
                                   model_name=current_name,
                                   rvine=True,
                                   disable_tqdm=True)
         model_dict[current_name] = self.marg_flow
         if best_dict['best_validation_loss'] < best_loss:
+            best_try = str(ii)
             best_model = current_name
             best_epoch = best_dict['best_validation_epoch']
             best_loss = best_dict['best_validation_loss']
 
-    # self.marg_flow = load_model(model=model_dict[best_model], model_save_dir=args.experiment_saved_models, model_save_name='best_epoch_model',
-    #                     model_idx=best_epoch)
     # Load best model for marginal flow
-    model_loader(model_dict[best_model], self.args, node, best_epoch, add_name='marginal')
+    model_loader(model_dict[best_model], self.args, node, best_epoch, add_name='marginal' + best_try)
 
     # Transform inputs using the trained marginal flow
     transformed_inputs = transform_marginals(self, node)
 
-    #
-    node_str = re.sub('[, ()]', '', str(node))
-    visualize1D(model=self.marg_flow,
-                epoch=best_dict['best_validation_epoch'],
-                args=self.args,
-                best_val=True,
-                name=node_str)
     return transformed_inputs
 
 
@@ -151,15 +140,18 @@ def initialize_graph(self):
 
     for node in current_graph.nodes():
         # Prepare dataset for node
-        dataset, data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
+        data_loaders = create_dataset_1dim(self.data[:, node:node + 1].float(), self.args)
         node_str = re.sub('[, ()]', '', str(node))
-        visualize_joint(np.concatenate([self.data[:, node:node + 1], self.data[:, node:node + 1]], axis=1), self.args.figures_path, name='rvine_pre_marginal_{}'.format(node_str))
+        visualize_joint(np.concatenate([self.data[:, node:node + 1],
+                        self.data[:, node:node + 1]], axis=1),
+                        self.args.figures_path,
+                        name='rvine_pre_marginal_{}'.format(node_str))
         assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
             if not self.args.use_ecdf:
-                transformed_inputs = marg_flow(self, dataset, data_loaders, node)
+                transformed_inputs = marg_flow(self, data_loaders, node)
             else:
                 norm_distr = scipy.stats.norm()
                 ecdf_1 = ECDF(self.data[:, node])
@@ -235,9 +227,9 @@ def cop_flow_transform(self, uncon_node_data, cond_node_data):
 
 
 def plot_cop_flow(self, node_data, cond_node_data, edge):
-    uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
+    #uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
     edge_str = re.sub('[, ()]', '', str(edge))
-    visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
+    #visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
 
     context = torch.tensor(np.random.normal(size=(10000, 1))).float()
     con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
@@ -277,6 +269,7 @@ def add_new_node(self, new_graph, common_node, edge, plots):
                                                                        self.args.weight_decay_c,
                                                                        self.args.amsgrad_c,
                                                                        self.args.epochs)
+    self.args.clip = self.args.clip_m
     self.args.clip_grad_norm = self.args.clip_grad_norm_c
 
     best_dict_con, __ = train_val(args=self.args,
@@ -432,8 +425,8 @@ class RVine():
                     self.cop_flow.eval()
 
                     # plt cop flow
-                    test_samples = self.cop_flow.sample_copula(num_samples, context=cond_node_data, device=self.args.device)
-                    visualize_joint(test_samples.cpu(), self.args.figures_path, name='loaded_sampling_{}'.format(node))
+                    #test_samples = self.cop_flow.sample_copula(num_samples, context=cond_node_data, device=self.args.device)
+                    # visualize_joint(test_samples.cpu(), self.args.figures_path, name='loaded_sampling_{}'.format(node))
 
                     # inverse H-function
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
@@ -465,8 +458,8 @@ class RVine():
                     print('pdf tree', ii, 'node', node)
                     uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
 
-                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1]
-                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1]
+                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1] #.copy()
+                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1] # .copy()
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.cop_flow,
@@ -486,8 +479,6 @@ class RVine():
                                                                           cond_node_data)
                     transformed_inputs_uni = self.norm.cdf(transformed_inputs.cpu().numpy())
                     next_tree_inputs[:, uncon_input_node:uncon_input_node + 1] = transformed_inputs_uni
-                    normal_distr = torch.distributions.normal.Normal(0, 1)
-                    visualize_joint(normal_distr.cdf(torch.cat([uncon_node_data[:, 0:1], transformed_inputs], axis=1)).cpu(), self.args.figures_path, name='transform_{}'.format(node))
                 current_tree_inputs = next_tree_inputs
 
             assert torch.min(pdf) >= 0
@@ -525,16 +516,16 @@ class RVine():
                 visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
                 visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
 
-                # @Todo: do with change of var
-                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
-                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
-                calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(), samples_target=samples_target_uni[:, 2:4], name='23')
-                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
-                         samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), name='02')
-                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-                         samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
-                calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-                         samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
+                # # @Todo: do with change of var
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(), samples_target=samples_target_uni[:, 2:4], name='23')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), name='02')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0
@@ -665,17 +656,6 @@ def create_dataset(uncon_node_data, con_node_data, args):
     return dataset, data_loaders
 
 
-class Rvine_data_1dim():
-    """Class for bivariate samples given a copula correlation and individual marginals.
-    """
-    def __init__(self, inputs):
-        self.xx = normalize_torch(inputs)
-        trn, val = split_train_val_test(self.xx, only_val=True)
-
-        self.trn = trn.float()
-        self.val = val.float()
-
-
 def create_dataset_1dim(inputs, args):
     """Creates a one dimensional dataset as needed for CM Flows given the data from each edge.
 
@@ -687,15 +667,20 @@ def create_dataset_1dim(inputs, args):
         dataset: full dataset
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
-    dataset = Rvine_data_1dim(inputs)
+    #xx = normalize_torch(inputs)
+    trn, val = split_train_val_test(inputs, only_val=True)
+
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    train_dataset = torch.utils.data.TensorDataset(dataset.trn)
+    train_dataset = torch.utils.data.TensorDataset(trn.float().detach().clone())
 
-    valid_dataset = torch.utils.data.TensorDataset(dataset.val)
+    valid_dataset = torch.utils.data.TensorDataset(val.float().detach().clone())
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        **kwargs)
 
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset,
@@ -706,4 +691,4 @@ def create_dataset_1dim(inputs, args):
 
     data_loaders = {'train_loader': train_loader,
                     'valid_loader': valid_loader}
-    return dataset, data_loaders
+    return data_loaders

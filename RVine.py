@@ -50,13 +50,14 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         model.plot()
         # Simulate and visualize
         samples = model.sample(num_samples=args.viz_obs, transform=True)
+        # normal_distr = torch.distributions.normal.Normal(0, 1)
+        # samples = normal_distr.cdf(samples)
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
-        normal_distr = torch.distributions.normal.Normal(0, 1)
         for pair in paired_dims:
-            vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            viz_samples = samples[:, pair]
+            visualize_joint(viz_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]), axis_2_name='X{}'.format(pair[1]))
             visualize_joint(dataset_trn[:, pair].numpy(), args.figures_path, name='true_distr_dim{}'.format(pair))
 
 

@@ -88,7 +88,7 @@ def marg_flow_transform(args, model, dataset, dim):
 def marginal_flow_train(model, args, name, dim, dataset, data_loaders, disable_tqdm, error_bars):
     model_dict = {}
     best_loss = 1000
-    for ii in range(3):
+    for ii in range(1):
         model.init_marg_flow()
         model.marg_flow.state = dict()
         args.clip_grad_norm = args.clip_grad_norm_m
@@ -105,15 +105,17 @@ def marginal_flow_train(model, args, name, dim, dataset, data_loaders, disable_t
                                             data_loaders=data_loaders,
                                             disable_tqdm=disable_tqdm,
                                             error_bars=error_bars,
-                                            cm_flow=True)
+                                            cm_flow=True,
+                                            save_name=str(ii))
         model_dict[current_name] = model.marg_flow
         if best_dict_marg_flow['best_validation_loss'] < best_loss:
+            best_try = str(ii)
             best_model = current_name
             best_epoch = best_dict_marg_flow['best_validation_epoch']
             best_loss = best_dict_marg_flow['best_validation_loss']
 
-    model.marg_flow = load_model(model=model_dict[best_model], model_save_dir=args.experiment_saved_models, model_save_name='best_epoch_model',
-                                  model_idx=best_epoch)
+    model.marg_flow = load_model(model=model_dict[best_model], model_save_dir=args.experiment_saved_models,
+                                 model_save_name='best_epoch_model' + best_try, model_idx=best_epoch)
     model.marg_flow.eval()
     marg_flow_output = marg_flow_transform(args=args, model=model.marg_flow, dataset=dataset, dim=dim)
     return marg_flow_output, best_dict_marg_flow

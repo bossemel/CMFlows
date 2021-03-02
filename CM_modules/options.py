@@ -132,7 +132,10 @@ class TrainOptions():
         parser.add_argument(
             '--exp_name', type=str, default='default_name_cm', help='experiment name to store plots and logs')
         parser.add_argument(
-            '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')
+            '--figures_path', type=str, default='figures', help='path to figures')
+        parser.add_argument(
+            '--data_path', type=str, default='datasets/joint_data', help='path to data')
+
         parser.add_argument(
             '--experiment_saved_models', type=str, default='saved_models')
 

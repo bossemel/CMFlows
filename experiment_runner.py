@@ -320,5 +320,12 @@ def train_val(model, model_name, args, data_loaders,
                         args=args,
                         best_val=True,
                         name=model_name)
+    if rvine:
+        if 'marg_flow_rv' in model_name and not error_bars:
+            visualize1D(model=model,
+                        epoch=best_dict['best_validation_epoch'],
+                        args=args,
+                        best_val=True,
+                        name=model_name + save_name)
 
     return best_dict, test_dict

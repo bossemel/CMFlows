@@ -137,15 +137,15 @@ class ConditionalFlow(nn.Module):
         """
         if num_inputs:
             self.num_inputs = num_inputs
-        if context:
+        if context is not None:
             num_samples = context.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device:
-            if context:
+            if context is not None:
                 context = context.to(device)
             noise = noise.to(device)
         samples, log_density = self.flow._transform.inverse(inputs=noise, context=context)
-        if context:
+        if context is not None:
             samples = torch.cat([samples, context], axis=1)
         # if transform == 'gaussian':
         #     raise ValueError('transform after this function')
@@ -161,10 +161,10 @@ class ConditionalFlow(nn.Module):
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
         if device:
             noise = noise.to(device)
-            if context:
+            if context is not None:
                 context = context.to(device)
         samples, log_density = self.flow._transform.inverse(inputs=noise, context=context)
-        if context:
+        if context is not None:
             samples = torch.cat([samples, context], axis=1)
         normal_distr = torch.distributions.normal.Normal(0, 1)
         samples = normal_distr.cdf(samples)
@@ -254,7 +254,7 @@ class ConditionalFlow(nn.Module):
                 samples = self.sample_copula(num_samples=num_samples, context=context_normal, device=device).cpu().numpy()
             else:
                 samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
-            if context:
+            if context is not None:
                 margin_x1 = context
                 margin_x2 = samples
             else:

@@ -120,8 +120,6 @@ class TrainOptions():
             '--use_batch_norm_c', type=bool, default=True, help='Use batch norm in spline layers')
         parser.add_argument(
             '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
-        parser.add_argument(
-            '--amsgrad_c', action='store_true', default=False)
 
         # NSF Options marginal
         parser.add_argument(
@@ -156,6 +154,8 @@ class TrainOptions():
             '--load_model', action='store_true', help='loads saved model under experiment name')
         parser.add_argument(
             '--continue_error_bars', type=int, default=0, help='from which expeirment to continue error bar experiments')
+        parser.add_argument(
+            '--data_path', type=str, default='datasets/joint_data', help='path to data')
 
         self.initialized = True
         return parser

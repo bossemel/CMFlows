@@ -19,9 +19,9 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    train = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
-    val = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
-    test = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_tst'.format(args.copula, args.marginal_1, args.marginal_2)))
+    train = torch.load(os.path.join(args.data_path, '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join(args.data_path, '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    test = torch.load(os.path.join(args.data_path, '2D_{}_{}_{}_tst'.format(args.copula, args.marginal_1, args.marginal_2)))
 
     # dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
     #                                              mu=args.mu, var=args.var, alpha=args.alpha, random_seed=args.random_seed)
