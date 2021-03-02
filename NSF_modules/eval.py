@@ -19,20 +19,15 @@ def jsd_eval(args, epoch, model, device, test_dict):
     Returns:
         test_dict: updated test_dict
     """
-
-    model.eval()
     with torch.no_grad():
         current_jsd = model.jsd(args=args, device=args.device).sum().item()
-        if 'jsd_test_copula' in test_dict:
-            test_dict["jsd_test_copula"].append(current_jsd)
-        else:
-            test_dict["jsd_test_copula"] = [current_jsd]
+        test_dict["jsd_test_copula"] = current_jsd
 
-    print('JSD in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["jsd_test_copula"])))
+    print('JSD in epoch {}:  {:5f}'.format(epoch, test_dict["jsd_test_copula"]))
     return test_dict
 
 
-def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, num_samples=10000, cm_flow=False):
+def margin_uniformity(args, epoch, model, test_dict=None, num_samples=10000, cm_flow=False):
     """Evaluate Uniformity of best validation model samples.
 
     Params:
@@ -44,34 +39,26 @@ def margin_uniformity(args, epoch, model, transform_fct=None, test_dict=None, nu
     Returns:
         test_dict: updated test_dict
     """
-    model.eval()
-
     with torch.no_grad():
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, transform_fct=transform_fct, cm_flow=cm_flow, device=args.device)
-    if 't_1' in test_dict:
-        test_dict["t_1"].append(current_t_metric_x1 / num_samples)
-        test_dict["m_1"].append(current_m_metric_x1 / num_samples)
-        test_dict["t_2"].append(current_t_metric_x2 / num_samples)
-        test_dict["m_2"].append(current_m_metric_x2 / num_samples)
-    else:
-        test_dict["t_1"] = [current_t_metric_x1 / num_samples]
-        test_dict["m_1"] = [current_m_metric_x1 / num_samples]
-        test_dict["t_2"] = [current_t_metric_x2 / num_samples]
-        test_dict["m_2"] = [current_m_metric_x2 / num_samples]
+            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, cm_flow=cm_flow, device=args.device)
+    test_dict["t_1"] = current_t_metric_x1 / num_samples
+    test_dict["m_1"] = current_m_metric_x1 / num_samples
+    test_dict["t_2"] = current_t_metric_x2 / num_samples
+    test_dict["m_2"] = current_m_metric_x2 / num_samples
 
-    print('T metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["t_1"])))
-    print('M metric x1 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["m_1"])))
-    print('T metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["t_2"])))
-    print('M metric x2 in epoch {}:  {:5f}'.format(epoch, np.mean(test_dict["m_1"])))
+    print('T metric x1 in epoch {}:  {:5f}'.format(epoch, test_dict["t_1"]))
+    print('M metric x1 in epoch {}:  {:5f}'.format(epoch, test_dict["m_1"]))
+    print('T metric x2 in epoch {}:  {:5f}'.format(epoch, test_dict["t_2"]))
+    print('M metric x2 in epoch {}:  {:5f}'.format(epoch, test_dict["m_1"]))
 
     return test_dict
 
 
 def jsd_eval_1D(marginal, args, model, test_dict,
-             obs=10000, plotname='jsd_test_marginal',
+             obs=1000, plotname='jsd_test_marginal',
              cm_flow=False, marginal_num='1'):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 
@@ -98,7 +85,7 @@ def jsd_eval_1D(marginal, args, model, test_dict,
 
         # Prob vector pred
         args.obs = obs
-        prob_vector_X = np.exp(model._forward(torch.tensor(grid).to(args.device).float()).cpu().numpy())
+        prob_vector_X = np.exp(model._forward(torch.tensor(grid, device=torch.device(args.device)).float()).cpu().numpy())
 
         # Prob vector target
         pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
@@ -111,15 +98,9 @@ def jsd_eval_1D(marginal, args, model, test_dict,
         divergence = js_divergence_grid(prob_vector_X, prob_vector_Y)
         print('JS divergence: ', divergence)
 
-        if cm_flow is not None:
+        if cm_flow:
             jsd_name = plotname + '_' + str(cm_flow)
-            if jsd_name in test_dict:
-                test_dict[jsd_name].append(divergence)
-            else:
-                test_dict[jsd_name] = [divergence]
+            test_dict[jsd_name] = divergence
         else:
-            if plotname in test_dict:
-                test_dict[plotname].append(divergence)
-            else:
-                test_dict[plotname] = [divergence]
+            test_dict[plotname] = divergence
         return test_dict

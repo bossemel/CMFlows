@@ -38,22 +38,18 @@ def marginal_transform(inputs, marginal, mu=None, var=None, alpha=None):
         distr_2 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu + 2, scale=var / 2)
         distr_3 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu, scale=var / 4)
     elif marginal == 'mix_gamma':
-        distr_1 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 5)
-        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha / 5)
-        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha)
+        distr_1 = lambda xx: scipy.stats.gamma.cdf(xx, 1)
+        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, 5)
+        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, 2)
     elif marginal == 'mix_lognormal':
-        distr_1 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0, loc=mu - 2, scale=var * 2)
+        distr_1 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.1, loc=mu -2, scale=var * 2)
         distr_2 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.9, loc=mu + 2, scale=var / 2)
         distr_3 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.5, loc=mu, scale=var)
     elif marginal == 'mix_gauss_gamma':
         distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu, scale=var / 5)
         distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha)
         distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha * 5)
-    elif marginal == 'mix_uniform':
-        distr_1 = lambda xx: scipy.stats.uniform.cdf(xx)
-        distr_2 = lambda xx: scipy.stats.uniform.cdf(xx)
-        distr_3 = lambda xx: scipy.stats.uniform.cdf(xx)
-    if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform']:
+    if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']:
         inverse_cdf = pynverse.inversefunc(lambda xx: 0.4 * distr_1(xx) + 0.4 * distr_2(xx) + 0.2 * distr_3(xx))
         inputs = inverse_cdf(inputs)
     return inputs
@@ -481,21 +477,23 @@ if __name__ == '__main__':
     copula_list = ['clayton', 'frank', 'gumbel', 'independent']
     marginal_1_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
     marginal_2_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
-    alpha = 5
+    alpha = 10
     mu = 0
     var = 1
     obs = 10000
     seed = 4
-    for copula in copula_list:
-        for marginal_1 in marginal_1_list:
-            #for marginal_2 in marginal_2_list:
-            if copula == 'clayton':
-                theta = 2
-            else:
-                theta = 5
-            save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
-            save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
 
-    for marginal_1 in marginal_1_list:
-        save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
+    # for copula in copula_list:
+    #     for marginal_1 in marginal_1_list:
+    #         #for marginal_2 in marginal_2_list:
+    #         if copula == 'clayton':
+    #             theta = 2
+    #         else:
+    #             theta = 5
+    #         save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
+    #         save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
 
+    # for marginal_1 in marginal_1_list:
+    #     save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
+
+    save_dataset_2D('frank', 'mix_gamma', 'mix_gamma', 5, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)

@@ -278,7 +278,7 @@ class FlowSequential(nn.Sequential):
 
     #         return divergence
 
-    def t_metric_eval(self, args, num_samples, context=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
+    def t_metric_eval(self, args, num_samples, context=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
@@ -294,9 +294,9 @@ class FlowSequential(nn.Sequential):
                     samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             else:
                 if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, context=context_normal, transform=transform_fct, device=device).cpu().numpy()
+                    samples = self.sample(num_samples=num_samples, context=context_normal, device=device).cpu().numpy()
                 else:
-                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
+                    samples = self.sample(num_samples=num_samples, device=device).cpu().numpy()
             if context is not None:
                 margin_x1 = context
                 margin_x2 = samples

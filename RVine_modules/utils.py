@@ -8,7 +8,7 @@ import os
 
 
 def load_mv_copula(args):
-    dataset = torch.load(os.path.join('datasets', '4D_{}_{}_mix{}'.format(args.copula, args.marginal, args.mix)))
+    dataset = torch.load(os.path.join(args.data_path, '4D_{}_{}_mix{}'.format(args.copula, args.marginal, args.mix)))
 
     if args.mix is False:
         if args.copula == 'clayton':

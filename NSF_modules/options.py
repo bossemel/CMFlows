@@ -18,10 +18,6 @@ class TrainOptions():
 
         # Architecture
         parser.add_argument(
-            '--pretrain_models', action='store_true', help='first trains marginal flow, then copula flow')
-        parser.add_argument(
-            '--train_cm_flow', action='store_true', help='whether to train combined nsf Flow')
-        parser.add_argument(
             '--conditional_copula', action='store_true', help='estimates the conditional copula')
 
         # Training options
@@ -34,21 +30,17 @@ class TrainOptions():
         parser.add_argument(
             '--lr_m', type=float, default=0.0001, help='learning rate (default: 0.0001)')
         parser.add_argument(
-            '--no-cuda', action='store_true', default=False, help='disables CUDA training')
+            '--no_cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(
             '--random_seed', type=int, default=4, help='random seed')
         parser.add_argument(
             '--clip_grad_norm', action='store_true', help='whether to clip gradients')
         parser.add_argument(
-            '--clip_m', type=float, default=1.0)
-        parser.add_argument(
-            '--clip_c', type=float, default=1.0)
+            '--clip', type=float, default=5.0)
         parser.add_argument(
             '--weight_decay_c', type=float, default=0.01, help='adam optimizer weight decay')
         parser.add_argument(
             '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
-        parser.add_argument(
-            '--early_stopping', action='store_true', default=False, help='stops training after 10 unsuccessfull epochs')
         parser.add_argument(
             '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
         parser.add_argument(
@@ -66,11 +58,7 @@ class TrainOptions():
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(
-            '--tau', type=float, required=False, help='tau to use for copula sampling')
-        parser.add_argument(
-            '--theta', type=float, required=True, help='theta for copula sampling')
-        parser.add_argument(
-            '--df', type=int, required=False, help='degrees of freedom for student-t copula')
+            '--theta', type=float, required=False, help='theta for copula sampling')
         parser.add_argument(
             '--alpha', type=float, default=5, help='alpha for gamma distribution')
         parser.add_argument(
@@ -83,8 +71,6 @@ class TrainOptions():
             '--high', type=float, default=1, help='upper bound for uniform distirbution')
 
         # Options NSF - Copula estimation
-        parser.add_argument(
-            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
         parser.add_argument(
             '--n_layers_c', type=int, default=10, help='Number of spline layers in flow')
         parser.add_argument(
@@ -106,9 +92,11 @@ class TrainOptions():
         parser.add_argument(
             '--dropout_c', type=float, default=0.15, help='Dropout probability in flow')
         parser.add_argument(
-            '--use_batch_norm', type=int, default=True, help='Use batch norm in spline layers')
+            '--use_batch_norm_c', type=bool, default=True, help='Use batch norm in spline layers')
         parser.add_argument(
-            '--unconditional_transform', type=int, default=False, help='Unconditionally transform identity features')
+            '--unconditional_transform', type=int, default=0, help='Unconditionally transform identity features')
+        parser.add_argument(
+            '--amsgrad_c', action='store_true', default=False)
 
         # NSF Options marginal
         parser.add_argument(
@@ -123,6 +111,12 @@ class TrainOptions():
             '--tail_bound_m', type=float, default=16, help='Bounds of spline region')
         parser.add_argument(
             '--dropout_m', type=float, default=0.25, help='Dropout probability in flow')
+        parser.add_argument(
+            '--amsgrad_m', action='store_true', default=False)
+        parser.add_argument(
+            '--identity_init_m', action='store_true')
+        parser.add_argument(
+            '--tails_m', type=str, default='linear', help='Function type outside spline region')
 
         # Save options
         parser.add_argument(

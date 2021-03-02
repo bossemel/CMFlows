@@ -80,8 +80,8 @@ def fit_copula(data):
 
 
 def load_data(args):
-    train = torch.load(os.path.join('datasets', '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
-    val = torch.load(os.path.join('datasets', '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+    train = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+    val = torch.load(os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
     train = np.concatenate([train, val], axis=0)
     return train
 

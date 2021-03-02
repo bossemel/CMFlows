@@ -1,7 +1,6 @@
 import torch
 import torch.utils.data
 from tqdm import tqdm
-import numpy as np
 
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
@@ -12,15 +11,15 @@ from NSF_modules.visualizer import visualize1D
 eps = 1e-07
 
 
-def single_model_forward(args, model, model_name, data):
+def single_model_forward(model, model_name, data, conditional):
     # When training just the marg_flow or cop_flow, there is only one loss and no preprocessing of data.
-    if model_name == 'marg_flow_1':
-        loss = model.loss(data[:, 0: 1])
-    elif model_name == 'marg_flow_2':
-        loss = model.loss(data[:, 1: 2])
+    if 'marg_flow_1' in model_name:
+        loss = model.loss(data[:, 0:1])
+    elif 'marg_flow_2' in model_name:
+        loss = model.loss(data[:, 1:2])
     elif model_name in ['cop_flow', 'cop_flow_rv', 'cop_flow_real']:
-        if args.conditional_copula:
-            loss = model.loss(inputs=data[:, 0: 1], context=data[:, 1: 2])
+        if conditional:
+            loss = model.loss(inputs=data[:, 0:1], context=data[:, 1:2])
         else:
             loss = model.loss(data)
     else:
@@ -45,34 +44,28 @@ def train(args, epoch, model, train_loader, current_epoch_losses, device,
     pbar = tqdm(total=len(train_loader.dataset), disable=disable_tqdm)
 
     for batch_idx, data in enumerate(train_loader):
-        model.train()
-
         if isinstance(data, list):
             data = data[0]
         data = data.to(device)
         args.optimizer.zero_grad()
-
-        model, loss = single_model_forward(args,
-                                           model,
+        model, loss = single_model_forward(model,
                                            model_name,
-                                           data)
+                                           data,
+                                           args.conditional_copula)
         assert not torch.isnan(loss)
         if 'train_loss' in current_epoch_losses:
-            current_epoch_losses["train_loss"].append(loss.item())  # add current iter loss to the train loss list
+            current_epoch_losses["train_loss"].append(loss.detach())  # add current iter loss to the train loss list
         else:
-            current_epoch_losses['train_loss'] = [loss.item()]
+            current_epoch_losses['train_loss'] = [loss.detach()]
 
         loss.backward()
 
         # Perform gradient clipping
         if args.clip_grad_norm:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_m)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 
-        if args.scheduler is None:
-            args.optimizer.step()
-        else:
-            args.optimizer.step()
-            args.scheduler.step()
+        args.optimizer.step()
+        args.scheduler.step()
 
         pbar.update(data.size(0))
         pbar.set_description('{} Train, Log likelihood: {:.6f}'.format(model_name, loss))
@@ -103,8 +96,8 @@ def validate(args, epoch, model, loader, device,
 
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')
+
     for batch_idx, data in enumerate(loader):
-        model.eval()
 
         if isinstance(data, list):
             data = data[0]
@@ -112,19 +105,19 @@ def validate(args, epoch, model, loader, device,
         data = data.to(device)
 
         with torch.no_grad():
-            model, loss = single_model_forward(args,
-                                               model,
+            model, loss = single_model_forward(model,
                                                model_name,
-                                               data)
+                                               data,
+                                               args.conditional_copula)
 
         if 'val_loss' in current_epoch_losses:
-            current_epoch_losses["val_loss"].append(loss.item())  # add current iter loss to val loss list.
+            current_epoch_losses["val_loss"].append(loss.detach())  # add current iter loss to val loss list.
         else:
-            current_epoch_losses["val_loss"] = [loss.item()]  # add current iter loss to val loss list.
-
-        val_mean_loss = np.mean(current_epoch_losses['val_loss'])
+            current_epoch_losses["val_loss"] = [loss.detach()]  # add current iter loss to val loss list.
 
         pbar.update(data.size(0))
+
+    val_mean_loss = torch.mean(torch.tensor(current_epoch_losses['val_loss']))
     pbar.set_description('{} Val, Log likelihood: {:.6f}'.format(model_name, val_mean_loss))
 
     if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
@@ -149,29 +142,25 @@ def test(args, epoch, model, loader, device,
     Returns:
         test_dict: updated test_dict
     """
-    model.eval()
-
     pbar = tqdm(total=len(loader.dataset), disable=disable_tqdm)
     pbar.set_description('Eval')
     for batch_idx, data in enumerate(loader):
         if isinstance(data, list):
             data = data[0]
-
         data = data.to(device)
         with torch.no_grad():
-            model, loss = single_model_forward(args,
-                                               model,
+            model, loss = single_model_forward(model,
                                                model_name,
-                                               data)
+                                               data,
+                                               args.conditional_copula)
         test_loss_name = model_name + '_test_loss'
         if 'test_loss' in test_dict:
-            test_dict[test_loss_name].append(loss.item())  # add current iter loss to test loss list.
+            test_dict[test_loss_name].append(loss.detach())  # add current iter loss to test loss list.
         else:
-            test_dict[test_loss_name] = [loss.item()]  # add current iter loss to test loss list.
+            test_dict[test_loss_name] = [loss.detach()]  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
-    pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, np.mean(test_dict[test_loss_name])))
-
+    pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, torch.mean(torch.tensor(test_dict[test_loss_name]))))
     pbar.close()
 
     return test_dict
@@ -192,6 +181,7 @@ def train_val(model, model_name, args, data_loaders,
         current_epoch_losses = {"train_loss": [], "val_loss": []}
 
         # Train model
+        model.train()
         current_epoch_losses = train(args=args,
                                      epoch=epoch,
                                      model=model,
@@ -202,6 +192,7 @@ def train_val(model, model_name, args, data_loaders,
                                      disable_tqdm=disable_tqdm)
 
         # Perform Validation
+        model.eval()
         current_epoch_losses, best_dict = validate(args=args,
                                                    epoch=epoch,
                                                    model=model,
@@ -225,8 +216,8 @@ def train_val(model, model_name, args, data_loaders,
         if not hp_search and not rvine:
             # Save mean of each epoch in total losses dictionary
             for key, value in current_epoch_losses.items():
-                total_losses[key].append(np.mean(
-                    value))  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
+                total_losses[key].append(torch.mean(
+                    torch.tensor(value)).item())  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
 
             # Save current epoch statistics
             save_statistics(experiment_log_dir=args.experiment_logs, filename='summary_{}.csv'.format(model_name),
@@ -240,26 +231,34 @@ def train_val(model, model_name, args, data_loaders,
     # Load model with best validation epoch
     model = load_model(model, args.experiment_saved_models, 'train_model',
                        best_dict['best_validation_epoch'])
+
+    # Save best model under different name
+    save_model(model=model,
+               model_save_dir=args.experiment_saved_models,
+               model_save_name="best_epoch_model", model_idx=best_dict['best_validation_epoch'],
+               best_validation_model_idx=best_dict['best_validation_epoch'],
+               best_validation_model_loss=best_dict['best_validation_loss'],
+               save_name=save_name)
+
     model.eval()
 
     if not hp_search and not rvine:
         # Plot losses
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)
         if not error_bars and not hp_search and not rvine:
-            if model_name in ['marg_flow', 'marg_flow_1', 'marg_flow_2']:
-                plot_result_graphs(args.figures_path, args.exp_name, args.marginal, result_dict, model_type=model_name)
-            else:
-                plot_result_graphs(args.figures_path, args.exp_name, args.copula, result_dict, model_type=model_name)
+            plot_result_graphs(args.figures_path, args.exp_name,
+                args.marginal if model_name in ['marg_flow', 'marg_flow_1', 'marg_flow_2'] else args.copula,
+                result_dict, model_type=model_name)
 
         # # Perform test evaluation
-        # test_dict = test(args=args,
-        #                  epoch=best_dict['best_validation_epoch'],
-        #                  model=model,
-        #                  loader=data_loaders['test_loader'],
-        #                  device=args.device,
-        #                  test_dict=test_dict,
-        #                  model_name=model_name,
-        #                  disable_tqdm=disable_tqdm)
+        test_dict = test(args=args,
+                         epoch=best_dict['best_validation_epoch'],
+                         model=model,
+                         loader=data_loaders['test_loader'],
+                         device=args.device,
+                         test_dict=test_dict,
+                         model_name=model_name,
+                         disable_tqdm=disable_tqdm)
 
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'cop_flow':
@@ -272,7 +271,6 @@ def train_val(model, model_name, args, data_loaders,
             test_dict = margin_uniformity(args=args,
                                           epoch=best_dict['best_validation_epoch'],
                                           model=model,
-                                          transform_fct=args.transform_fct,
                                           test_dict=test_dict,
                                           num_samples=args.obs,
                                           cm_flow=args.cop_flow_part_of_CM_Flow)
@@ -285,41 +283,49 @@ def train_val(model, model_name, args, data_loaders,
                                           model=model,
                                           test_dict=test_dict)
 
-            if not error_bars:
-                # Visualize the marginals
-                visualize1D(model=model,
-                            epoch=best_dict['best_validation_epoch'],
-                            args=args,
-                            best_val=True)
+        # if model_name == 'marg_flow_1':
+        #     # Calculate Jensen-Shannon Divergence of marginal 1
+        #     args.marginal = args.marginal_1
+        #     test_dict = jsd_eval_marginal(marginal=args.marginal_1,
+        #                                   args=args,
+        #                                   model=model,
+        #                                   test_dict=test_dict,
+        #                                   plotname='jsd_pretrain_marginal_0',
+        #                                   cm_flow=True,
+        #                                   marginal_num='1')
 
-        if model_name == 'marg_flow_1':
-            # Calculate Jensen-Shannon Divergence of marginal 1
+        # # Calculate Jensen-Shannon Divergence of marginal 1
+        # if model_name == 'marg_flow_2':
+        #     args.marginal = args.marginal_2
+        #     test_dict = jsd_eval_marginal(marginal=args.marginal_2,
+        #                                   args=args,
+        #                                   model=model,
+        #                                   test_dict=test_dict,
+        #                                   plotname='jsd_pretrain_marginal_1',
+        #                                   cm_flow=True,
+        #                                   marginal_num='1')
+
+        if 'marg_flow_1' in model_name and not error_bars:
             args.marginal = args.marginal_1
-            test_dict = jsd_eval_marginal(marginal=args.marginal_1,
-                                          args=args,
-                                          model=model,
-                                          test_dict=test_dict,
-                                          plotname='jsd_pretrain_marginal_0',
-                                          cm_flow=True,
-                                          marginal_num='1')
+            visualize1D(model=model,
+                        epoch=best_dict['best_validation_epoch'],
+                        args=args,
+                        best_val=True,
+                        name=model_name)
 
-        # Calculate Jensen-Shannon Divergence of marginal 1
-        if model_name == 'marg_flow_2':
+        if 'marg_flow_2' in model_name and not error_bars:
             args.marginal = args.marginal_2
-            test_dict = jsd_eval_marginal(marginal=args.marginal_2,
-                                          args=args,
-                                          model=model,
-                                          test_dict=test_dict,
-                                          plotname='jsd_pretrain_marginal_1',
-                                          cm_flow=True,
-                                          marginal_num='1')
-
-    # Save best model under different name
-    save_model(model=model,
-               model_save_dir=args.experiment_saved_models,
-               model_save_name="best_epoch_model", model_idx=best_dict['best_validation_epoch'],
-               best_validation_model_idx=best_dict['best_validation_epoch'],
-               best_validation_model_loss=best_dict['best_validation_loss'],
-               save_name=save_name)
+            visualize1D(model=model,
+                        epoch=best_dict['best_validation_epoch'],
+                        args=args,
+                        best_val=True,
+                        name=model_name)
+    if rvine:
+        if 'marg_flow_rv' in model_name and not error_bars:
+            visualize1D(model=model,
+                        epoch=best_dict['best_validation_epoch'],
+                        args=args,
+                        best_val=True,
+                        name=model_name + save_name)
 
     return best_dict, test_dict

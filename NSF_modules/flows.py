@@ -37,7 +37,7 @@ class ConditionalFlow(nn.Module):
             self.n_bins_c = args.n_bins_c
             self.tail_bound_c = args.tail_bound_c
 
-        self.use_batch_norm = args.use_batch_norm
+        self.use_batch_norm_c = args.use_batch_norm_c
         self.tails = args.tails
         self.min_bin_height = args.min_bin_height
         self.min_bin_width = args.min_bin_width
@@ -63,7 +63,7 @@ class ConditionalFlow(nn.Module):
                         hidden_features=self.hidden_units_c,
                         num_blocks=self.n_blocks_c,
                         dropout_probability=self.dropout_c,
-                        use_batch_norm=self.use_batch_norm,),
+                        use_batch_norm=self.use_batch_norm_c,),
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
                 num_bins=self.n_bins_c,
@@ -78,7 +78,7 @@ class ConditionalFlow(nn.Module):
                     hidden_features=self.hidden_units_c,
                     num_blocks=self.n_blocks_c,
                     dropout_probability=self.dropout_c,
-                    use_batch_norm=self.use_batch_norm
+                    use_batch_norm=self.use_batch_norm_c
                 ),
                 tails=self.tails,
                 tail_bound=self.tail_bound_c,
@@ -132,35 +132,34 @@ class ConditionalFlow(nn.Module):
     def eval(self):
         self.flow.eval()
 
-    def sample(self, num_samples=None, transform=None, context=None, num_inputs=None, device=None):
+    def sample(self, num_samples=None, context=None, num_inputs=None, device=None):
         """Returns an output sample without transformation
         """
-        if num_inputs is not None:
+        if num_inputs:
             self.num_inputs = num_inputs
         if context is not None:
             num_samples = context.shape[0]
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        if device is not None:
+        if device:
             if context is not None:
                 context = context.to(device)
             noise = noise.to(device)
         samples, log_density = self.flow._transform.inverse(inputs=noise, context=context)
         if context is not None:
             samples = torch.cat([samples, context], axis=1)
-        if transform == 'sigmoid':
-            raise NotImplementedError
-        elif transform == 'gaussian':
-            normal_distr = torch.distributions.normal.Normal(0, 1)
-            samples = normal_distr.cdf(samples)
+        # if transform == 'gaussian':
+        #     raise ValueError('transform after this function')
+        #     # normal_distr = torch.distributions.normal.Normal(0, 1)
+        #     # samples = normal_distr.cdf(samples)
         return samples
 
     def sample_copula(self, num_samples=None, context=None, num_inputs=None, device=None):
         """Returns the predicted copula (output sample with transformation)
         """
-        if num_inputs is not None:
+        if num_inputs:
             self.num_inputs = num_inputs
         noise = torch.Tensor(num_samples, self.num_inputs).normal_()
-        if device is not None:
+        if device:
             noise = noise.to(device)
             if context is not None:
                 context = context.to(device)
@@ -174,6 +173,7 @@ class ConditionalFlow(nn.Module):
     def jsd(self, args, num_samples=100000, device=None):
         """Returns JS-Divergence of the predicted Copula and the true Copula
         """
+        assert num_samples == 100000
         with torch.no_grad():
             # Get ground truth
             true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
@@ -241,7 +241,7 @@ class ConditionalFlow(nn.Module):
 
             return divergence
 
-    def t_metric_eval(self, args, num_samples, context=None, transform_fct=None, intervals=25, cm_flow=False, device=None):
+    def t_metric_eval(self, args, num_samples, context=None, intervals=25, cm_flow=False, device=None):
         """Returns evaluation metrics for the copula marginals.
         """
         with torch.no_grad():
@@ -250,16 +250,10 @@ class ConditionalFlow(nn.Module):
                 normal_distr = torch.distributions.normal.Normal(0, 1)
                 context_normal = normal_distr.sample(sample_shape=torch.Size([num_samples, 1])).to(args.device)
 
-            if cm_flow:
-                if args.conditional_copula:
-                    samples = self.sample_copula(num_samples=num_samples, context=context_normal, device=device).cpu().numpy()
-                else:
-                    samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
+            if args.conditional_copula:
+                samples = self.sample_copula(num_samples=num_samples, context=context_normal, device=device).cpu().numpy()
             else:
-                if args.conditional_copula:
-                    samples = self.sample(num_samples=num_samples, context=context_normal, transform=transform_fct, device=device).cpu().numpy()
-                else:
-                    samples = self.sample(num_samples=num_samples, transform=transform_fct, device=device).cpu().numpy()
+                samples = self.sample_copula(num_samples=num_samples, device=device).cpu().numpy()
             if context is not None:
                 margin_x1 = context
                 margin_x2 = samples

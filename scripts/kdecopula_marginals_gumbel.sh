@@ -49,17 +49,17 @@ set -e
 
 
 
-echo 'Begin Copula: kdecopula estimation'
+# echo 'Begin Copula: kdecopula estimation'
 
-python kdecopula.py \
---exp_name kdecopula_gumbel_gmm \
---copula gumbel \
---marginal_1 gmm \
---marginal_2 gmm \
---alpha 5 \
---theta 2 \
---obs 10000 \
---error_bars
+# python kdecopula.py \
+# --exp_name kdecopula_gumbel_gmm \
+# --copula gumbel \
+# --marginal_1 gmm \
+# --marginal_2 gmm \
+# --alpha 5 \
+# --theta 2 \
+# --obs 10000 \
+# --error_bars
 
 echo 'Begin Copula: kdecopula estimation'
 
@@ -73,14 +73,14 @@ python kdecopula.py \
 --obs 10000 \
 --error_bars
 
-echo 'Begin Copula: kdecopula estimation'
+# echo 'Begin Copula: kdecopula estimation'
 
-python kdecopula.py \
---exp_name kdecopula_gumbel_mix_lognormal \
---copula gumbel \
---marginal_1 mix_lognormal \
---marginal_2 mix_lognormal \
---alpha 5 \
---theta 2 \
---obs 10000 \
---error_bars
+# python kdecopula.py \
+# --exp_name kdecopula_gumbel_mix_lognormal \
+# --copula gumbel \
+# --marginal_1 mix_lognormal \
+# --marginal_2 mix_lognormal \
+# --alpha 5 \
+# --theta 2 \
+# --obs 10000 \
+# --error_bars

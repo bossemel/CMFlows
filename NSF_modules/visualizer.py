@@ -6,7 +6,7 @@ import datasets
 import seaborn as sns
 
 
-def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
+def visualize1D(model, epoch, args, best_val=False, obs=1000, name=''):
     """Visualizes the true and predicted marginals.
 
     Params:
@@ -27,12 +27,9 @@ def visualize1D(model, epoch, args, best_val=False, obs=10000, name=''):
         data = marginal_distr.sampler(obs=obs, random_seed=args.random_seed)
         sns.distplot(data, bins=100, kde=False, label='Test Samples', norm_hist=True, color='orange')
 
-        res = obs
-        xx = torch.linspace(np.min(data), np.max(data), res).reshape(-1, 1)
-
-        Z = model._forward(xx.to(args.device)).data.detach().cpu().numpy()
-
-        plt.plot(xx.numpy(), np.exp(Z), label='Predicted PDF', color='royalblue', linewidth=3.0)
+        xx = torch.linspace(np.min(data), np.max(data), obs).reshape(-1, 1)
+        Z = np.exp(model._forward(xx.to(args.device)).data.detach().cpu().numpy())
+        plt.plot(xx.numpy(), Z, label='Predicted PDF', color='royalblue', linewidth=3.0)
         plt.xlabel('x', fontsize=20)
         plt.ylabel('Probability', fontsize=20)
         plt.xticks(fontsize=20)

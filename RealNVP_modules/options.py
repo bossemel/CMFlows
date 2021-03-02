@@ -40,8 +40,6 @@ class TrainOptions():
         parser.add_argument(
             '--early_stopping', action='store_true', default=False, help='stops training after 30 unsuccessfull epochs')
         parser.add_argument(
-            '--transform_fct', type=str, default='gaussian', help='kind of transformation function before and after RealNVP, one of [sigmoid | gaussian]')
-        parser.add_argument(
             '--exp_name', type=str, default='default_name_RNVP', help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path', type=str, default='figures', help='experiment name to store plots and logs')

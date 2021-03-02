@@ -3,14 +3,25 @@ import numpy as np
 import math
 import sys
 import os
+from pathlib import Path
 from sklearn import model_selection
 from torch.autograd import Variable
 import scipy.special
 import scipy.stats
-from utils.visualizer import visualize_joint
 import warnings
 from NSF_modules.utils import sum_except_batch
 eps = 1e-3
+
+
+def create_folders(args):
+    args.exp_path = os.path.join('results', args.exp_name)
+    args.figures_path = os.path.join(args.exp_path, args.figures_path)
+    args.experiment_logs = os.path.join(args.exp_path, 'result_outputs')
+    args.experiment_saved_models = os.path.join(args.experiment_saved_models, args.exp_name)
+    Path(args.exp_path).mkdir(parents=True, exist_ok=True)
+    Path(args.figures_path).mkdir(parents=True, exist_ok=True)
+    Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
+    Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
 
 
 def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):

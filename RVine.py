@@ -7,6 +7,7 @@ import random
 from itertools import combinations
 import csv
 import matplotlib
+import json
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
@@ -49,13 +50,14 @@ def train_and_plot(visualize=True, continue_from_mode=False):
         model.plot()
         # Simulate and visualize
         samples = model.sample(num_samples=args.viz_obs, transform=True)
+        # normal_distr = torch.distributions.normal.Normal(0, 1)
+        # samples = normal_distr.cdf(samples)
 
         paired_dims = combinations(list(range(samples.shape[1])), 2)
 
-        normal_distr = torch.distributions.normal.Normal(0, 1)
         for pair in paired_dims:
-            vis_samples = normal_distr.cdf(samples[:, pair])
-            visualize_joint(vis_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0] + 1), axis_2_name='X{}'.format(pair[1] + 1))
+            viz_samples = samples[:, pair]
+            visualize_joint(viz_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]), axis_2_name='X{}'.format(pair[1]))
             visualize_joint(dataset_trn[:, pair].numpy(), args.figures_path, name='true_distr_dim{}'.format(pair))
 
 
@@ -74,6 +76,8 @@ if __name__ == '__main__':
     Path(args.figures_path).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_logs).mkdir(parents=True, exist_ok=True)
     Path(args.experiment_saved_models).mkdir(parents=True, exist_ok=True)
+    with open(os.path.join(args.experiment_logs, 'args'), 'w') as file:
+        json.dump(args.__dict__, file, indent=2)
 
     # Cuda settings
     args.cuda = not args.no_cuda and torch.cuda.is_available()
