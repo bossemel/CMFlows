@@ -100,27 +100,18 @@ def marg_flow(self, data_loaders, node):
     self.args.clip_grad_norm = self.args.clip_grad_norm_m
 
     # Train marginal flow
-    model_dict = {}
-    best_loss = 1000
-    for ii in range(3):
-        current_name = 'marg_flow_rv' + '_' + str(ii)
-        print('Training {}'.format(current_name))
-        best_dict, __ = train_val(args=self.args,
-                                  model=self.marg_flow,
-                                  data_loaders=data_loaders,
-                                  save_name=re.sub('[, ()]', '', str(node)) + 'marginal' + str(ii),
-                                  model_name=current_name,
-                                  rvine=True,
-                                  disable_tqdm=True)
-        model_dict[current_name] = self.marg_flow
-        if best_dict['best_validation_loss'] < best_loss:
-            best_try = str(ii)
-            best_model = current_name
-            best_epoch = best_dict['best_validation_epoch']
-            best_loss = best_dict['best_validation_loss']
+    save_name = re.sub('[, ()]', '', str(node)) + 'marg_flow_rv'
+    best_dict, __ = train_val(args=self.args,
+                              model=self.marg_flow,
+                              data_loaders=data_loaders,
+                              save_name=save_name,
+                              model_name='marg_flow_rv',
+                              rvine=True,
+                              disable_tqdm=True)
 
     # Load best model for marginal flow
-    model_loader(model_dict[best_model], self.args, node, best_epoch, add_name='marginal' + best_try)
+    print('loading', best_dict['best_validation_epoch'])
+    model_loader(self.marg_flow, self.args, node, best_dict['best_validation_epoch'], add_name='marg_flow_rv')
 
     # Transform inputs using the trained marginal flow
     transformed_inputs = transform_marginals(self, node)

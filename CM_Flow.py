@@ -86,36 +86,34 @@ def marg_flow_transform(args, model, dataset, dim):
 
 
 def marginal_flow_train(model, args, name, dim, dataset, data_loaders, disable_tqdm, error_bars):
-    model_dict = {}
-    best_loss = 1000
-    for ii in range(1):
-        model.init_marg_flow()
-        model.marg_flow.state = dict()
-        args.clip_grad_norm = args.clip_grad_norm_m
-        args.optimizer, args.scheduler = set_optimizer_scheduler(model.marg_flow,
-                                                                 args.lr_m,
-                                                                 args.weight_decay_m,
-                                                                 args.amsgrad_m,
-                                                                 args.epochs)
-        args.clip = args.clip_c
-        current_name = name + '_' + str(ii)
-        best_dict_marg_flow, __ = train_val(model=model.marg_flow,
-                                            model_name=current_name,
-                                            args=args,
-                                            data_loaders=data_loaders,
-                                            disable_tqdm=disable_tqdm,
-                                            error_bars=error_bars,
-                                            cm_flow=True,
-                                            save_name=str(ii))
-        model_dict[current_name] = model.marg_flow
-        if best_dict_marg_flow['best_validation_loss'] < best_loss:
-            best_try = str(ii)
-            best_model = current_name
-            best_epoch = best_dict_marg_flow['best_validation_epoch']
-            best_loss = best_dict_marg_flow['best_validation_loss']
+    #model_dict = {}
+    #best_loss = 1000
+    model.init_marg_flow()
+    model.marg_flow.state = dict()
+    args.clip_grad_norm = args.clip_grad_norm_m
+    args.optimizer, args.scheduler = set_optimizer_scheduler(model.marg_flow,
+                                                             args.lr_m,
+                                                             args.weight_decay_m,
+                                                             args.amsgrad_m,
+                                                             args.epochs)
+    args.clip = args.clip_c
+    #current_name = name + '_' + str(ii)
+    best_dict_marg_flow, __ = train_val(model=model.marg_flow,
+                                        model_name=name,
+                                        args=args,
+                                        data_loaders=data_loaders,
+                                        disable_tqdm=disable_tqdm,
+                                        error_bars=error_bars,
+                                        cm_flow=True)
+    # model_dict[current_name] = model.marg_flow
+    # if best_dict_marg_flow['best_validation_loss'] < best_loss:
+    #     best_try = str(ii)
+    #     best_model = current_name
+    #     best_epoch = best_dict_marg_flow['best_validation_epoch']
+    #     best_loss = best_dict_marg_flow['best_validation_loss']
 
-    model.marg_flow = load_model(model=model_dict[best_model], model_save_dir=args.experiment_saved_models,
-                                 model_save_name='best_epoch_model' + best_try, model_idx=best_epoch)
+    model.marg_flow = load_model(model=model.marg_flow, model_save_dir=args.experiment_saved_models,
+                                 model_save_name='best_epoch_model', model_idx=best_dict_marg_flow['best_validation_epoch'])
     model.marg_flow.eval()
     marg_flow_output = marg_flow_transform(args=args, model=model.marg_flow, dataset=dataset, dim=dim)
     return marg_flow_output, best_dict_marg_flow
@@ -137,6 +135,7 @@ def train_marginals(model, args, data_loaders, dataset, disable_tqdm, error_bars
         param.requires_grad = False
     for param in model.cop_flow.parameters():
         param.requires_grad = False
+    args.marginal = args.marginal_1
     marg_flow_1_output, best_dict_marg_flow_1 = marginal_flow_train(model=model,
                                                                     args=args,
                                                                     name='marg_flow_1',
@@ -147,7 +146,7 @@ def train_marginals(model, args, data_loaders, dataset, disable_tqdm, error_bars
         param.requires_grad = False
     for param in model.marg_flow_2.parameters():
         param.requires_grad = True
-
+    args.marginal = args.marginal_2
     marg_flow_2_output, best_dict_marg_flow_2 = marginal_flow_train(model=model, args=args, name='marg_flow_2', dim=1,
                                                                     dataset=dataset, data_loaders=data_loaders,
                                                                     disable_tqdm=disable_tqdm, error_bars=error_bars)
@@ -160,9 +159,9 @@ def train_marginals(model, args, data_loaders, dataset, disable_tqdm, error_bars
 def transform_dataset(marg_flow_1_output, marg_flow_2_output):
     data_loaders = {}
     with torch.no_grad():
-        train_dataset = torch.cat((marg_flow_1_output[0], marg_flow_2_output[0]), dim=1).detach().clone().cpu()
-        valid_dataset = torch.cat((marg_flow_1_output[1], marg_flow_2_output[1]), dim=1).detach().clone().cpu()
-        test_dataset = torch.cat((marg_flow_1_output[2], marg_flow_2_output[2]), dim=1).detach().clone().cpu()
+        train_dataset = torch.cat((marg_flow_1_output[0], marg_flow_2_output[0]), dim=1).detach().cpu()
+        valid_dataset = torch.cat((marg_flow_1_output[1], marg_flow_2_output[1]), dim=1).detach().cpu()
+        test_dataset = torch.cat((marg_flow_1_output[2], marg_flow_2_output[2]), dim=1).detach().cpu()
         kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
         train_loader = torch.utils.data.DataLoader(
