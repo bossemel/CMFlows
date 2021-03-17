@@ -43,8 +43,8 @@ class TrainOptions():
             '--exp_name', type=str, default='default_name_kdecopula', help='experiment name to store plots and logs')
         parser.add_argument(
             '--figures_path', type=str, default='figures_cm', help='experiment name to store plots and logs')
-        # parser.add_argument(
-        #     '--experiment_saved_models', type=str, default='saved_models')
+        parser.add_argument(
+            '--data_path', type=str, default='datasets/joint_data', help='path to data')
 
         self.initialized = True
         return parser

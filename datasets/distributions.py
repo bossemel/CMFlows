@@ -8,6 +8,8 @@ import pynverse
 import torch
 import os
 import pyvinecopulib as pv
+from pathlib import Path
+
 eps = 1e-07
 
 
@@ -473,7 +475,8 @@ def save_dataset_4D(mix, copula='clayton', marginal='gamma', obs=10000, random_s
 
 
 if __name__ == '__main__':
-
+    path = os.path.join('datasets', 'joint_data')
+    Path(path).mkdir(parents=True, exist_ok=True)
     copula_list = ['clayton', 'frank', 'gumbel', 'independent']
     marginal_1_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
     marginal_2_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
@@ -483,17 +486,20 @@ if __name__ == '__main__':
     obs = 10000
     seed = 4
 
-    # for copula in copula_list:
-    #     for marginal_1 in marginal_1_list:
-    #         #for marginal_2 in marginal_2_list:
-    #         if copula == 'clayton':
-    #             theta = 2
-    #         else:
-    #             theta = 5
-    #         save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
-    #         save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
+    for copula in copula_list:
+        for marginal_1 in marginal_1_list:
+            #for marginal_2 in marginal_2_list:
+            if copula == 'clayton':
+                theta = 2
+            else:
+                theta = 5
+            print('Creating 2D dataset for {} copula with {} marginal..'.format(copula, marginal_1))
+            save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
+            print('Creating 4D dataset for {} copula with {} marginal..'.format(copula, marginal_1))
+            save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
 
-    # for marginal_1 in marginal_1_list:
-    #     save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
+    for marginal_1 in marginal_1_list:
+        print('Creating 4D dataset for {} copula with mixed marginals..'.format(copula))
+        save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
 
     save_dataset_2D('frank', 'mix_gamma', 'mix_gamma', 5, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)

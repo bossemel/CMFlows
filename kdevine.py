@@ -32,8 +32,8 @@ kdevine = importr('kdevine')
 def calc_jsd(test_dict, pred_distr, target_distr, samples_pred, samples_target):
     # Samples from both distributinos
     print('visualize pred and target')
-    visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
-    visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
+#     visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
+#     visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
     print('calc jsd')
     samples_pred[samples_pred < 0] = 0
     samples_pred[samples_pred > 1] = 1
@@ -75,12 +75,12 @@ def ecdf(x):
 
 
 def fit_copula(data):
-    print('visualize input' )
-    visualize_joint(np.array(data), args.figures_path, name='input_data')
+    #print('visualize input' )
+    #visualize_joint(np.array(data), args.figures_path, name='input_data')
     print('create pseudo obs' )
     data = vinecopula.pobs(data.numpy())
-    print('vis pseudo')
-    visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
+    #print('vis pseudo')
+    #visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
     print('fit cop')
     cop = kdevine.kdevinecop(data)
     print('done fit')

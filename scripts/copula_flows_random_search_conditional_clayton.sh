@@ -1,7 +1,7 @@
 set -e
 echo 'Begin Clayton Copula Grid Search'
 
-python NSF.py \
+python3 NSF.py \
 --exp_name clayton_random_search \
 --epochs 100 \
 --copula clayton \

@@ -162,9 +162,9 @@ if __name__ == '__main__':
     args.conditional_copula = False
 
     # Set Seed
-    np.random.seed(args.random_seed + 1)
-    torch.manual_seed(args.random_seed + 1)
-    random.seed(args.random_seed + 1)
+    np.random.seed(args.random_seed)
+    torch.manual_seed(args.random_seed)
+    random.seed(args.random_seed)
     if args.cuda:
         torch.cuda.manual_seed(args.random_seed)
 

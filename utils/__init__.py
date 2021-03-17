@@ -239,6 +239,7 @@ def normalize(dataset):
     dataset = dataset / std
     return dataset
 
+
 def normalize_torch(dataset):
     mean, std = torch.mean(dataset), torch.std(dataset)
     dataset = dataset - mean
