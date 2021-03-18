@@ -1,7 +1,7 @@
 import argparse
 
 
-class TrainOptions():
+class TrainOptions:
     """This class includes training options.
 
     It also includes shared options defined in BaseOptions.
@@ -10,7 +10,7 @@ class TrainOptions():
         """Reset the class; indicates the class hasn't been initailized"""
         self.initialized = False
 
-    def initialize(self, parser):
+    def initialize(self):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
@@ -49,7 +49,8 @@ class TrainOptions():
         parser.add_argument(
             '--weight_decay_m', type=float, default=1e-10, help='adam optimizer weight decay')
         parser.add_argument(
-            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+            '--error_bars', action='store_true', default=False,
+            help='trains 10 times and return the standard deviation and mean of test loss')
         parser.add_argument(
             '--disable_marginal', action='store_true', default=False, help='disables marginal flow projection')
         parser.add_argument(
@@ -67,7 +68,8 @@ class TrainOptions():
         parser.add_argument(
             '--copula', default='clayton', choices=['gaussian', 'tdistr', 'clayton', 'frank', 'gumbel', 'uniform'])
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma',
+                                                    'mix_lognormal', 'mix_gauss_gamma'], help='marginal distribution')
         parser.add_argument(
             '--tau', type=float, required=False, help='tau to use for copula sampling')
         parser.add_argument(
@@ -153,7 +155,8 @@ class TrainOptions():
         parser.add_argument(
             '--load_model', action='store_true', help='loads saved model under experiment name')
         parser.add_argument(
-            '--continue_error_bars', type=int, default=0, help='from which expeirment to continue error bar experiments')
+            '--continue_error_bars', type=int, default=0, help='from which experiment to continue error bar '
+                                                               'experiments')
         parser.add_argument(
             '--data_path', type=str, default='datasets/joint_data', help='path to data')
 
@@ -168,7 +171,7 @@ class TrainOptions():
         """
         if not self.initialized:  # check if it has been initialized
             parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-            parser = self.initialize(parser)
+            parser = self.initialize()
 
         # get the basic options
         opt, _ = parser.parse_known_args()

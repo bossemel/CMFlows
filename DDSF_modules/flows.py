@@ -51,7 +51,7 @@ class MAF(nn.Sequential):
 
 class BaseFlow(Module):
 
-    def sample(self, n=1, context=None, **kwargs):
+    def sample(self, n=1, context=None):
         dim = self.dim
         if isinstance(self.dim, int):
             dim = [dim, ]
@@ -70,10 +70,6 @@ class BaseFlow(Module):
                 context = context.gpu()
 
         return self.forward((spl, lgd, context))
-
-    def cuda(self):
-        self.gpu = True
-        return super(BaseFlow, self).cuda()
 
 
 class LinearFlow(BaseFlow):
@@ -279,10 +275,6 @@ class IAF_DDSF(BaseFlow):
                 in_dim = 1
             else:
                 in_dim = self.num_ds_dim
-            if i == self.num_ds_layers - 1:
-                out_dim = 1
-            else:
-                out_dim = self.num_ds_dim
 
             u_dim = in_dim
             w_dim = self.num_ds_dim

@@ -17,10 +17,7 @@ from utils.visualizer import visualize_joint
 from utils.load_and_save import load_model
 from NSF import build_model as build_model_nsf
 from DDSF import build_model as build_model_ddsf
-from RealNVP import build_model as build_model_rnvp
 from experiment_runner import train_val
-from utils import calc_jsd, normalize_torch
-from NSF_modules.visualizer import visualize1D
 from statsmodels.distributions.empirical_distribution import ECDF
 
 eps = 1e-07
@@ -63,7 +60,8 @@ def transform_marginals(self, node):
         self.marg_flow.eval()
         self.data = self.data.to(self.args.device)
         if self.args.marg_flow == 'NSF':
-            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1].detach().clone().float())
+            transformed_inputs = self.marg_flow.flow.transform_to_noise(self.data[:, node:node + 1]
+                                                                        .detach().clone().float())
 
         elif self.args.marg_flow == 'DDSF':
             assert not np.isnan(self.data[:, node:node + 1].sum().cpu())
@@ -137,7 +135,8 @@ def initialize_graph(self):
                         self.data[:, node:node + 1]], axis=1),
                         self.args.figures_path,
                         name='rvine_pre_marginal_{}'.format(node_str))
-        assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'.format(self.data[:, node:node + 1].float()[:10])
+        assert not np.isnan(torch.sum(self.data[:, node:node + 1].float()).cpu()), '{}'\
+            .format(self.data[:, node:node + 1].float()[:10])
 
         # Unless marginal flows are disables, transform distributions using the marginal flow
         if not self.args.disable_marginal:
@@ -149,13 +148,15 @@ def initialize_graph(self):
                 uniform_1 = ecdf_1(self.data[:, node])
                 uniform_1[uniform_1 == 0] = eps
                 uniform_1[uniform_1 == 1] = 1 - eps
-                transformed_inputs = torch.from_numpy(norm_distr.ppf(uniform_1)).float().reshape(-1, 1).to(self.args.device)
+                transformed_inputs = torch.from_numpy(norm_distr.ppf(uniform_1)).float().reshape(-1, 1)\
+                    .to(self.args.device)
 
         # if marginal flows are disabled, do not transform the inputs with the marginal flow, but cast them to
         # the real number line with the inverse Gaussian CDF
         else:
             self.data = self.data.to(self.args.device)
-            transformed_inputs = torch.tensor(self.norm.ppf(self.data[:, node:node + 1].cpu())).to(self.args.device).float()
+            transformed_inputs = torch.tensor(self.norm.ppf(self.data[:, node:node + 1].cpu()))\
+                .to(self.args.device).float()
             self.data = self.data.cpu()
 
         # save transformed inputs in graph node
@@ -209,21 +210,24 @@ def build_next_tree(self, current_tree, num_current_nodes, plots):
 def cop_flow_transform(self, uncon_node_data, cond_node_data):
     self.cop_flow.eval()
     if self.args.cop_flow == 'NSF':
-        node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1))
+        node_data = self.cop_flow.flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1),
+                                                          context=cond_node_data.reshape(-1, 1))
     elif self.args.cop_flow == 'RealNVP':
-        node_data = self.cop_flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1), context=cond_node_data.reshape(-1, 1))
+        node_data = self.cop_flow.transform_to_noise(inputs=uncon_node_data.reshape(-1, 1),
+                                                     context=cond_node_data.reshape(-1, 1))
     else:
         raise ValueError('Unknown copula flow type.')
     return node_data
 
 
-def plot_cop_flow(self, node_data, cond_node_data, edge):
-    #uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
+def plot_cop_flow(self, edge):
+    # uniform_inputs = self.norm.cdf(torch.cat([node_data, cond_node_data.reshape(-1, 1)], axis=1).cpu())
     edge_str = re.sub('[, ()]', '', str(edge))
-    #visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
+    # visualize_joint(uniform_inputs, self.args.figures_path, name='rvine_con_transform_uniform_{}'.format(edge_str))
 
     context = torch.tensor(np.random.normal(size=(10000, 1))).float()
-    con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context, device=self.args.device)
+    con_samples = self.cop_flow.sample_copula(num_samples=10000, num_inputs=1, context=context,
+                                              device=self.args.device)
     visualize_joint(con_samples.cpu(), self.args.figures_path, name='rvine_con_copula_{}'.format(edge_str))
 
 
@@ -235,22 +239,23 @@ def add_new_node(self, new_graph, common_node, edge, plots):
         edge: edge to train flow for
         plots: boolean indicating whether to create plots
     """
-    uncon_node_data, cond_node_data, edge = assign_distr_to_nodes(edge, common_node, self.current_tree, tree_num=len(self.tree_list))
+    uncon_node_data, cond_node_data, edge = assign_distr_to_nodes(edge, common_node, self.current_tree,
+                                                                  tree_num=len(self.tree_list))
     edge_str = re.sub('[, ()]', '', str(edge))
 
     dataset, data_loaders = create_dataset(uncon_node_data, cond_node_data, self.args)
 
     normal_distr = torch.distributions.normal.Normal(0, 1)
-    visualize_joint(normal_distr.cdf(dataset.trn.cpu()), self.args.figures_path, name='cop_flow_input_dataset_uni_{}'.format(edge_str))
+    visualize_joint(normal_distr.cdf(dataset.trn.cpu()), self.args.figures_path,
+                    name='cop_flow_input_dataset_uni_{}'.format(edge_str))
 
-    print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list), edge, next(flatten(edge))))
+    print('Train conditional CM Flow for tree {}, edge {}, unconditional node: {}'.format(len(self.tree_list),
+                                                                                          edge, next(flatten(edge))))
 
     # Initialize conditional copula Flow
     self.args.conditional_copula = True
     if self.args.cop_flow == 'NSF':
         self.cop_flow = build_model_nsf(self.args, flow_type='cop_flow')
-    elif self.args.cop_flow == 'RealNVP':
-        self.cop_flow = build_model_rnvp(self.args)
 
     self.cop_flow.to(self.args.device)
     self.cop_flow.state = dict()
@@ -282,7 +287,7 @@ def add_new_node(self, new_graph, common_node, edge, plots):
                            best_dict_con=best_dict_con,
                            common_node=common_node)
         if plots:
-            plot_cop_flow(self, node_data, cond_node_data, edge)
+            plot_cop_flow(self, edge)
 
     return new_graph
 
@@ -323,14 +328,15 @@ def add_edges(graph):
 
 def inverse_transform(self, uncon_node_data, cond_node_data):
     if self.args.cop_flow == 'NSF':
-        transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device))
+        transformed_marginal, __ = self.cop_flow.flow._transform.inverse(inputs=uncon_node_data.to(self.args.device),
+                                                                         context=cond_node_data.to(self.args.device))
     elif self.args.cop_flow == 'RealNVP':
-        transformed_marginal = self.cop_flow.forward(inputs=uncon_node_data.to(self.args.device), context=cond_node_data.to(self.args.device), mode='inverse')[0]
+        transformed_marginal = self.cop_flow.forward(inputs=uncon_node_data.to(self.args.device),
+                                                     context=cond_node_data.to(self.args.device), mode='inverse')[0]
     return transformed_marginal
 
 
 def find_uncon_con(tree, node):
-    n0, n1 = node
     common_node = tree.nodes[node]['common_node']
     if not isinstance(common_node, int):
         con_input_node = next(flatten(common_node))
@@ -340,7 +346,7 @@ def find_uncon_con(tree, node):
     return uncon_input_node, con_input_node
 
 
-class RVine():
+class RVine:
     """Class that containts the RVine tree.
     """
     def __init__(self, args, num_inputs):
@@ -416,8 +422,10 @@ class RVine():
                     self.cop_flow.eval()
 
                     # plt cop flow
-                    #test_samples = self.cop_flow.sample_copula(num_samples, context=cond_node_data, device=self.args.device)
-                    # visualize_joint(test_samples.cpu(), self.args.figures_path, name='loaded_sampling_{}'.format(node))
+                    # test_samples = self.cop_flow.sample_copula(num_samples, context=cond_node_data,
+                    # device=self.args.device)
+                    # visualize_joint(test_samples.cpu(), self.args.figures_path, name='loaded_sampling_{}'
+                    # .format(node))
 
                     # inverse H-function
                     transformed_marginal = inverse_transform(self, uncon_node_data, cond_node_data)
@@ -428,7 +436,7 @@ class RVine():
             current_tree_samples = normal_distr.cdf(current_tree_samples)
         return current_tree_samples
 
-    def pdf_uniform(self, inputs, context=None):
+    def pdf_uniform(self, inputs):
         """Samples from the trained R-Vine.
 
         Params:
@@ -449,8 +457,8 @@ class RVine():
                     print('pdf tree', ii, 'node', node)
                     uncon_input_node, con_input_node = find_uncon_con(self.tree_list[ii], node)
 
-                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1] #.copy()
-                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1] # .copy()
+                    uncon_node_data = current_tree_inputs[:, uncon_input_node:uncon_input_node + 1]  # .copy()
+                    cond_node_data = current_tree_inputs[:, con_input_node:con_input_node + 1]  # .copy()
 
                     best_dict_con = self.tree_list[ii].nodes[node]['best_dict_con']
                     model_loader(self.cop_flow,
@@ -461,7 +469,7 @@ class RVine():
                     self.cop_flow.to(self.args.device)
                     self.cop_flow.eval()
 
-                    pdf *= self.cop_flow.pdf_uniform(uncon_node_data, context=cond_node_data, device=self.args.device)
+                    pdf *= self.cop_flow.pdf_uniform(uncon_node_data, context=cond_node_data)
                     assert pdf.shape == (current_tree_inputs.shape[0],)
 
                     uncon_node_data = torch.from_numpy(self.norm.ppf(uncon_node_data)).float().to(self.args.device)
@@ -500,23 +508,38 @@ class RVine():
                 visualize_joint(samples_pred_uni[:, 2:4].cpu(), self.args.figures_path, name='samples_pred23')
                 visualize_joint(samples_target_uni[:, 2:4], self.args.figures_path, name='samples_target23')
 
-                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(), self.args.figures_path, name='samples_pred02')
-                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), self.args.figures_path, name='samples_target02')
-                visualize_joint(torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred13')
-                visualize_joint(np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target13')
-                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(), self.args.figures_path, name='samples_pred03')
-                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), self.args.figures_path, name='samples_target03')
+                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
+                                self.args.figures_path, name='samples_pred02')
+                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1),
+                                self.args.figures_path, name='samples_target02')
+                visualize_joint(torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                                self.args.figures_path, name='samples_pred13')
+                visualize_joint(np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1),
+                                self.args.figures_path, name='samples_target13')
+                visualize_joint(torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                                self.args.figures_path, name='samples_pred03')
+                visualize_joint(np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1),
+                                self.args.figures_path, name='samples_target03')
 
                 # # @Todo: do with change of var
-                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(), samples_target=samples_target_uni[:, :2], name='01')
-                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(), samples_target=samples_target_uni[:, 1:3], name='12')
-                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(), samples_target=samples_target_uni[:, 2:4], name='23')
-                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 2:3]], axis=1).cpu(),
-                #          samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 2:3]], axis=1), name='02')
-                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-                #          samples_target=np.concatenate([samples_target_uni[:, 1:2], samples_target_uni[:, 3:4]], axis=1), name='13')
-                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1], samples_pred_uni[:, 3:4]], axis=1).cpu(),
-                #          samples_target=np.concatenate([samples_target_uni[:, 0:1], samples_target_uni[:, 3:4]], axis=1), name='03')
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, :2].cpu(),
+                # samples_target=samples_target_uni[:, :2], name='01')
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 1:3].cpu(),
+                # samples_target=samples_target_uni[:, 1:3], name='12')
+                # calc_jsd(args, test_dict={}, samples_pred=samples_pred_uni[:, 2:4].cpu(),
+                # samples_target=samples_target_uni[:, 2:4], name='23')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1],
+                # samples_pred_uni[:, 2:3]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 0:1],
+                #          samples_target_uni[:, 2:3]], axis=1), name='02')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 1:2],
+                # samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 1:2],
+                #          samples_target_uni[:, 3:4]], axis=1), name='13')
+                # calc_jsd(args, test_dict={}, samples_pred=torch.cat([samples_pred_uni[:, 0:1],
+                # samples_pred_uni[:, 3:4]], axis=1).cpu(),
+                #          samples_target=np.concatenate([samples_target_uni[:, 0:1],
+                #          samples_target_uni[:, 3:4]], axis=1), name='03')
 
             assert torch.max(samples_pred_uni) <= 1
             assert torch.min(samples_pred_uni) >= 0
@@ -525,32 +548,32 @@ class RVine():
             assert np.min(samples_target_uni) >= 0
 
             # Prob X in both distributions
-            prob_X_in_p = self.pdf_uniform(samples_pred_uni.cpu().numpy())
-            prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+            prob_x_in_p = self.pdf_uniform(samples_pred_uni.cpu().numpy())
+            prob_x_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
             # Prob Y in both distributions
-            prob_Y_in_p = self.pdf_uniform(samples_target_uni)
-            prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
+            prob_y_in_p = self.pdf_uniform(samples_target_uni)
+            prob_y_in_q = true_cop_distr.pdf(samples_target_uni)
 
-            print('prob_X_in_p', prob_X_in_p.mean())
-            print('prob_X_in_q', prob_X_in_q.mean())
-            print('prob_Y_in_p', prob_Y_in_p.mean())
-            print('prob_Y_in_q', prob_Y_in_q.mean())
+            print('prob_x_in_p', prob_x_in_p.mean())
+            print('prob_x_in_q', prob_x_in_q.mean())
+            print('prob_y_in_p', prob_y_in_p.mean())
+            print('prob_y_in_q', prob_y_in_q.mean())
 
-            assert np.min(prob_X_in_p) >= 0
-            assert np.min(prob_X_in_q) >= 0
-            assert np.min(prob_Y_in_p) >= 0
-            assert np.min(prob_Y_in_q) >= 0
+            assert np.min(prob_x_in_p) >= 0
+            assert np.min(prob_x_in_q) >= 0
+            assert np.min(prob_y_in_p) >= 0
+            assert np.min(prob_y_in_q) >= 0
 
-            assert prob_X_in_p.shape == (num_samples,), '{}'.format(prob_X_in_p.shape)
-            assert prob_X_in_q.shape == (num_samples,)
-            assert prob_Y_in_p.shape == (num_samples,)
-            assert prob_Y_in_q.shape == (num_samples,)
+            assert prob_x_in_p.shape == (num_samples,), '{}'.format(prob_x_in_p.shape)
+            assert prob_x_in_q.shape == (num_samples,)
+            assert prob_y_in_p.shape == (num_samples,)
+            assert prob_y_in_q.shape == (num_samples,)
 
-            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                       prob_X_in_q=prob_X_in_q,
-                                       prob_Y_in_p=prob_Y_in_p,
-                                       prob_Y_in_q=prob_Y_in_q)
+            divergence = js_divergence(prob_x_in_p=prob_x_in_p,
+                                       prob_x_in_q=prob_x_in_q,
+                                       prob_y_in_p=prob_y_in_p,
+                                       prob_y_in_q=prob_y_in_q)
 
             print('MC-JSD Vine Copula: {}'.format(divergence))
 
@@ -563,16 +586,16 @@ class RVine():
             # # Note, that uniform samples means the transformed samples
 
             # # Prob X in both distributions
-            # prob_X_in_p = pred_distr.pdf(samples_pred_uni.cpu().numpy().T).T
-            # prob_X_in_q = true_rvine.pdf(samples_pred_uni.cpu().numpy().T).T
+            # prob_x_in_p = pred_distr.pdf(samples_pred_uni.cpu().numpy().T).T
+            # prob_x_in_q = true_rvine.pdf(samples_pred_uni.cpu().numpy().T).T
 
             # # Prob Y in both distributions
-            # prob_Y_in_q = true_rvine.pdf(samples_target_uni.T).T
-            # prob_Y_in_p = pred_distr.pdf(samples_target_uni.T).T
-            # divergence_2 = js_divergence(prob_X_in_p=prob_X_in_p,
-            #                              prob_X_in_q=prob_X_in_q,
-            #                              prob_Y_in_p=prob_Y_in_p,
-            #                              prob_Y_in_q=prob_Y_in_q)
+            # prob_y_in_q = true_rvine.pdf(samples_target_uni.T).T
+            # prob_y_in_p = pred_distr.pdf(samples_target_uni.T).T
+            # divergence_2 = js_divergence(prob_x_in_p=prob_x_in_p,
+            #                              prob_x_in_q=prob_x_in_q,
+            #                              prob_y_in_p=prob_y_in_p,
+            #                              prob_y_in_q=prob_y_in_q)
 
             # print('KDE MC-JSD Vine Copula: {}'.format(divergence_2))
 
@@ -603,7 +626,7 @@ class RVine():
             fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
 
-class Rvine_data():
+class Rvine_data:
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
     def __init__(self, dim1, dim2):
@@ -658,7 +681,7 @@ def create_dataset_1dim(inputs, args):
         dataset: full dataset
         data_loaders: train and validation set data loaders. Test set is not needed at this stage.
     """
-    #xx = normalize_torch(inputs)
+    # xx = normalize_torch(inputs)
     trn, val = split_train_val_test(inputs, only_val=True)
 
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}

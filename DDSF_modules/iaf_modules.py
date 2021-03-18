@@ -86,7 +86,7 @@ def get_masks_all(ds, fixed_order=False, derank=1):
 
 
 def get_masks(dim, dh, num_layers, num_outlayers, fixed_order=False, derank=1):
-    ms, rx = get_masks_all([dim, ] + [dh for i in range(num_layers - 1)] + [dim, ],
+    ms, rx = get_masks_all([dim, ] + [dh for __ in range(num_layers - 1)] + [dim, ],
                            fixed_order, derank)
     ml = ms[-1]
     ml_ = (ml.transpose(1, 0)[:, :, None] * (np.ones(int(num_outlayers)))).reshape(

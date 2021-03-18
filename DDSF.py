@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import torch
 import torch.utils.data
 import torch.nn as nn
 from pathlib import Path
@@ -18,7 +17,7 @@ from utils.load_and_save import save_statistics, load_model
 from utils import HiddenPrints
 
 
-def build_model(args):
+def build_model(args_):
     """Builds the DDSF model.
 
     Params:
@@ -27,115 +26,115 @@ def build_model(args):
     Returns:
         model: DDSF model
     """
-    args.dimh = args.dimh_DDSF
-    args.act = nn.ELU()
-    args.dim = 1
+    args_.dimh = args_.dimh_DDSF
+    args_.act = nn.ELU()
+    args_.dim = 1
 
     sequels = [nn_.SequentialFlow(
-        flows.IAF_DDSF(dim=args.dim,
-                       hid_dim=args.dimh,
+        flows.IAF_DDSF(dim=args_.dim,
+                       hid_dim=args_.dimh,
                        context_dim=1,
-                       num_layers=args.num_hid_layers_DDSF + 1,
-                       activation=args.act,
-                       device=args.device,
+                       num_layers=args_.num_hid_layers_DDSF + 1,
+                       activation=args_.act,
+                       device=args_.device,
                        fixed_order=True,
-                       num_ds_dim=args.num_ds_dim,
-                       num_ds_layers=args.num_ds_layers),
-        flows.FlipFlow(1)) for i in range(args.num_flow_layers_DDSF)] + \
-        [flows.LinearFlow(args.dim, 1), ]
+                       num_ds_dim=args_.num_ds_dim,
+                       num_ds_layers=args_.num_ds_layers),
+        flows.FlipFlow(1)) for __ in range(args_.num_flow_layers_DDSF)] + \
+        [flows.LinearFlow(args_.dim, 1), ]
 
-    model = MAF(args, *sequels)
-    return model
+    ddsf_model = MAF(args_, *sequels)
+    return ddsf_model
 
 
-def random_search(args):
+def random_search(args_):
     results_dict = {}
     tested_combinations = []
     best_loss = 1000
     ii = 0
     while ii < 200:
-        args.epochs = 80
-        args.num_flow_layers_DDSF = np.random.choice(range(1, 8))
-        args.num_hid_layers_DDSF = np.random.choice(range(1, 8))
-        args.dimh_DDSF = 2**np.random.choice(range(1, 7))
-        args.num_ds_dim = 2**np.random.choice(range(1, 7))
-        args.num_ds_layers = np.random.choice(range(1, 8))
-        args.lr = 1 / 10**np.random.choice(range(2, 6))
-        args.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
-        args.clip_grad_norm = np.random.choice([True, False])
-        args.amsgrad = np.random.choice([True, False])
-        args.clip_m = np.random.choice(range(1, 6))
+        args_.epochs = 80
+        args_.num_flow_layers_DDSF = np.random.choice(range(1, 8))
+        args_.num_hid_layers_DDSF = np.random.choice(range(1, 8))
+        args_.dimh_DDSF = 2**np.random.choice(range(1, 7))
+        args_.num_ds_dim = 2**np.random.choice(range(1, 7))
+        args_.num_ds_layers = np.random.choice(range(1, 8))
+        args_.lr = 1 / 10**np.random.choice(range(2, 6))
+        args_.weight_decay = 1 / 10**(np.random.choice(range(2, 15)))
+        args_.clip_grad_norm = np.random.choice([True, False])
+        args_.amsgrad = np.random.choice([True, False])
+        args_.clip_m = np.random.choice(range(1, 6))
 
-        current_hyperparams = (args.num_flow_layers_DDSF,
-                               args.num_hid_layers_DDSF,
-                               args.dimh_DDSF,
-                               args.num_ds_dim,
-                               args.num_ds_layers,
-                               args.weight_decay,
-                               args.lr,
-                               args.clip_grad_norm,
-                               args.amsgrad,
-                               args.clip_m)
+        current_hyperparams = (args_.num_flow_layers_DDSF,
+                               args_.num_hid_layers_DDSF,
+                               args_.dimh_DDSF,
+                               args_.num_ds_dim,
+                               args_.num_ds_layers,
+                               args_.weight_decay,
+                               args_.lr,
+                               args_.clip_grad_norm,
+                               args_.amsgrad,
+                               args_.clip_m)
         if current_hyperparams not in tested_combinations:
             print('Num. Flow Layers: {}, Num. Hidden Layers: {}, Num. Hidden Units: {},\
                 Num. Sigm. Units: {}, Num. Sigm. Layers: {},\
-                Weight Decay: {}, Learning Rate: {}, Clipping: {}, amsgrad: {}'.format(args.num_flow_layers_DDSF,
-                                                                                       args.num_hid_layers_DDSF,
-                                                                                       args.dimh_DDSF,
-                                                                                       args.num_ds_dim,
-                                                                                       args.num_ds_layers,
-                                                                                       args.weight_decay,
-                                                                                       args.lr,
-                                                                                       args.clip_grad_norm,
-                                                                                       args.amsgrad,
-                                                                                       args.clip_m ))
+                Weight Decay: {}, Learning Rate: {}, Clipping: {}, amsgrad: {}'.format(args_.num_flow_layers_DDSF,
+                                                                                       args_.num_hid_layers_DDSF,
+                                                                                       args_.dimh_DDSF,
+                                                                                       args_.num_ds_dim,
+                                                                                       args_.num_ds_layers,
+                                                                                       args_.weight_decay,
+                                                                                       args_.lr,
+                                                                                       args_.clip_grad_norm,
+                                                                                       args_.amsgrad,
+                                                                                       args_.clip_m))
             with HiddenPrints():
-                __, current_best_dict, current_test_dict = train_and_plot(args,
-                                                                          dataset=dataset,
-                                                                          data_loaders=data_loaders,
+                __, current_best_dict, current_test_dict = train_and_plot(args_,
+                                                                          data_loaders_=data_loaders,
                                                                           disable_tqdm=True,
                                                                           hp_search=True)
             results_dict[current_hyperparams] = (current_best_dict['best_validation_epoch'],
                                                  current_best_dict['best_validation_loss'])
             print(results_dict[current_hyperparams])
-            with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'w') as f:
-                f.write(str(results_dict))
+            with open(os.path.join(args_.experiment_logs, 'random_search.txt'), 'w') as ff:
+                ff.write(str(results_dict))
             if current_best_dict['best_validation_loss'] < best_loss:
                 best_loss = current_best_dict['best_validation_loss']
                 best_hyperparams = current_hyperparams
-                best_dict = current_best_dict
+                best_dict_ = current_best_dict
             tested_combinations.append(current_hyperparams)
             ii += 1
 
-    print('Random search complete for {}'.format(args.marginal))
+    print('Random search complete for {}'.format(args_.marginal))
     print('Best hyperparams: {}'.format(best_hyperparams))
     print('Lowest Val Loss: {}'.format(best_loss))
-    print('Lowest Val Loss Epoch: {}'.format(best_dict['best_validation_epoch']))
-    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as f:
-        f.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
-                'Best Epoch: ' + str(best_dict['best_validation_epoch']))
+    print('Lowest Val Loss Epoch: {}'.format(best_dict_['best_validation_epoch']))
+    with open(os.path.join(args.experiment_logs, 'random_search.txt'), 'a') as ff:
+        ff.write('Best hyperparams: ' + str(best_hyperparams) + 'Lowest Val Loss: ' + str(best_loss) +
+                 'Best Epoch: ' + str(best_dict_['best_validation_epoch']))
 
 
-def train_and_plot(args, dataset, data_loaders, disable_tqdm=False, hp_search=False, rvine=False, save_name=None):
+def train_and_plot(args_, data_loaders_, disable_tqdm=False, hp_search=False, rvine=False, save_name=None):
     # Build model and send to device
-    model = build_model(args)
-    model.state = dict()
-    model.to(args.device)
+    model_ = build_model(args_)
+    model_.state = dict()
+    model_.to(args_.device)
 
     # Set optimizer
-    args.optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, amsgrad=args.amsgrad)
-    args.scheduler = optim.lr_scheduler.CosineAnnealingLR(args.optimizer, args.epochs) #, args.num_training_steps, 0)
+    args_.optimizer = optim.Adam(model_.parameters(), lr=args_.lr,
+                                 weight_decay=args_.weight_decay, amsgrad=args_.amsgrad)
+    args_.scheduler = optim.lr_scheduler.CosineAnnealingLR(args_.optimizer, args_.epochs)
 
     # Train
-    best_dict, test_dict = train_val(model=model,
-                                     model_name='marg_flow',
-                                     args=args,
-                                     data_loaders=data_loaders,
-                                     disable_tqdm=disable_tqdm,
-                                     hp_search=hp_search,
-                                     rvine=rvine,
-                                     save_name=save_name)
-    return model, best_dict, test_dict
+    best_dict_, test_dict_ = train_val(model=model_,
+                                       model_name='marg_flow',
+                                       args=args_,
+                                       data_loaders=data_loaders_,
+                                       disable_tqdm=disable_tqdm,
+                                       hp_search=hp_search,
+                                       rvine=rvine,
+                                       save_name=save_name)
+    return model_, best_dict_, test_dict_
 
 
 if __name__ == '__main__':
@@ -179,7 +178,6 @@ if __name__ == '__main__':
     else:
         # Train model
         model, best_dict, test_dict = train_and_plot(args,
-                                                     dataset,
                                                      data_loaders)
 
         model = load_model(model, args.experiment_saved_models, 'train_model',

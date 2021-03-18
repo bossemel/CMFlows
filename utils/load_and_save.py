@@ -2,7 +2,7 @@
 import os
 import csv
 import torch
-
+# @Todo: adjust docstrings
 
 def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch,
                     continue_from_mode=False, save_full_dict=False, test_epoch=None):
@@ -12,8 +12,10 @@ def save_statistics(experiment_log_dir, filename, stats_dict, current_epoch,
     :param experiment_log_dir: the log folder dir filepath
     :param filename: the name of the csv file
     :param stats_dict: the stats dict containing the data to be saved
-    :param current_epoch: the number of epochs since commencement of the current training session (i.e. if the experiment continued from 100 and this is epoch 105, then pass relative distance of 5.)
-    :param save_full_dict: whether to save the full dict as is overriding any previous entries (might be useful if we want to overwrite a file)
+    :param current_epoch: the number of epochs since commencement of the current training session (i.e. if
+    the experiment continued from 100 and this is epoch 105, then pass relative distance of 5.)
+    :param save_full_dict: whether to save the full dict as is overriding any previous entries (might be useful
+    if we want to overwrite a file)
     :return: The filepath to the summary file
     """
     summary_filename = os.path.join(experiment_log_dir, filename)
@@ -87,11 +89,13 @@ def save_model(model, model_save_dir, model_save_name, model_idx, best_validatio
 
 def load_model(model, model_save_dir, model_save_name, model_idx):
     """
-    Load the network parameter state and the best val model idx and best val acc to be compared with the future val accuracies, in order to choose the best val model
+    Load the network parameter state and the best val model idx and best val acc to be compared with the future val
+    accuracies, in order to choose the best val model
     :param model_save_dir: The directory to store the state at.
     :param model_save_name: Name to use to save model without the epoch index
     :param model_idx: The index to save the model with.
-    :return: best val idx and best val model acc, also it loads the network state into the system state without returning it
+    :return: best val idx and best val model acc, also it loads the network state into the system state without
+     returning it
     """
     state = torch.load(f=os.path.join(model_save_dir, "{}_{}_model".format(model_save_name, str(model_idx))))
     model.load_state_dict(state_dict=state['network'])

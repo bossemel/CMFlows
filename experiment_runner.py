@@ -5,8 +5,8 @@ from tqdm import tqdm
 from utils.load_and_save import save_statistics, save_model, load_model
 from utils.loss_plots import collect_experiment_dicts, plot_result_graphs
 from NSF_modules.eval import jsd_eval as jsd_eval_copula, margin_uniformity
-from NSF_modules.eval import jsd_eval_1D as jsd_eval_marginal
-from NSF_modules.visualizer import visualize1D
+from NSF_modules.eval import jsd_eval_1d as jsd_eval_marginal
+from NSF_modules.visualizer import visualize1d
 
 eps = 1e-07
 
@@ -27,7 +27,7 @@ def single_model_forward(model, model_name, data, conditional):
     return model, loss
 
 
-def train(args, epoch, model, train_loader, current_epoch_losses, device,
+def train(args, model, train_loader, current_epoch_losses, device,
           model_name=None, disable_tqdm=False):
     """Performs training.
 
@@ -120,9 +120,9 @@ def validate(args, epoch, model, loader, device,
     val_mean_loss = torch.mean(torch.tensor(current_epoch_losses['val_loss']))
     pbar.set_description('{} Val, Log likelihood: {:.6f}'.format(model_name, val_mean_loss))
 
-    if val_mean_loss < best_dict['best_validation_loss']:  # if current epoch's mean val acc is greater than the saved best val acc then
-        best_dict['best_validation_loss'] = val_mean_loss  # set the best val model acc to be current epoch's val accuracy
-        best_dict['best_validation_epoch'] = epoch  # set the experiment-wise best val idx to be the current epoch's idx
+    if val_mean_loss < best_dict['best_validation_loss']:
+        best_dict['best_validation_loss'] = val_mean_loss
+        best_dict['best_validation_epoch'] = epoch
 
     pbar.close()
     return current_epoch_losses, best_dict
@@ -160,7 +160,9 @@ def test(args, epoch, model, loader, device,
             test_dict[test_loss_name] = [loss.detach()]  # add current iter loss to test loss list.
 
         pbar.update(data.size(0))
-    pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch, torch.mean(torch.tensor(test_dict[test_loss_name]))))
+    pbar.set_description('Test, Log likelihood in epoch {}: {:.6f}'.format(epoch,
+                                                                           torch.mean(torch.tensor(
+                                                                               test_dict[test_loss_name]))))
     pbar.close()
 
     return test_dict
@@ -168,7 +170,7 @@ def test(args, epoch, model, loader, device,
 
 def train_val(model, model_name, args, data_loaders,
               disable_tqdm=False, hp_search=False, error_bars=False,
-              rvine=False, save_name=None, cm_flow=False):
+              rvine=False, save_name=None):
     best_dict = {'best_validation_loss': float('inf'), 'best_validation_epoch': 0}
     total_losses = {'train_loss': [], 'val_loss': []}  # initialize a dict to keep the per-epoch metrics
     test_dict = {}
@@ -183,7 +185,6 @@ def train_val(model, model_name, args, data_loaders,
         # Train model
         model.train()
         current_epoch_losses = train(args=args,
-                                     epoch=epoch,
                                      model=model,
                                      train_loader=data_loaders['train_loader'],
                                      current_epoch_losses=current_epoch_losses,
@@ -217,7 +218,7 @@ def train_val(model, model_name, args, data_loaders,
             # Save mean of each epoch in total losses dictionary
             for key, value in current_epoch_losses.items():
                 total_losses[key].append(torch.mean(
-                    torch.tensor(value)).item())  # get mean of all metrics of current epoch metrics dict, to get them ready for storage and output on the terminal.
+                    torch.tensor(value)).item())
 
             # Save current epoch statistics
             save_statistics(experiment_log_dir=args.experiment_logs, filename='summary_{}.csv'.format(model_name),
@@ -247,8 +248,9 @@ def train_val(model, model_name, args, data_loaders,
         result_dict = collect_experiment_dicts(target_dir=args.experiment_logs, model_type=model_name)
         if not error_bars and not hp_search and not rvine:
             plot_result_graphs(args.figures_path, args.exp_name,
-                args.marginal if model_name in ['marg_flow', 'marg_flow_1', 'marg_flow_2'] else args.copula,
-                result_dict, model_type=model_name)
+                               args.marginal if model_name in ['marg_flow', 'marg_flow_1', 'marg_flow_2']
+                               else args.copula,
+                               result_dict, model_type=model_name)
 
         # # Perform test evaluation
         test_dict = test(args=args,
@@ -262,10 +264,9 @@ def train_val(model, model_name, args, data_loaders,
 
         # Calculate Jensen-Shannon Divergence of copula
         if model_name == 'cop_flow':
-            test_dict = jsd_eval_copula(args,
-                                        best_dict['best_validation_epoch'],
-                                        model,
-                                        args.device,
+            test_dict = jsd_eval_copula(args=args,
+                                        epoch=best_dict['best_validation_epoch'],
+                                        model=model,
                                         test_dict=test_dict)
             # Evaluate copula margins on test set
             test_dict = margin_uniformity(args=args,
@@ -278,8 +279,7 @@ def train_val(model, model_name, args, data_loaders,
         if model_name == 'marg_flow':
             # Calculate Jensen-Shannon Divergence of marginal 1
             args.marginal = args.marginal
-            test_dict = jsd_eval_marginal(marginal=args.marginal,
-                                          args=args,
+            test_dict = jsd_eval_marginal(args=args,
                                           model=model,
                                           test_dict=test_dict)
 
@@ -307,7 +307,7 @@ def train_val(model, model_name, args, data_loaders,
 
         if 'marg_flow_1' in model_name and not error_bars:
             args.marginal = args.marginal_1
-            visualize1D(model=model,
+            visualize1d(model=model,
                         epoch=best_dict['best_validation_epoch'],
                         args=args,
                         best_val=True,
@@ -315,14 +315,14 @@ def train_val(model, model_name, args, data_loaders,
 
         if 'marg_flow_2' in model_name and not error_bars:
             args.marginal = args.marginal_2
-            visualize1D(model=model,
+            visualize1d(model=model,
                         epoch=best_dict['best_validation_epoch'],
                         args=args,
                         best_val=True,
                         name=model_name)
     if rvine:
         if 'marg_flow_rv' in model_name and not error_bars:
-            visualize1D(model=model,
+            visualize1d(model=model,
                         epoch=best_dict['best_validation_epoch'],
                         args=args,
                         best_val=True,

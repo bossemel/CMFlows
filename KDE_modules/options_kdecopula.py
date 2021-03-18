@@ -1,30 +1,35 @@
 import argparse
 
 
-class TrainOptions():
+class TrainOptions:
     """This class includes training options.
 
     It also includes shared options defined in BaseOptions.
     """
     def __init__(self):
-        """Reset the class; indicates the class hasn't been initailized"""
+        """Reset the class; indicates the class hasn't been initialized"""
         self.initialized = False
 
-    def initialize(self, parser):
+    def initialize(self):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
         # Training Options
         parser.add_argument(
-            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard '
+                                                                     'deviation and mean of test loss')
 
         # Dataset options
         parser.add_argument(
             '--copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'independent'])
         parser.add_argument(
-            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform'], help='marginal distribution')
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma',
+                                                      'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform'],
+            help='marginal distribution')
         parser.add_argument(
-            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform'], help='marginal distribution')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma',
+                                                      'mix_lognormal', 'mix_gauss_gamma', 'mix_uniform'],
+            help='marginal distribution')
         parser.add_argument(
             '--obs', type=int, default=10000, help='How many data samples to generate')
         parser.add_argument(

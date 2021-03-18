@@ -17,8 +17,8 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Marginals(args.marginal, args.obs, mu=args.mu, var=args.var, alpha=args.alpha,
-                                               low=args.low, high=args.high, random_seed=args.random_seed)
+    dataset = datasets.distributions.Marginals(args.marginal, args.obs, mu_=args.mu, var_=args.var, alpha_=args.alpha,
+                                               low_=args.low, high_=args.high)
 
     train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)
@@ -54,22 +54,22 @@ def load_data(args):
     return dataset, data_loaders
 
 
-def maximum(x, A_max, axis=-1):
+def maximum(x, a_max, axis=-1):
     return x.max(axis)[0]
 
 
-def summation(x, A_max, axis=-1, sum_op=torch.sum):
-    return sum_op(torch.exp(x - A_max), axis)
+def summation(x, a_max, axis=-1, sum_op=torch.sum):
+    return sum_op(torch.exp(x - a_max), axis)
 
 
-def log_sum_exp(A, axis=-1, sum_op=torch.sum):
-    A_max = oper_fct(array=A, oper=maximum, axis=axis, keepdims=True)
-    B = torch.log(oper_fct(array=A, oper=summation, A_max=A_max, axis=axis, keepdims=True)) + A_max
-    return B
+def log_sum_exp(aa, axis=-1):
+    a_max = oper_fct(array=aa, oper=maximum, axis=axis, keepdims=True)
+    bb = torch.log(oper_fct(array=aa, oper=summation, a_max=a_max, axis=axis, keepdims=True)) + a_max
+    return bb
 
 
-def oper_fct(array, oper, A_max=None, axis=-1, keepdims=False):
-    a_oper = oper(array, A_max, axis)
+def oper_fct(array, oper, a_max=None, axis=-1, keepdims=False):
+    a_oper = oper(array, a_max, axis)
     if keepdims:
         shape = []
         for j, s in enumerate(array.size()):

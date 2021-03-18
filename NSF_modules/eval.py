@@ -7,7 +7,7 @@ import scipy.stats
 from utils import js_divergence_grid
 
 
-def jsd_eval(args, epoch, model, device, test_dict):
+def jsd_eval(args, epoch, model, test_dict):
     """Calculate Jensen-Shannon Divergence of best validation model samples.
 
     Params:
@@ -43,7 +43,8 @@ def margin_uniformity(args, epoch, model, test_dict=None, num_samples=10000, cm_
         current_t_metric_x1, \
             current_m_metric_x1, \
             current_t_metric_x2, \
-            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, cm_flow=cm_flow, device=args.device)
+            current_m_metric_x2 = model.t_metric_eval(args=args, num_samples=num_samples, cm_flow=cm_flow,
+                                                      device=args.device)
     test_dict["t_1"] = current_t_metric_x1 / num_samples
     test_dict["m_1"] = current_m_metric_x1 / num_samples
     test_dict["t_2"] = current_t_metric_x2 / num_samples
@@ -57,9 +58,9 @@ def margin_uniformity(args, epoch, model, test_dict=None, num_samples=10000, cm_
     return test_dict
 
 
-def jsd_eval_1D(marginal, args, model, test_dict,
-             obs=1000, plotname='jsd_test_marginal',
-             cm_flow=False, marginal_num='1'):
+def jsd_eval_1d(args, model, test_dict,
+                obs=1000, plotname='jsd_test_marginal',
+                cm_flow=False):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 
     Params:
@@ -77,25 +78,27 @@ def jsd_eval_1D(marginal, args, model, test_dict,
     """
     with torch.no_grad():
         # Get distributions
-        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu=args.mu, var=args.var, alpha=args.alpha, low=args.low, high=args.high)
-        samples = marginal_distr.sampler(obs=obs)
+        marginal_distr = datasets.distributions.Marginals(args.marginal, obs, mu_=args.mu, var_=args.var,
+                                                          alpha_=args.alpha, low_=args.low, high_=args.high)
+        samples = marginal_distr.sampler()
 
         # Get Grid
         grid = np.linspace(np.min(samples), np.max(samples), obs).reshape(-1, 1)
 
         # Prob vector pred
         args.obs = obs
-        prob_vector_X = np.exp(model._forward(torch.tensor(grid, device=torch.device(args.device)).float()).cpu().numpy())
+        prob_vector_x = np.exp(model._forward(torch.tensor(grid, device=torch.device(args.device)).float())
+                               .cpu().numpy())
 
         # Prob vector target
-        pred_distr_Y = scipy.stats.gaussian_kde(samples.T)
-        prob_vector_Y = pred_distr_Y(grid.T).T
+        pred_distr_y = scipy.stats.gaussian_kde(samples.T)
+        prob_vector_y = pred_distr_y(grid.T).T
 
-        assert np.min(prob_vector_X) >= 0
-        assert np.min(prob_vector_Y) >= 0
+        assert np.min(prob_vector_x) >= 0
+        assert np.min(prob_vector_y) >= 0
 
         # Calculate JS Divergence
-        divergence = js_divergence_grid(prob_vector_X, prob_vector_Y)
+        divergence = js_divergence_grid(prob_vector_x, prob_vector_y)
         print('JS divergence: ', divergence)
 
         if cm_flow:

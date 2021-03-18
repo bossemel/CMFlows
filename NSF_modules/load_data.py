@@ -1,13 +1,10 @@
 import torch
 import datasets
 
-
 def load_data(args):
     """Data Loader
-
     Params:
         args: args passed by Training Options
-
     Returns:
         dataset: full dataset
         num_inputs: dimensions of data
@@ -15,7 +12,7 @@ def load_data(args):
     """
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 
-    dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, random_seed=args.random_seed)
+    dataset = datasets.distributions.Copula_Distr(args.copula, args.theta, args.obs)
 
     train_tensor = torch.from_numpy(dataset.trn)
     train_dataset = torch.utils.data.TensorDataset(train_tensor)

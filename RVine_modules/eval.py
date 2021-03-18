@@ -4,7 +4,7 @@ import torch
 from utils import js_divergence_grid, make_meshgrid
 
 
-def jsd_eval(args, dim, data, pv_copula, rvine_copula):
+def jsd_eval(dim, data, pv_copula, rvine_copula):
     """Calculate pointwise JS-Divergence for the predicted marginal distribution.
 
     Params:

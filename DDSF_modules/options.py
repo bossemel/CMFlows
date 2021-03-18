@@ -1,7 +1,7 @@
 import argparse
 
 
-class TrainOptions():
+class TrainOptions:
     """This class includes training options.
 
     It also includes shared options defined in BaseOptions.
@@ -10,7 +10,7 @@ class TrainOptions():
         """Reset the class; indicates the class hasn't been initailized"""
         self.initialized = False
 
-    def initialize(self, parser):
+    def initialize(self):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
         parser.add_argument(
@@ -18,8 +18,9 @@ class TrainOptions():
         parser.add_argument(
             '--epochs', type=int, default=100, help='number of epochs to train (default: 100)')
         parser.add_argument(
-            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal',
-            'mix_gauss_gamma', 'mix_uniform'])
+            '--marginal', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm',
+                                                    'mix_gamma', 'mix_lognormal',
+                                                    'mix_gauss_gamma', 'mix_uniform'])
         parser.add_argument(
             '--no-cuda', action='store_true', default=False, help='disables CUDA training')
         parser.add_argument(

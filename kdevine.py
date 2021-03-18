@@ -42,27 +42,27 @@ def calc_jsd(test_dict, pred_distr, target_distr, samples_pred, samples_target):
     assert np.max(samples_pred) <= 1, '{}'.format(np.max(samples_pred))
 
     # Prob X in both distributions
-    prob_X_in_p = np.asarray(kdevine.dkdevinecop(samples_pred, pred_distr))
-    prob_X_in_q = target_distr.pdf(samples_pred)
+    prob_x_in_p = np.asarray(kdevine.dkdevinecop(samples_pred, pred_distr))
+    prob_x_in_q = target_distr.pdf(samples_pred)
 
     # Prob Y in both distributions
-    prob_Y_in_q = target_distr.pdf(samples_target)
-    prob_Y_in_p = np.asarray(kdevine.dkdevinecop(samples_target, pred_distr))
+    prob_y_in_q = target_distr.pdf(samples_target)
+    prob_y_in_p = np.asarray(kdevine.dkdevinecop(samples_target, pred_distr))
 
-    assert not np.isnan(np.sum(prob_X_in_p))
-    assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
-    assert not np.isnan(np.sum(prob_Y_in_p))
-    assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+    assert not np.isnan(np.sum(prob_x_in_p))
+    assert not np.isnan(np.sum(prob_x_in_q)), '%r' % (prob_x_in_q[:10])
+    assert not np.isnan(np.sum(prob_y_in_p))
+    assert not np.isnan(np.sum(prob_y_in_q)), '%r' % (prob_y_in_q[:10])
 
-    assert np.min(prob_X_in_p) >= 0
-    assert np.min(prob_X_in_q) >= 0, '%r' % np.min(prob_X_in_q)
-    assert np.min(prob_Y_in_p) >= 0
-    assert np.min(prob_Y_in_q) >= 0
+    assert np.min(prob_x_in_p) >= 0
+    assert np.min(prob_x_in_q) >= 0, '%r' % np.min(prob_x_in_q)
+    assert np.min(prob_y_in_p) >= 0
+    assert np.min(prob_y_in_q) >= 0
 
-    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                               prob_X_in_q=prob_X_in_q,
-                               prob_Y_in_p=prob_Y_in_p,
-                               prob_Y_in_q=prob_Y_in_q)
+    divergence = js_divergence(prob_x_in_p=prob_x_in_p,
+                               prob_x_in_q=prob_x_in_q,
+                               prob_y_in_p=prob_y_in_p,
+                               prob_y_in_q=prob_y_in_q)
     test_dict['js_divergence'] = divergence
     print('JS-Divergence: {}'.format(divergence))
     return test_dict
@@ -75,12 +75,12 @@ def ecdf(x):
 
 
 def fit_copula(data):
-    #print('visualize input' )
-    #visualize_joint(np.array(data), args.figures_path, name='input_data')
-    print('create pseudo obs' )
+    # print('visualize input' )
+    # visualize_joint(np.array(data), args.figures_path, name='input_data')
+    print('create pseudo obs')
     data = vinecopula.pobs(data.numpy())
-    #print('vis pseudo')
-    #visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
+    # print('vis pseudo')
+    # visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
     print('fit cop')
     cop = kdevine.kdevinecop(data)
     print('done fit')
@@ -106,7 +106,7 @@ def fit_and_evaluate(continue_from_mode, visualize):
                          samples_pred=samples_pred, samples_target=samples_target)
 
     # Gather test losses and save statistics
-    test_losses = {key: [np.mean(value)] for key, value in
+    test_losses = {kk: [np.mean(value)] for kk, value in
                    test_dict.items()}  # save test set metrics in dict format
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format

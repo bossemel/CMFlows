@@ -1,4 +1,3 @@
-import torch
 import torch.utils.data
 import os
 import numpy as np
@@ -11,7 +10,7 @@ import json
 
 from RVine_modules.options import TrainOptions
 from RVine_modules.model_rvine import RVine
-from RVine_modules.load_and_save import save_rvine, load_rvine
+from RVine_modules.load_and_save import save_rvine
 from RVine_modules.utils import load_mv_copula
 from utils.visualizer import visualize_joint
 from utils.load_and_save import save_statistics, load_statistics
@@ -24,7 +23,7 @@ def train_and_plot(visualize=True, continue_from_mode=False):
     dataset_trn, dim, pv_cop = load_mv_copula(args)
 
     # Initialize R-vine
-    model = RVine(args=args, num_inputs=dataset_trn.shape[1])
+    model_ = RVine(args=args, num_inputs=dataset_trn.shape[1])
 
     if not args.error_bars:
         if not args.error_bars:
@@ -32,24 +31,24 @@ def train_and_plot(visualize=True, continue_from_mode=False):
             visualize_joint(dataset_trn[:, 1:3], args.figures_path, name='rvine_input_dataset12')
             visualize_joint(dataset_trn[:, 2:4], args.figures_path, name='rvine_input_dataset23')
 
-        if not args.load_model:
-            model.fit(data=dataset_trn)
-            save_rvine(args.experiment_saved_models, 'rvine_object', model)
-        else:
-            load_rvine(args.experiment_saved_models, 'rvine_object', model)
+        # if not args.load_model_:
+        model_.fit(data=dataset_trn)
+        save_rvine(args.experiment_saved_models, 'rvine_object', model_)
+        # else:
+        #     load_rvine(args.experiment_saved_model_s, 'rvine_object', model_)
     else:
-        model.fit(data=dataset_trn)
-    model.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs)
+        model_.fit(data=dataset_trn)
+    model_.jsd_vinecopula(args, pv_cop, num_samples=args.viz_obs)
 
-    test_losses = {key: [np.mean(value)] for key, value in
-                   model.results_dict.items()}  # save test set metrics in dict format
+    test_losses = {kk: [np.mean(value)] for kk, value in
+                   model_.results_dict.items()}  # save test set metrics in dict format
     save_statistics(experiment_log_dir=args.experiment_logs, filename='test_summary.csv',
                     # save test set metrics on disk in .csv format
                     stats_dict=test_losses, current_epoch=0, continue_from_mode=continue_from_mode, test_epoch=None)
     if visualize:
-        model.plot()
+        model_.plot()
         # Simulate and visualize
-        samples = model.sample(num_samples=args.viz_obs, transform=True)
+        samples = model_.sample(num_samples=args.viz_obs, transform=True)
         # normal_distr = torch.distributions.normal.Normal(0, 1)
         # samples = normal_distr.cdf(samples)
 
@@ -57,7 +56,8 @@ def train_and_plot(visualize=True, continue_from_mode=False):
 
         for pair in paired_dims:
             viz_samples = samples[:, pair]
-            visualize_joint(viz_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair), axis_1_name='X{}'.format(pair[0]), axis_2_name='X{}'.format(pair[1]))
+            visualize_joint(viz_samples.numpy(), args.figures_path, name='rvines_dim{}'.format(pair),
+                            axis_1_name='X{}'.format(pair[0]), axis_2_name='X{}'.format(pair[1]))
             visualize_joint(dataset_trn[:, pair].numpy(), args.figures_path, name='true_distr_dim{}'.format(pair))
 
 

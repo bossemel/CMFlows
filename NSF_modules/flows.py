@@ -47,7 +47,8 @@ class ConditionalFlow(nn.Module):
 
         distribution = distributions.StandardNormal([dim]).to(args.device)
         transform = transforms.CompositeTransform([
-            self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow' else self.n_layers_m)], args.device)
+            self.create_transform(ii) for ii in range(self.n_layers_c if args.flow_type == 'cop_flow'
+                                                      else self.n_layers_m)], args.device)
         self.flow = flows.Flow(transform, distribution).to(args.device)
 
     def create_transform(self, ii):
@@ -102,17 +103,18 @@ class ConditionalFlow(nn.Module):
         log_density = self.flow.log_prob(inputs, context)
         return log_density
 
-    def pdf_normal(self, inputs, context=None, device=None):
+    def pdf_normal(self, inputs, context=None):
         # Here: context normally distirbuted
         with torch.no_grad():
             normal_distr = scipy.stats.norm()
             if context is None:
-                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,)
+                pdf = torch.exp(self._forward(inputs)).cpu().reshape(-1,)
             else:
-                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * normal_distr.pdf(context.cpu()).reshape(-1,)
+                pdf = torch.exp(self._forward(inputs, context=context)).cpu().reshape(-1,) * \
+                      normal_distr.pdf(context.cpu()).reshape(-1,)
             return pdf
 
-    def pdf_uniform(self, inputs, context=None, device=None):
+    def pdf_uniform(self, inputs, context=None):
         with torch.no_grad():
             return gaussian_change_of_var_ND(inputs, self.pdf_normal, self.device, context=context)
 
@@ -176,8 +178,8 @@ class ConditionalFlow(nn.Module):
         assert num_samples == 100000
         with torch.no_grad():
             # Get ground truth
-            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=num_samples)
-            true_cop_distr.sampler(obs=num_samples)
+            true_cop_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs_=num_samples)
+            true_cop_distr.sampler(obs_=num_samples)
             samples_target_uni = true_cop_distr.xx
 
             # Samples from both distributions
@@ -189,8 +191,10 @@ class ConditionalFlow(nn.Module):
                 context_normal = None
                 context_uni = None
 
-            samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
-            samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal if args.conditional_copula else None, device=args.device)
+            samples_pred_uni = self.sample_copula(num_samples=num_samples, context=context_normal
+            if args.conditional_copula else None, device=args.device)
+            samples_pred_viz = self.sample_copula(num_samples=num_samples, context=context_normal
+            if args.conditional_copula else None, device=args.device)
 
             if args.conditional_copula:
                 visualize_joint(samples_target_uni, args.figures_path, name='samples_target_jsd')
@@ -210,34 +214,34 @@ class ConditionalFlow(nn.Module):
 
             # Prob X in both distributions
             if args.conditional_copula:
-                prob_X_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=context_uni.numpy())
+                prob_x_in_p = self.pdf_uniform(inputs=np.array(samples_pred_uni[:, 0:1].cpu()), context=context_uni.numpy())
             else:
-                prob_X_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
+                prob_x_in_p = self.pdf_uniform(np.array(samples_pred_uni.cpu()))
 
-            prob_X_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
+            prob_x_in_q = true_cop_distr.pdf(samples_pred_uni.cpu().numpy())
 
             # Prob Y in both distributions
             if args.conditional_copula:
-                prob_Y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
-                prob_Y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
+                prob_y_in_p = self.pdf_uniform(inputs=samples_target_uni[:, 0:1], context=samples_target_uni[:, 1:2])
+                prob_y_in_q = true_cop_distr.pdf(np.concatenate([samples_target_uni, context_uni.cpu()], axis=1))
             else:
-                prob_Y_in_p = self.pdf_uniform(samples_target_uni)
-                prob_Y_in_q = true_cop_distr.pdf(samples_target_uni)
+                prob_y_in_p = self.pdf_uniform(samples_target_uni)
+                prob_y_in_q = true_cop_distr.pdf(samples_target_uni)
 
-            assert np.min(prob_X_in_p) >= 0
-            assert np.min(prob_X_in_q) >= 0
-            assert np.min(prob_Y_in_p) >= 0
-            assert np.min(prob_Y_in_q) >= 0
+            assert np.min(prob_x_in_p) >= 0
+            assert np.min(prob_x_in_q) >= 0
+            assert np.min(prob_y_in_p) >= 0
+            assert np.min(prob_y_in_q) >= 0
 
-            assert prob_X_in_p.shape == (num_samples,), '{}'.format(prob_X_in_p.shape)
-            assert prob_X_in_q.shape == (num_samples,)
-            assert prob_Y_in_p.shape == (num_samples,)
-            assert prob_Y_in_q.shape == (num_samples,)
+            assert prob_x_in_p.shape == (num_samples,), '{}'.format(prob_x_in_p.shape)
+            assert prob_x_in_q.shape == (num_samples,)
+            assert prob_y_in_p.shape == (num_samples,)
+            assert prob_y_in_q.shape == (num_samples,)
 
-            divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                                       prob_X_in_q=prob_X_in_q,
-                                       prob_Y_in_p=prob_Y_in_p,
-                                       prob_Y_in_q=prob_Y_in_q)
+            divergence = js_divergence(prob_x_in_p=prob_x_in_p,
+                                       prob_x_in_q=prob_x_in_q,
+                                       prob_y_in_p=prob_y_in_p,
+                                       prob_y_in_q=prob_y_in_q)
 
             return divergence
 

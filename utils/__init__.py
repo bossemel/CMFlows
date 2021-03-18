@@ -47,45 +47,45 @@ def gaussian_change_of_var_ND(inputs, original_pdf, device, context=None):
 
     if context is not None:
         recast_inputs = torch.cat([recast_inputs, recast_context], axis=1)
-    second_dim = recast_inputs.shape[1] if len(recast_inputs.shape) ==2 else 1
+    second_dim = recast_inputs.shape[1] if len(recast_inputs.shape) == 2 else 1
 
     if second_dim >= 2:
-        determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1) #.reshape(-1,)
+        determinant = normal_distr.pdf(recast_inputs.cpu()).prod(axis=1)
     else:
-        determinant = normal_distr.pdf(recast_inputs.cpu()) #.reshape(-1,)
+        determinant = normal_distr.pdf(recast_inputs.cpu())
 
     output = original_joint / determinant
     assert np.min(output) >= 0, '{}'.format(np.min(output))
     return output
 
 
-def calc_jsd(args, test_dict, samples_pred, samples_target, name=''):
+def calc_jsd(test_dict, samples_pred, samples_target, name=''):
     # Define distributions
     pred_distr = scipy.stats.gaussian_kde(samples_pred.T)
     true_cop_distr = scipy.stats.gaussian_kde(samples_target.T)
 
     # Prob X in both distributions
-    prob_X_in_p = pred_distr.pdf(samples_pred.T).T
-    prob_X_in_q = true_cop_distr.pdf(samples_pred.T).T
+    prob_x_in_p = pred_distr.pdf(samples_pred.T).T
+    prob_x_in_q = true_cop_distr.pdf(samples_pred.T).T
 
     # Prob Y in both distributions
-    prob_Y_in_q = true_cop_distr.pdf(samples_target.T).T
-    prob_Y_in_p = pred_distr.pdf(samples_target.T).T
+    prob_y_in_q = true_cop_distr.pdf(samples_target.T).T
+    prob_y_in_p = pred_distr.pdf(samples_target.T).T
 
-    assert not np.isnan(np.sum(prob_X_in_p))
-    assert not np.isnan(np.sum(prob_X_in_q)), '%r' % (prob_X_in_q[:10])
-    assert not np.isnan(np.sum(prob_Y_in_p))
-    assert not np.isnan(np.sum(prob_Y_in_q)), '%r' % (prob_Y_in_q[:10])
+    assert not np.isnan(np.sum(prob_x_in_p))
+    assert not np.isnan(np.sum(prob_x_in_q)), '%r' % (prob_x_in_q[:10])
+    assert not np.isnan(np.sum(prob_y_in_p))
+    assert not np.isnan(np.sum(prob_y_in_q)), '%r' % (prob_y_in_q[:10])
 
-    assert np.min(prob_X_in_p) >= 0
-    assert np.min(prob_X_in_q) >= 0, '%r' % np.min(prob_X_in_q)
-    assert np.min(prob_Y_in_p) >= 0
-    assert np.min(prob_Y_in_q) >= 0
+    assert np.min(prob_x_in_p) >= 0
+    assert np.min(prob_x_in_q) >= 0, '%r' % np.min(prob_x_in_q)
+    assert np.min(prob_y_in_p) >= 0
+    assert np.min(prob_y_in_q) >= 0
 
-    divergence = js_divergence(prob_X_in_p=prob_X_in_p,
-                               prob_X_in_q=prob_X_in_q,
-                               prob_Y_in_p=prob_Y_in_p,
-                               prob_Y_in_q=prob_Y_in_q)
+    divergence = js_divergence(prob_x_in_p=prob_x_in_p,
+                               prob_x_in_q=prob_x_in_q,
+                               prob_y_in_p=prob_y_in_p,
+                               prob_y_in_q=prob_y_in_q)
     print('JS-Divergence: {} {}'.format(divergence, name))
     test_dict['js_divergence'] = divergence
     return test_dict
@@ -115,9 +115,9 @@ def t_m_metric_eval(margin, intervals=25):
     sum_probs = 0
     highest_interval = 0
     for ii in range(intervals):
-        A_k_lower = (ii - 1) / intervals
-        A_k_upper = ii / intervals
-        points_within = np.where(np.logical_and(margin >= A_k_lower, margin <= A_k_upper))[0]
+        a_k_lower = (ii - 1) / intervals
+        a_k_upper = ii / intervals
+        points_within = np.where(np.logical_and(margin >= a_k_lower, margin <= a_k_upper))[0]
         if len(points_within) > 0:
             prob = len(points_within) / len(margin)
             sum_probs += abs(np.log(prob) + np.log(intervals))
@@ -150,8 +150,8 @@ def flow_density(inputs, log_jacob):
     Returns:
         log density array
     """
-    log_prob = -0.5 * sum_except_batch(inputs.pow(2), num_batch_dims=1) - 0.5 * math.log(2 * math.pi) # .sum(-1, keepdim=True)
-    return (log_prob + sum_except_batch(log_jacob, num_batch_dims=1)) #.sum(-1, keepdim=True)
+    log_prob = -0.5 * sum_except_batch(inputs.pow(2), num_batch_dims=1) - 0.5 * math.log(2 * math.pi)
+    return log_prob + sum_except_batch(log_jacob, num_batch_dims=1)
 
 
 def js_divergence_grid(prob_vector_X, prob_vector_Y):
@@ -168,35 +168,35 @@ def js_divergence_grid(prob_vector_X, prob_vector_Y):
     return (KL_X_mix + KL_Y_mix) / 2
 
 
-def js_divergence(prob_X_in_p, prob_X_in_q,
-                  prob_Y_in_p, prob_Y_in_q):
+def js_divergence(prob_x_in_p, prob_x_in_q,
+                  prob_y_in_p, prob_y_in_q):
     """Calculate JS-Divergence using Monte Carlo.
     Params:
-        prob_X_in_p: p(x), x from distr p(x), array
-        prob_X_in_q: q(x), x from distr p(x), array
-        prob_Y_in_p: p(y), y from distr q(y), array
-        prob_Y_in_q: p(y), y from distr q(y), array
+        prob_x_in_p: p(x), x from distr p(x), array
+        prob_x_in_q: q(x), x from distr p(x), array
+        prob_y_in_p: p(y), y from distr q(y), array
+        prob_y_in_q: p(y), y from distr q(y), array
     Returns:
         divergence: int, JS-Divergence
     """
-    assert prob_X_in_p.shape[0] == prob_X_in_q.shape[0]
-    assert prob_X_in_q.shape[0] == prob_Y_in_p.shape[0]
-    assert prob_Y_in_p.shape[0] == prob_Y_in_q.shape[0]
-    assert prob_X_in_p.shape[0] == 100000
-    mix_X = prob_X_in_p + prob_X_in_q
-    mix_Y = prob_Y_in_p + prob_Y_in_q
+    assert prob_x_in_p.shape[0] == prob_x_in_q.shape[0]
+    assert prob_x_in_q.shape[0] == prob_y_in_p.shape[0]
+    assert prob_y_in_p.shape[0] == prob_y_in_q.shape[0]
+    assert prob_x_in_p.shape[0] == 100000
+    mix_X = prob_x_in_p + prob_x_in_q
+    mix_Y = prob_y_in_p + prob_y_in_q
 
-    prob_X_in_p[prob_X_in_p == 0] = 0 + eps
-    prob_Y_in_q[prob_Y_in_q == 0] = 0 + eps
+    prob_x_in_p[prob_x_in_p == 0] = 0 + eps
+    prob_y_in_q[prob_y_in_q == 0] = 0 + eps
 
     assert np.min(mix_X) > 0
     assert np.min(mix_Y) > 0
 
-    KL_PM = np.log2((2 * prob_X_in_p) / mix_X)
+    KL_PM = np.log2((2 * prob_x_in_p) / mix_X)
     KL_PM[mix_X == 0] = 0
     KL_PM = KL_PM.mean()
 
-    KL_QM = np.log2((2 * prob_Y_in_q) / mix_Y)
+    KL_QM = np.log2((2 * prob_y_in_q) / mix_Y)
     KL_QM[mix_Y == 0] = 0
     KL_QM = KL_QM.mean()
 

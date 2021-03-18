@@ -1,7 +1,7 @@
 import argparse
 
 
-class TrainOptions():
+class TrainOptions:
     """This class includes training options.
 
     It also includes shared options defined in BaseOptions.
@@ -10,13 +10,14 @@ class TrainOptions():
         """Reset the class; indicates the class hasn't been initailized"""
         self.initialized = False
 
-    def initialize(self, parser):
+    def initialize(self):
         # Training settings
         parser = argparse.ArgumentParser(description='PyTorch Flows')
 
         # Training Options
         parser.add_argument(
-            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard deviation and mean of test loss')
+            '--error_bars', action='store_true', default=False, help='trains 10 times and return the standard '
+                                                                     'deviation and mean of test loss')
 
         # Dataset options
         parser.add_argument(
@@ -24,9 +25,11 @@ class TrainOptions():
         parser.add_argument(
             '--assumed_copula', default='clayton', choices=['clayton', 'frank', 'gumbel', 'gaussian'])
         parser.add_argument(
-            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
+            '--marginal_1', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'],
+            help='marginal distribution')
         parser.add_argument(
-            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'], help='marginal distribution')
+            '--marginal_2', default='gamma', choices=['gaussian', 'uniform', 'gamma', 'lognormal'],
+            help='marginal distribution')
         parser.add_argument(
             '--mix', action='store_true', help='whether to create mixture R-vine as input')
         parser.add_argument(

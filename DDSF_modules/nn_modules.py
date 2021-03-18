@@ -14,8 +14,8 @@ N_ = None
 eps = 1e-7
 
 
-def softplus(x, delta=1e-6):
-    return softplus_(x) + delta
+def softplus(x, delta_=1e-6):
+    return softplus_(x) + delta_
 
 
 def sum_from_one(x):
@@ -32,7 +32,7 @@ def log(x):
 
 class SequentialFlow(nn.Sequential):
 
-    def sample(self, n=1, context=None, **kwargs):
+    def sample(self, n=1, context=None):
         dim = self[0].dim
         if isinstance(dim, int):
             dim = [dim, ]
@@ -51,10 +51,6 @@ class SequentialFlow(nn.Sequential):
                 context = context.cuda()
 
         return self.forward((spl, lgd, context))
-
-    def cuda(self):
-        self.gpu = True
-        return super(SequentialFlow, self).cuda()
 
 
 class WNlinear(Module):
@@ -81,7 +77,7 @@ class WNlinear(Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, input):
+    def forward(self, input_):
         if self.norm:
             dir_ = self.direction
             direction = dir_.div(torch.sqrt(dir_.pow(2).sum(1) + eps)[:, None])
@@ -92,7 +88,7 @@ class WNlinear(Module):
             # weight = weight * getattr(self.mask,
             #                          ('cpu', 'cuda')[weight.is_cuda])()
             weight = weight * Variable(self.mask)
-        return F.linear(input, weight, self.bias)
+        return F.linear(input_, weight, self.bias)
 
     def __repr__(self):
         return self.__class__.__name__ + '(' \
@@ -127,7 +123,7 @@ class CWNlinear(Module):
         bias = self.cbias(context.to(self.device))
         if self.norm:
             dir_ = self.direction
-            direction = dir_.div(dir_.pow(2).sum(1).sqrt()[:,N_])
+            direction = dir_.div(dir_.pow(2).sum(1).sqrt()[:, N_])
             weight = direction
         else:
             weight = self.direction

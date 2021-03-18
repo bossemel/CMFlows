@@ -13,6 +13,7 @@ def load_data(args):
         data_loaders: dictionary containing train, val and test set loader
     """
 
-    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs, mu=args.mu, var=args.var, alpha=args.alpha, no_val=True)
+    dataset = datasets.distributions.Joint_Distr(args.copula, args.marginal_1, args.marginal_2, args.theta, args.obs,
+                                                 mu_=args.mu, var_=args.var, alpha_=args.alpha, no_val=True)
 
     return dataset

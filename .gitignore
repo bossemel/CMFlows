@@ -12,3 +12,5 @@ results/
 sftp-config.json
 saved_models
 *.pdf
+venv/
+.idea/
