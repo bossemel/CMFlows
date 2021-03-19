@@ -14,6 +14,7 @@ from utils.visualizer import visualize_joint
 import datasets.distributions
 from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
+rpy2.robjects.r['options'](warn=-1)
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
@@ -34,8 +35,8 @@ def calc_jsd(test_dict, pred_distr, samples_pred):
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=viz_obs, transform=False)
-    target_distr.sampler(obs=viz_obs)
+    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs_=viz_obs)
+    target_distr.sampler()
     samples_target = target_distr.xx
 
     # Prob X in both distributions
@@ -79,11 +80,11 @@ def fit_copula(data):
     return kde
 
 
-def load_data(args):
+def load_data(args_):
     train = torch.load(os.path.join(os.path.join('datasets', 'joint_data'),
-                                    '2D_{}_{}_{}_trn'.format(args.copula, args.marginal_1, args.marginal_2)))
+                                    '2D_{}_{}_{}_trn'.format(args_.copula, args_.marginal_1, args_.marginal_2)))
     val = torch.load(os.path.join(os.path.join('datasets', 'joint_data'),
-                                  '2D_{}_{}_{}_val'.format(args.copula, args.marginal_1, args.marginal_2)))
+                                  '2D_{}_{}_{}_val'.format(args_.copula, args_.marginal_1, args_.marginal_2)))
     train = np.concatenate([train, val], axis=0)
     return train
 

@@ -18,8 +18,8 @@ def calc_jsd(test_dict, pred_distr, samples_pred):
     assert np.max(samples_pred) <= 1
 
     # Define distributions
-    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs=args.obs, transform=False)
-    target_distr.sampler(obs=args.obs)
+    target_distr = datasets.distributions.Copula_Distr(args.copula, args.theta, obs_=viz_obs)
+    target_distr.sampler()
     samples_target = target_distr.xx
 
     # Prob X in both distributions
@@ -73,8 +73,7 @@ def train_and_evaluate(continue_from_mode, visualize):
         # Visualize samples
         visualize_joint(samples_pred, args.figures_path, name='archmidean_samples')
 
-    samples_pred = pred_distr.random(args.obs)  # simulate random number
-
+    samples_pred = pred_distr.random(viz_obs)  # simulate random number
     test_dict = {}
     test_dict = calc_jsd(test_dict=test_dict, pred_distr=pred_distr, samples_pred=samples_pred)
 

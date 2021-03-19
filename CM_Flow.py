@@ -87,7 +87,7 @@ def marg_flow_transform(args_, model, dataset, dim):
 def marginal_flow_train(model, args_, name, dim, dataset, data_loaders, disable_tqdm, error_bars):
     model_dict = {}
     best_loss = 1000
-    for jj in range(1):
+    for jj in range(3):
         model.init_marg_flow()
         model.marg_flow.state = dict()
         args_.clip_grad_norm = args_.clip_grad_norm_m

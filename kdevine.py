@@ -15,6 +15,7 @@ from utils import js_divergence
 from utils.load_and_save import save_statistics, load_statistics
 from RVine_modules.utils import load_mv_copula
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
+rpy2.robjects.r['options'](warn=-1)
 
 # Import R packages
 rpy2.robjects.numpy2ri.activate()  # import R's utility package
@@ -31,10 +32,8 @@ kdevine = importr('kdevine')
 
 def calc_jsd(test_dict, pred_distr, target_distr, samples_pred, samples_target):
     # Samples from both distributinos
-    print('visualize pred and target')
-#     visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
-#     visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
-    print('calc jsd')
+    #     visualize_joint(samples_pred[:, :2], args.figures_path, name='samples_pred01')
+    #     visualize_joint(samples_target[:, :2], args.figures_path, name='samples_target01')
     samples_pred[samples_pred < 0] = 0
     samples_pred[samples_pred > 1] = 1
 
@@ -77,21 +76,15 @@ def ecdf(x):
 def fit_copula(data):
     # print('visualize input' )
     # visualize_joint(np.array(data), args.figures_path, name='input_data')
-    print('create pseudo obs')
     data = vinecopula.pobs(data.numpy())
     # print('vis pseudo')
     # visualize_joint(np.array(data)[:, :2], args.figures_path, name='pseudo_obs')
-    print('fit cop')
     cop = kdevine.kdevinecop(data)
-    print('done fit')
     return cop
 
 
 def fit_and_evaluate(continue_from_mode, visualize):
-    print('load copula')
     dataset_trn, dim, pv_cop = load_mv_copula(args)
-
-    print('fit copula')
     pred_distr = fit_copula(dataset_trn)
 
     if visualize:

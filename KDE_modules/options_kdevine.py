@@ -61,7 +61,7 @@ class TrainOptions:
         """
         if not self.initialized:  # check if it has been initialized
             parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-            parser = self.initialize(parser)
+            parser = self.initialize()
 
         # get the basic options
         opt, _ = parser.parse_known_args()

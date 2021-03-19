@@ -190,7 +190,7 @@ class Copula_Distr:
         # gumbel copula
         elif self.copula == 'gumbel':
             assert hasattr(self, 'theta'), 'Please specify theta for %r copula' % self.copula
-            uu, vv = sample_gumbel([self.obs if obs is None else obs], self.theta, random_seed=None)
+            uu, vv = sample_gumbel([self.obs if obs_ is None else obs_], self.theta, random_seed=None)
 
         # gumbel copula
         elif self.copula == 'independent':
