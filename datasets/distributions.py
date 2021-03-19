@@ -35,30 +35,31 @@ def marginal_transform(inputs, marginal, mu_=None, var_=None, alpha_=None):
         gamma = scipy.stats.gamma(alpha_)
         inputs = gamma.ppf(inputs)
     elif marginal == 'gmm':
-        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu_ - 2, scale=var_ * 2)
-        distr_2 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu_ + 2, scale=var_ / 2)
-        distr_3 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu_, scale=var_ / 4)
+        def distr_1(xx): return scipy.stats.norm.cdf(xx, loc=mu_ - 2, scale=var_ * 2)
+        def distr_2(xx): return scipy.stats.norm.cdf(xx, loc=mu_ + 2, scale=var_ / 2)
+        def distr_3(xx): return scipy.stats.norm.cdf(xx, loc=mu_, scale=var_ / 4)
     elif marginal == 'mix_gamma':
-        distr_1 = lambda xx: scipy.stats.gamma.cdf(xx, 1)
-        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, 5)
-        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, 2)
+        def distr_1(xx): return scipy.stats.gamma.cdf(xx, 1)
+        def distr_2(xx): return scipy.stats.gamma.cdf(xx, 5)
+        def distr_3(xx): return scipy.stats.gamma.cdf(xx, 2)
     elif marginal == 'mix_lognormal':
-        distr_1 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.1, loc=mu_ - 2, scale=var_ * 2)
-        distr_2 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.9, loc=mu_ + 2, scale=var_ / 2)
-        distr_3 = lambda xx: scipy.stats.lognorm.cdf(xx, s=0.5, loc=mu_, scale=var_)
+        def distr_1(xx): return scipy.stats.lognorm.cdf(xx, s=0.1, loc=mu_ - 2, scale=var_ * 2)
+        def distr_2(xx): return scipy.stats.lognorm.cdf(xx, s=0.9, loc=mu_ + 2, scale=var_ / 2)
+        def distr_3(xx): return scipy.stats.lognorm.cdf(xx, s=0.5, loc=mu_, scale=var_)
     elif marginal == 'mix_gauss_gamma':
-        distr_1 = lambda xx: scipy.stats.norm.cdf(xx, loc=mu_, scale=var_ / 5)
-        distr_2 = lambda xx: scipy.stats.gamma.cdf(xx, alpha_)
-        distr_3 = lambda xx: scipy.stats.gamma.cdf(xx, alpha_ * 5)
+        def distr_1(xx): return scipy.stats.norm.cdf(xx, loc=mu_, scale=var_ / 5)
+        def distr_2(xx): return scipy.stats.gamma.cdf(xx, alpha_)
+        def distr_3(xx): return scipy.stats.gamma.cdf(xx, alpha_ * 5)
     if marginal in ['gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']:
         inverse_cdf = pynverse.inversefunc(lambda xx: 0.4 * distr_1(xx) + 0.4 * distr_2(xx) + 0.2 * distr_3(xx))
-        inputs = inverse_cdf(inputs)
+        inputs = inverse_cdf(np.longdouble(inputs))
     return inputs
 
 
 class Joint_Distr:
     """Class for bivariate samples given a copula correlation and individual marginals.
     """
+
     def __init__(self, copula_, marginal_1_, marginal_2_, theta_, obs_, mu_=None, var_=None, alpha_=None, no_val=False,
                  random_seed=None):
 
@@ -72,7 +73,7 @@ class Joint_Distr:
         self.marginal_2 = marginal_2_
         self.obs = obs_
 
-        Joint_Distr.sampler(self, obs_=obs_, random_seed=random_seed)
+        Joint_Distr.sampler(self, obs_=obs_)
 
         if no_val:
             trn, tst = split_train_val_test(self.xx, only_val=no_val)
@@ -84,7 +85,7 @@ class Joint_Distr:
             self.val = val.astype(np.float32)
             self.tst = tst.astype(np.float32)
 
-    def sampler(self, obs_=None, random_seed=None):
+    def sampler(self, obs_=None):
         """Returns copula samples.
         """
         copula_distr = Copula_Distr(self.copula,
@@ -104,7 +105,8 @@ class Joint_Distr:
 class Marginals:
     """Class for univariate samples
     """
-    def __init__(self, marginal, obs_, mu_=None, var_=None, alpha_=None, low_=None, high_=None, random_seed=None):
+
+    def __init__(self, marginal, obs_, mu_=None, var_=None, alpha_=None, low_=None, high_=None):
 
         self.marginal = marginal
         self.obs = obs_
@@ -152,6 +154,8 @@ class Marginals:
                                                   s=0.5,
                                                   loc=self.mu,
                                                   scale=self.var)
+        else:
+            raise ValueError('Unknown marginal')
 
         return pdf_samples
 
@@ -196,6 +200,9 @@ class Copula_Distr:
         elif self.copula == 'independent':
             xx = scipy.stats.uniform.rvs(size=(self.obs, 2))
 
+        else:
+            raise ValueError('Unknown copula')
+
         if self.copula in ['clayton', 'frank', 'gumbel']:
             xx = np.concatenate([uu.reshape(-1, 1), vv.reshape(-1, 1)], axis=1)
 
@@ -215,12 +222,12 @@ class Copula_Distr:
         return copula_pdf_samples
 
 
-def sample_clayton(obs_, theta, uu=None, ww=None, random_seed=None):
+def sample_clayton(obs_, theta_, uu=None, ww=None, random_seed=None):
     """Sample from clayton copula density
 
     Params:
         obs_: how many samples to generate
-        theta: clayton copula parameter
+        theta_: clayton copula parameter
         uu, ww: fixed input grid
 
     Returns:
@@ -234,25 +241,24 @@ def sample_clayton(obs_, theta, uu=None, ww=None, random_seed=None):
             uu = np.random.RandomState(random_seed).uniform(size=obs_)
             ww = np.random.RandomState(random_seed + 1).uniform(size=obs_)
 
-
-    if theta <= -1:
+    if theta_ <= -1:
         raise ValueError('the parameter for clayton copula should be more than -1')
-    elif theta == 0:
+    elif theta_ == 0:
         raise ValueError('The parameter for clayton copula should not be 0')
 
-    if theta < sys.float_info.epsilon:
+    if theta_ < sys.float_info.epsilon:
         vv = ww
     else:
-        vv = uu * (ww**(-theta / (1 + theta)) - 1 + uu**theta)**(-1 / theta)
+        vv = uu * (ww ** (-theta_ / (1 + theta_)) - 1 + uu ** theta_) ** (-1 / theta_)
     return uu, vv
 
 
-def sample_frank(obs_, theta, uu=None, ww=None, random_seed=None):
+def sample_frank(obs_, theta_, uu=None, ww=None, random_seed=None):
     """Sample from frank copula density
 
     Params:
         obs_: how many samples to generate
-        theta: frank copula parameter
+        theta_: frank copula parameter
         uu, ww: fixed input grid
 
     Returns:
@@ -266,15 +272,14 @@ def sample_frank(obs_, theta, uu=None, ww=None, random_seed=None):
             uu = np.random.RandomState(random_seed).uniform(size=obs_)
             ww = np.random.RandomState(random_seed + 1).uniform(size=obs_)
 
-    if theta == 0:
+    if theta_ == 0:
         raise ValueError('The parameter for frank copula should not be 0')
 
-    if abs(theta) > np.log(sys.float_info.max):
-        vv = (uu < 0) + np.sign(theta) * uu
-    elif abs(theta) > np.sqrt(sys.float_info.epsilon):
-        vv = -np.log((
-            np.exp(-theta * uu) * (1 - ww) / ww + np.exp(
-                -theta)) / (1 + np.exp(-theta * uu) * (1 - ww) / ww)) / theta
+    if abs(theta_) > np.log(sys.float_info.max):
+        vv = (uu < 0) + np.sign(theta_) * uu
+    elif abs(theta_) > np.sqrt(sys.float_info.epsilon):
+        vv = -np.log((np.exp(-theta_ * uu) * (1 - ww) / ww + np.exp(-theta_)) /
+                     (1 + np.exp(-theta_ * uu) * (1 - ww) / ww)) / theta_
     else:
         vv = ww
     return uu, vv
@@ -316,9 +321,9 @@ def sample_gumbel(obs_, theta_, random_seed=None):
         u2 = u_int + np.pi / 2
         ee = -np.log(ww)
         tt = np.cos(u_int - u2 / theta_) / ee
-        gamma = (np.sin(u2 / theta_) / tt)**(1 / theta_) * tt / np.cos(u_int)
-        s1 = (-np.log(w1))**(1 / theta_) / gamma
-        s2 = (-np.log(w2))**(1 / theta_) / gamma
+        gamma = (np.sin(u2 / theta_) / tt) ** (1 / theta_) * tt / np.cos(u_int)
+        s1 = (-np.log(w1)) ** (1 / theta_) / gamma
+        s2 = (-np.log(w2)) ** (1 / theta_) / gamma
         uu = np.array(np.exp(-s1))
         vv = np.array(np.exp(-s2))
     assert not np.isnan(np.sum(uu))
@@ -366,7 +371,8 @@ def copula_pdf(copula_, theta_, uu, vv):
 
     if copula_ == 'clayton':
         a = (theta_ + 1) * np.power(np.multiply(uu, vv), -(theta_ + 1))
-        assert np.isfinite(a.sum()), 'np.multiply(uu, vv): {}, -(theta_ + 1): {}'.format(np.multiply(uu, vv).dtype, type(-(theta_ + 1)))
+        assert np.isfinite(a.sum()), 'np.multiply(uu, vv): {}, -(theta_ + 1): {}'.format(np.multiply(uu, vv).dtype,
+                                                                                         type(-(theta_ + 1)))
         b = np.power(uu, -theta_) + np.power(vv, -theta_) - 1
         c = -(2 * theta_ + 1) / theta_
         pdf = a * np.power(b, c, dtype=np.float)
@@ -402,20 +408,22 @@ def copula_pdf(copula_, theta_, uu, vv):
         raise NotImplementedError
 
 
-def gen_mv_copula(mix, copula='clayton', marginal='gamma', obs=10000, random_seed=4, disable_marginal=False):
+def gen_mv_copula(mix, copula_='clayton', marginal='gamma', obs_=10000, random_seed=4, disable_marginal=False):
     if mix is False:
-        if copula == 'clayton':
+        if copula_ == 'clayton':
             pair_copula = pv.BicopFamily.clayton
-            theta = 2
-        elif copula == 'frank':
+            theta_ = 2
+        elif copula_ == 'frank':
             pair_copula = pv.BicopFamily.frank
-            theta = 5
-        elif copula == 'gumbel':
+            theta_ = 5
+        elif copula_ == 'gumbel':
             pair_copula = pv.BicopFamily.gumbel
-            theta = 5
+            theta_ = 5
+        else:
+            raise ValueError('Unknown copula type.')
 
         # Specify pair-copulas
-        bicop = pv.Bicop(family=pair_copula, parameters=[theta])
+        bicop = pv.Bicop(family=pair_copula, parameters=[theta_])
         pcs = [[bicop, bicop, bicop], [bicop, bicop], [bicop]]
     else:
         bicop_1 = pv.Bicop(family=pv.BicopFamily.gumbel, parameters=[5])
@@ -427,8 +435,8 @@ def gen_mv_copula(mix, copula='clayton', marginal='gamma', obs=10000, random_see
     mat = np.array([[1, 1, 1, 1], [2, 2, 2, 0], [3, 3, 0, 0], [4, 0, 0, 0]])
 
     # Set-up a vine copula
-    copula = pv.Vinecop(matrix=mat, pair_copulas=pcs)
-    copula_samples = copula.simulate(n=obs, seeds=[random_seed])
+    copula_ = pv.Vinecop(matrix=mat, pair_copulas=pcs)
+    copula_samples = copula_.simulate(n=obs_, seeds=[random_seed])
     if not disable_marginal:
         for dim in range(copula_samples.shape[1]):
             copula_samples[:, dim] = normalize(marginal_transform(copula_samples[:, dim], marginal=marginal,
@@ -437,27 +445,33 @@ def gen_mv_copula(mix, copula='clayton', marginal='gamma', obs=10000, random_see
     return torch.from_numpy(copula_samples)
 
 
-def save_dataset_2D(copula, marginal_1, marginal_2, theta, obs, mu, var, alpha, random_seed):
-    dataset = Joint_Distr(copula, marginal_1, marginal_2, theta, obs,
-                                                 mu_=mu, var_=var, alpha_=alpha, random_seed=random_seed)
+def save_dataset_2D(copula_, marginal_1, marginal_2, theta_, obs_, mu_, var_, alpha_, random_seed):
+    dataset = Joint_Distr(copula_, marginal_1, marginal_2, theta_, obs_,
+                          mu_=mu_, var_=var_, alpha_=alpha_, random_seed=random_seed)
 
-    torch.save(dataset.trn, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_trn'.format(copula, marginal_1, marginal_2)))
-    torch.save(dataset.val, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_val'.format(copula, marginal_1, marginal_2)))
-    torch.save(dataset.tst, os.path.join(os.path.join('datasets', 'joint_data'), '2D_{}_{}_{}_tst'.format(copula, marginal_1, marginal_2)))
+    torch.save(dataset.trn, os.path.join(os.path.join('datasets', 'joint_data'),
+                                         '2D_{}_{}_{}_trn'.format(copula, marginal_1, marginal_2)))
+    torch.save(dataset.val, os.path.join(os.path.join('datasets', 'joint_data'),
+                                         '2D_{}_{}_{}_val'.format(copula, marginal_1, marginal_2)))
+    torch.save(dataset.tst, os.path.join(os.path.join('datasets', 'joint_data'),
+                                         '2D_{}_{}_{}_tst'.format(copula, marginal_1, marginal_2)))
 
 
-def save_dataset_4D(mix, copula='clayton', marginal='gamma', obs=10000, random_seed=4):
-    dataset = gen_mv_copula(mix, copula, marginal, obs, random_seed, disable_marginal=False)
+def save_dataset_4D(mix, copula_='clayton', marginal='gamma', obs_=10000, random_seed=4):
+    dataset = gen_mv_copula(mix, marginal=marginal, obs_=obs_, random_seed=random_seed, disable_marginal=False)
 
-    torch.save(dataset, os.path.join(os.path.join('datasets', 'joint_data'), '4D_{}_{}_mix{}'.format(copula, marginal, mix)))
+    torch.save(dataset,
+               os.path.join(os.path.join('datasets', 'joint_data'), '4D_{}_{}_mix{}'.format(copula_, marginal, mix)))
 
 
 if __name__ == '__main__':
     path = os.path.join('datasets', 'joint_data')
     Path(path).mkdir(parents=True, exist_ok=True)
     copula_list = ['clayton', 'frank', 'gumbel', 'independent']
-    marginal_1_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
-    marginal_2_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal', 'mix_gauss_gamma']
+    marginal_1_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal',
+                       'mix_gauss_gamma']
+    marginal_2_list = ['gaussian', 'uniform', 'gamma', 'lognormal', 'gmm', 'mix_gamma', 'mix_lognormal',
+                       'mix_gauss_gamma']
     alpha = 10
     mu = 0
     var = 1
@@ -466,18 +480,18 @@ if __name__ == '__main__':
 
     for copula in copula_list:
         for marginal_1 in marginal_1_list:
-            #for marginal_2 in marginal_2_list:
+            # for marginal_2 in marginal_2_list:
             if copula == 'clayton':
                 theta = 2
             else:
                 theta = 5
             print('Creating 2D dataset for {} copula with {} marginal..'.format(copula, marginal_1))
-            save_dataset_2D(copula, marginal_1, marginal_1, theta, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
-            print('Creating 4D dataset for {} copula with {} marginal..'.format(copula, marginal_1))
-            save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
+            save_dataset_2D(copula, marginal_1, marginal_1, theta, obs_=obs, mu_=mu, var_=var, alpha_=alpha,
+                            random_seed=seed)
+            if copula != 'independent':
+                print('Creating 4D dataset for {} copula with {} marginal..'.format(copula, marginal_1))
+                save_dataset_4D(False, copula, marginal_1, obs, random_seed=seed)
 
     for marginal_1 in marginal_1_list:
-        print('Creating 4D dataset for {} copula with mixed marginals..'.format(copula))
-        save_dataset_4D(True, marginal=marginal_1, obs=obs, random_seed=seed)
-
-    save_dataset_2D('frank', 'mix_gamma', 'mix_gamma', 5, obs=obs, mu=mu, var=var, alpha=alpha, random_seed=seed)
+        print('Creating 4D dataset for {} copula with mixed marginals..'.format(marginal_1))
+        save_dataset_4D(True, marginal=marginal_1, obs_=obs, random_seed=seed)
