@@ -1,7 +1,5 @@
 # CM Flows - Copula Density Estimation With Normalizing Flows
 
-Implementation of [Machine Learning for Causal Discovery with Applications in Economics](https://www.researchgate.net/publication/362174852_Machine_Learning_for_Causal_Discovery_with_Applications_in_Economics).
-
 ## Installation
 
 Create a local environment and install the requirements:
